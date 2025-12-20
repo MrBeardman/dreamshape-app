@@ -9,7 +9,13 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - ✅ View workout history with detailed logs
 - ✅ Auto-fill from previous workout data
 - ✅ Personal record (PR) tracking per exercise
-- ✅ Visual feedback for completed sets
+- ✅ Visual feedback for completed sets (green background)
+- ✅ Exercise database with 60+ pre-loaded exercises
+- ✅ Autocomplete when adding exercises
+- ✅ Workout timer (real-time elapsed time)
+- ✅ Rest timer with countdown and vibration
+- ✅ Exercise management tab - add/delete custom exercises
+- ✅ Responsive design - fullscreen on desktop, optimized for mobile
 - 📊 Progress charts and analytics (coming soon)
 
 ## Tech Stack
@@ -18,6 +24,31 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - Vite
 - localStorage (future: Supabase for cloud sync)
 - Deployed on Vercel
+
+## Setup Instructions
+
+### 1. Clone this repository
+
+```bash
+git clone https://github.com/MrBeardman/dreamshape-app.git
+cd dreamshape
+npm install
+```
+
+### 2. Run locally
+
+```bash
+npm run dev
+```
+
+Visit `http://localhost:5173` to see your app!
+
+### 3. Deploy to Vercel
+
+1. Push your code to GitHub
+2. Go to [vercel.com](https://vercel.com)
+3. Import your repository
+4. Deploy!
 
 ## Roadmap
 
@@ -48,7 +79,6 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - [ ] Cloud sync with Supabase
 - [ ] Dark mode
 - [ ] Workout programs & periodization
-
 
 ---
 
