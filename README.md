@@ -5,24 +5,47 @@ Your personal workout tracking app - Shape your dreams and your physique!
 ## Features
 
 - ✅ Create workout templates with custom exercises
-- 🏋️ Track your workouts (coming soon)
+- ✅ Log workouts with sets, reps, and weight
+- ✅ View workout history with detailed logs
+- ✅ Auto-fill from previous workout data
+- ✅ Personal record (PR) tracking per exercise
+- ✅ Visual feedback for completed sets
 - 📊 Progress charts and analytics (coming soon)
 
 ## Tech Stack
 
 - React + TypeScript
 - Vite
-- Supabase (PostgreSQL database)
+- localStorage (future: Supabase for cloud sync)
 - Deployed on Vercel
 
 ## Roadmap
 
+### Completed ✅
 - [x] Create workout templates
-- [ ] Log workouts with sets, reps, and weight
-- [ ] View workout history
+- [x] Log workouts with sets, reps, and weight
+- [x] View workout history
+- [x] Auto-fill weight/reps from previous workout
+- [x] Personal record (PR) tracking
+- [x] Green background for completed sets
+
+### In Progress 🚧
+- [ ] Edit existing templates
+- [ ] Edit templates during workout (add/remove exercises)
+- [ ] Exercise dropdown with autocomplete
+- [ ] Copy reps from row above
+- [ ] Side scroll optimization on mobile
+
+### Planned 📋
+- [ ] Rest timer between sets
+- [ ] Timer display during workout
+- [ ] Exercise database
 - [ ] Track progress with charts
-- [ ] Exercise library
-- [ ] Rest timer
+- [ ] 1RM calculator and progression tracking
+- [ ] Workout notes
+- [ ] Cloud sync with Supabase
+- [ ] Export workout data
+
 ---
 
 Built with ❤️ by Jan
