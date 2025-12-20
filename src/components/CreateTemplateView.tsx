@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Exercise } from '../types'
+import type { Exercise } from '../types'
 
 interface ExerciseDbEntry {
   name: string

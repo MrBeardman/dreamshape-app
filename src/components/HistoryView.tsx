@@ -1,4 +1,4 @@
-import { WorkoutLog } from '../types'
+import type { WorkoutLog } from '../types'
 
 interface HistoryViewProps {
   workoutLogs: WorkoutLog[]
