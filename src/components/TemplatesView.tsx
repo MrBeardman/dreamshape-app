@@ -1,4 +1,4 @@
-import { WorkoutTemplate } from '../types'
+import type { WorkoutTemplate } from '../types'
 
 interface TemplatesViewProps {
   templates: WorkoutTemplate[]
