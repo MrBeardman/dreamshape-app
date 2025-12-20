@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import './App.css'
 
 interface Exercise {
@@ -14,12 +14,32 @@ interface WorkoutTemplate {
   exercises: Exercise[]
 }
 
+const STORAGE_KEY = 'dreamshape_templates'
+
 function App() {
-  const [templates, setTemplates] = useState<WorkoutTemplate[]>([])
+  // Load templates from localStorage on first render
+  const [templates, setTemplates] = useState<WorkoutTemplate[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        console.error('Failed to load templates:', e)
+        return []
+      }
+    }
+    return []
+  })
+  
   const [isCreating, setIsCreating] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newExerciseName, setNewExerciseName] = useState('')
   const [currentExercises, setCurrentExercises] = useState<Exercise[]>([])
+
+  // Save templates to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
+  }, [templates])
 
   const addExercise = () => {
     if (!newExerciseName.trim()) return
@@ -54,6 +74,12 @@ function App() {
     setIsCreating(false)
   }
 
+  const deleteTemplate = (id: string) => {
+    if (confirm('Delete this template?')) {
+      setTemplates(templates.filter(t => t.id !== id))
+    }
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -75,10 +101,21 @@ function App() {
           <div className="templates-list">
             {templates.map(template => (
               <div key={template.id} className="template-card">
-                <h3>{template.name}</h3>
-                <p className="exercise-count">
-                  {template.exercises.length} exercise{template.exercises.length !== 1 ? 's' : ''}
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                  <div style={{ flex: 1 }}>
+                    <h3>{template.name}</h3>
+                    <p className="exercise-count">
+                      {template.exercises.length} exercise{template.exercises.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => deleteTemplate(template.id)}
+                    className="btn-remove"
+                    style={{ marginTop: '0.25rem' }}
+                  >
+                    ×
+                  </button>
+                </div>
                 <div className="exercise-preview">
                   {template.exercises.slice(0, 3).map(ex => (
                     <span key={ex.id} className="exercise-tag">{ex.name}</span>
