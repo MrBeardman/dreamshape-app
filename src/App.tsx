@@ -37,6 +37,73 @@ interface WorkoutLog {
 
 const STORAGE_KEY = 'dreamshape_templates'
 const WORKOUTS_KEY = 'dreamshape_workouts'
+const EXERCISES_KEY = 'dreamshape_exercises'
+
+// Default exercise database
+const DEFAULT_EXERCISES = [
+  // Chest
+  { name: 'Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
+  { name: 'Incline Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
+  { name: 'Decline Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
+  { name: 'Bench Press (Dumbbell)', muscleGroup: 'Chest', equipment: 'Dumbbell' },
+  { name: 'Incline Bench Press (Dumbbell)', muscleGroup: 'Chest', equipment: 'Dumbbell' },
+  { name: 'Chest Fly (Dumbbell)', muscleGroup: 'Chest', equipment: 'Dumbbell' },
+  { name: 'Chest Fly (Cable)', muscleGroup: 'Chest', equipment: 'Cable' },
+  { name: 'Chest Press (Machine)', muscleGroup: 'Chest', equipment: 'Machine' },
+  { name: 'Dips (Chest)', muscleGroup: 'Chest', equipment: 'Bodyweight' },
+  { name: 'Push-ups', muscleGroup: 'Chest', equipment: 'Bodyweight' },
+  
+  // Back
+  { name: 'Deadlift (Barbell)', muscleGroup: 'Back', equipment: 'Barbell' },
+  { name: 'Romanian Deadlift (Barbell)', muscleGroup: 'Back', equipment: 'Barbell' },
+  { name: 'Bent Over Row (Barbell)', muscleGroup: 'Back', equipment: 'Barbell' },
+  { name: 'Bent Over Row (Dumbbell)', muscleGroup: 'Back', equipment: 'Dumbbell' },
+  { name: 'T-Bar Row', muscleGroup: 'Back', equipment: 'Barbell' },
+  { name: 'Lat Pulldown (Cable)', muscleGroup: 'Back', equipment: 'Cable' },
+  { name: 'Seated Row (Cable)', muscleGroup: 'Back', equipment: 'Cable' },
+  { name: 'Pull-ups', muscleGroup: 'Back', equipment: 'Bodyweight' },
+  { name: 'Chin-ups', muscleGroup: 'Back', equipment: 'Bodyweight' },
+  
+  // Shoulders
+  { name: 'Overhead Press (Barbell)', muscleGroup: 'Shoulders', equipment: 'Barbell' },
+  { name: 'Overhead Press (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
+  { name: 'Lateral Raise (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
+  { name: 'Front Raise (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
+  { name: 'Rear Delt Fly (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
+  { name: 'Face Pulls (Cable)', muscleGroup: 'Shoulders', equipment: 'Cable' },
+  { name: 'Shrugs (Barbell)', muscleGroup: 'Shoulders', equipment: 'Barbell' },
+  { name: 'Shrugs (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
+  
+  // Arms
+  { name: 'Bicep Curl (Barbell)', muscleGroup: 'Arms', equipment: 'Barbell' },
+  { name: 'Bicep Curl (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
+  { name: 'Hammer Curl (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
+  { name: 'Preacher Curl (Barbell)', muscleGroup: 'Arms', equipment: 'Barbell' },
+  { name: 'Cable Curl', muscleGroup: 'Arms', equipment: 'Cable' },
+  { name: 'Tricep Extension (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
+  { name: 'Tricep Pushdown (Cable)', muscleGroup: 'Arms', equipment: 'Cable' },
+  { name: 'Skullcrusher (Barbell)', muscleGroup: 'Arms', equipment: 'Barbell' },
+  { name: 'Close Grip Bench Press', muscleGroup: 'Arms', equipment: 'Barbell' },
+  { name: 'Dips (Triceps)', muscleGroup: 'Arms', equipment: 'Bodyweight' },
+  
+  // Legs
+  { name: 'Squat (Barbell)', muscleGroup: 'Legs', equipment: 'Barbell' },
+  { name: 'Front Squat (Barbell)', muscleGroup: 'Legs', equipment: 'Barbell' },
+  { name: 'Leg Press (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
+  { name: 'Leg Extension (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
+  { name: 'Leg Curl (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
+  { name: 'Lunges (Dumbbell)', muscleGroup: 'Legs', equipment: 'Dumbbell' },
+  { name: 'Bulgarian Split Squat', muscleGroup: 'Legs', equipment: 'Dumbbell' },
+  { name: 'Calf Raise (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
+  { name: 'Hip Thrust (Barbell)', muscleGroup: 'Legs', equipment: 'Barbell' },
+  
+  // Core
+  { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  { name: 'Crunches', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  { name: 'Russian Twists', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  { name: 'Hanging Leg Raise', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  { name: 'Cable Crunch', muscleGroup: 'Core', equipment: 'Cable' },
+]
 
 function App() {
   // Load templates from localStorage on first render
@@ -66,11 +133,27 @@ function App() {
     }
     return []
   })
+
+  // Load/initialize exercise database
+  const [exerciseDatabase, setExerciseDatabase] = useState<Array<{name: string, muscleGroup: string, equipment: string}>>(() => {
+    const saved = localStorage.getItem(EXERCISES_KEY)
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        console.error('Failed to load exercises:', e)
+        return DEFAULT_EXERCISES
+      }
+    }
+    return DEFAULT_EXERCISES
+  })
   
   const [isCreating, setIsCreating] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newExerciseName, setNewExerciseName] = useState('')
   const [currentExercises, setCurrentExercises] = useState<Exercise[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [filteredSuggestions, setFilteredSuggestions] = useState<Array<{name: string, muscleGroup: string, equipment: string}>>([])
   
   // View state
   const [currentView, setCurrentView] = useState<'templates' | 'history'>('templates')
@@ -82,6 +165,46 @@ function App() {
     exercises: ExerciseLog[]
     startTime: number
   } | null>(null)
+  
+  // Timer states
+  const [elapsedTime, setElapsedTime] = useState(0)
+  const [restTimer, setRestTimer] = useState<number | null>(null)
+  const [restDuration, setRestDuration] = useState(120) // Default 2 minutes
+
+  // Workout timer - updates every second
+  useEffect(() => {
+    if (!activeWorkout) {
+      setElapsedTime(0)
+      return
+    }
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - activeWorkout.startTime) / 1000)
+      setElapsedTime(elapsed)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [activeWorkout])
+
+  // Rest timer countdown
+  useEffect(() => {
+    if (restTimer === null || restTimer <= 0) {
+      if (restTimer === 0) {
+        // Timer finished - play sound/vibrate
+        if (navigator.vibrate) {
+          navigator.vibrate([200, 100, 200])
+        }
+        setRestTimer(null)
+      }
+      return
+    }
+
+    const interval = setInterval(() => {
+      setRestTimer(prev => prev !== null ? prev - 1 : null)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [restTimer])
 
   // Save templates to localStorage whenever they change
   useEffect(() => {
@@ -93,6 +216,42 @@ function App() {
     localStorage.setItem(WORKOUTS_KEY, JSON.stringify(workoutLogs))
   }, [workoutLogs])
 
+  // Save exercise database to localStorage
+  useEffect(() => {
+    localStorage.setItem(EXERCISES_KEY, JSON.stringify(exerciseDatabase))
+  }, [exerciseDatabase])
+
+  // Handle exercise input change and filter suggestions
+  const handleExerciseInputChange = (value: string) => {
+    setNewExerciseName(value)
+    
+    if (value.trim().length > 0) {
+      const filtered = exerciseDatabase.filter(ex =>
+        ex.name.toLowerCase().includes(value.toLowerCase())
+      ).slice(0, 8) // Limit to 8 suggestions
+      
+      setFilteredSuggestions(filtered)
+      setShowSuggestions(true)
+    } else {
+      setShowSuggestions(false)
+      setFilteredSuggestions([])
+    }
+  }
+
+  const selectExerciseFromSuggestion = (exerciseName: string, muscleGroup: string, equipment: string) => {
+    const exercise: Exercise = {
+      id: Date.now().toString(),
+      name: exerciseName,
+      equipment: equipment,
+      muscleGroup: muscleGroup
+    }
+    
+    setCurrentExercises([...currentExercises, exercise])
+    setNewExerciseName('')
+    setShowSuggestions(false)
+    setFilteredSuggestions([])
+  }
+
   const addExercise = () => {
     if (!newExerciseName.trim()) return
     
@@ -100,11 +259,26 @@ function App() {
       id: Date.now().toString(),
       name: newExerciseName,
       equipment: 'Barbell', // Default for now
-      muscleGroup: 'Chest' // Default for now
+      muscleGroup: 'Other' // Default for now
+    }
+    
+    // Add to exercise database if it doesn't exist
+    const existsInDb = exerciseDatabase.some(ex => 
+      ex.name.toLowerCase() === newExerciseName.toLowerCase()
+    )
+    
+    if (!existsInDb) {
+      setExerciseDatabase([...exerciseDatabase, {
+        name: newExerciseName,
+        muscleGroup: exercise.muscleGroup,
+        equipment: exercise.equipment
+      }])
     }
     
     setCurrentExercises([...currentExercises, exercise])
     setNewExerciseName('')
+    setShowSuggestions(false)
+    setFilteredSuggestions([])
   }
 
   const removeExercise = (id: string) => {
@@ -211,13 +385,19 @@ function App() {
     if (!activeWorkout) return
 
     const updatedExercises = [...activeWorkout.exercises]
-    updatedExercises[exerciseIndex].sets[setIndex].completed = 
-      !updatedExercises[exerciseIndex].sets[setIndex].completed
+    const isCompleting = !updatedExercises[exerciseIndex].sets[setIndex].completed
+    
+    updatedExercises[exerciseIndex].sets[setIndex].completed = isCompleting
     
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
     })
+    
+    // Start rest timer when completing a set
+    if (isCompleting) {
+      setRestTimer(restDuration)
+    }
   }
 
   const addSet = (exerciseIndex: number) => {
@@ -313,6 +493,18 @@ function App() {
     return `${hours}h ${remainingMins}m`
   }
 
+  const formatElapsedTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const formatRestTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -331,6 +523,45 @@ function App() {
               Finish
             </button>
           </div>
+
+          {/* Workout Timer */}
+          <div className="workout-timer">
+            <div>
+              <span className="timer-label">Workout Duration</span>
+              <span className="timer-value">{formatElapsedTime(elapsedTime)}</span>
+            </div>
+            <div className="rest-settings">
+              <label className="rest-label-small">Rest: </label>
+              <select 
+                className="rest-select"
+                value={restDuration}
+                onChange={(e) => setRestDuration(Number(e.target.value))}
+              >
+                <option value={60}>1:00</option>
+                <option value={90}>1:30</option>
+                <option value={120}>2:00</option>
+                <option value={180}>3:00</option>
+                <option value={240}>4:00</option>
+                <option value={300}>5:00</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Rest Timer Overlay */}
+          {restTimer !== null && restTimer > 0 && (
+            <div className="rest-timer-overlay">
+              <div className="rest-timer-content">
+                <span className="rest-label">Rest Time</span>
+                <span className="rest-time">{formatRestTime(restTimer)}</span>
+                <button 
+                  className="skip-rest-btn"
+                  onClick={() => setRestTimer(null)}
+                >
+                  Skip Rest
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="workout-exercises">
             {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => {
@@ -607,14 +838,38 @@ function App() {
             <h3>Exercises ({currentExercises.length})</h3>
             
             <div className="add-exercise">
-              <input
-                type="text"
-                placeholder="Add exercise (e.g., Bench Press)"
-                value={newExerciseName}
-                onChange={(e) => setNewExerciseName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addExercise()}
-                className="input"
-              />
+              <div className="exercise-input-container">
+                <input
+                  type="text"
+                  placeholder="Add exercise (e.g., Bench Press)"
+                  value={newExerciseName}
+                  onChange={(e) => handleExerciseInputChange(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addExercise()}
+                  onFocus={() => newExerciseName && setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  className="input"
+                />
+                {showSuggestions && filteredSuggestions.length > 0 && (
+                  <div className="suggestions-dropdown">
+                    {filteredSuggestions.map((suggestion, idx) => (
+                      <div
+                        key={idx}
+                        className="suggestion-item"
+                        onClick={() => selectExerciseFromSuggestion(
+                          suggestion.name,
+                          suggestion.muscleGroup,
+                          suggestion.equipment
+                        )}
+                      >
+                        <span className="suggestion-name">{suggestion.name}</span>
+                        <span className="suggestion-meta">
+                          {suggestion.muscleGroup} • {suggestion.equipment}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button onClick={addExercise} className="btn-add">+</button>
             </div>
 

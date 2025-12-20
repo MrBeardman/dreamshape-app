@@ -190,10 +190,61 @@ body {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
+  position: relative;
+}
+
+.exercise-input-container {
+  flex: 1;
+  position: relative;
 }
 
 .add-exercise .input {
   flex: 1;
+  width: 100%;
+}
+
+.suggestions-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  margin-top: 0.25rem;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+}
+
+.suggestion-item {
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #f3f4f6;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.suggestion-item:hover {
+  background: #f3f4f6;
+}
+
+.suggestion-name {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+}
+
+.suggestion-meta {
+  font-size: 0.75rem;
+  color: #6b7280;
 }
 
 .btn-add {
@@ -324,6 +375,140 @@ body {
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* Workout Timer */
+.workout-timer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.workout-timer > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.timer-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.timer-value {
+  font-size: 1.5rem;
+  color: #1a1a1a;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rest-settings {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rest-label-small {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.rest-select {
+  padding: 0.5rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  background: white;
+  cursor: pointer;
+  color: #1a1a1a;
+}
+
+.rest-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Rest Timer Overlay */
+.rest-timer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rest-timer-content {
+  background: white;
+  border-radius: 24px;
+  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 90%;
+}
+
+.rest-label {
+  font-size: 1rem;
+  color: #6b7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rest-time {
+  font-size: 5rem;
+  color: #3b82f6;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.skip-rest-btn {
+  margin-top: 1rem;
+  padding: 1rem 2rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.skip-rest-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+}
+
+.skip-rest-btn:active {
+  transform: translateY(0);
 }
 
 .workout-exercises {
