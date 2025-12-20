@@ -341,8 +341,24 @@ body {
 
 .exercise-title {
   font-size: 1.1rem;
-  margin-bottom: 1rem;
   color: #1a1a1a;
+}
+
+.exercise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.pr-badge {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .sets-header {
@@ -378,6 +394,12 @@ body {
   margin-bottom: 0.5rem;
   border-radius: 8px;
   background: #f9fafb;
+  transition: background-color 0.3s ease;
+}
+
+.set-row.completed {
+  background: #d1fae5;
+  border: 1px solid #10b981;
 }
 
 .set-number {

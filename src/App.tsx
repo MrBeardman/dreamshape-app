@@ -132,14 +132,61 @@ function App() {
     }
   }
 
+  // Get the last workout for a specific template and exercise
+  const getLastWorkoutData = (templateName: string, exerciseName: string) => {
+    const lastWorkout = workoutLogs.find(w => w.templateName === templateName)
+    if (!lastWorkout) return null
+
+    const exercise = lastWorkout.exercises.find(e => e.exerciseName === exerciseName)
+    return exercise || null
+  }
+
+  // Get personal record (highest weight) for an exercise
+  const getPersonalRecord = (exerciseName: string): number => {
+    let maxWeight = 0
+    
+    workoutLogs.forEach(workout => {
+      const exercise = workout.exercises.find(e => e.exerciseName === exerciseName)
+      if (exercise) {
+        exercise.sets.forEach(set => {
+          if (set.weight > maxWeight) {
+            maxWeight = set.weight
+          }
+        })
+      }
+    })
+    
+    return maxWeight
+  }
+
   const startWorkout = (template: WorkoutTemplate) => {
-    const exerciseLogs: ExerciseLog[] = template.exercises.map(ex => ({
-      exerciseId: ex.id,
-      exerciseName: ex.name,
-      sets: [
-        { id: '1', weight: 0, reps: 0, completed: false }
-      ]
-    }))
+    const exerciseLogs: ExerciseLog[] = template.exercises.map(ex => {
+      // Try to get data from last workout
+      const lastData = getLastWorkoutData(template.name, ex.name)
+      
+      if (lastData && lastData.sets.length > 0) {
+        // Pre-fill with last workout's sets
+        return {
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          sets: lastData.sets.map((set, idx) => ({
+            id: (idx + 1).toString(),
+            weight: set.weight,
+            reps: set.reps,
+            completed: false
+          }))
+        }
+      } else {
+        // No previous data, start fresh
+        return {
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          sets: [
+            { id: '1', weight: 0, reps: 0, completed: false }
+          ]
+        }
+      }
+    })
 
     setActiveWorkout({
       templateName: template.name,
@@ -286,63 +333,72 @@ function App() {
           </div>
 
           <div className="workout-exercises">
-            {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => (
-              <div key={exerciseLog.exerciseId} className="workout-exercise">
-                <h3 className="exercise-title">{exerciseLog.exerciseName}</h3>
-                
-                <div className="sets-header">
-                  <span className="set-col">Set</span>
-                  <span className="kg-col">kg</span>
-                  <span className="reps-col">Reps</span>
-                  <span className="check-col">✓</span>
-                </div>
-
-                {exerciseLog.sets.map((set, setIndex) => (
-                  <div key={set.id} className="set-row">
-                    <span className="set-number">{setIndex + 1}</span>
-                    
-                    <input
-                      type="number"
-                      className="set-input"
-                      value={set.weight || ''}
-                      onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
-                      placeholder="0"
-                    />
-                    
-                    <input
-                      type="number"
-                      className="set-input"
-                      value={set.reps || ''}
-                      onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
-                      placeholder="0"
-                    />
-                    
-                    <button
-                      className={`check-btn ${set.completed ? 'completed' : ''}`}
-                      onClick={() => toggleSetCompleted(exerciseIndex, setIndex)}
-                    >
-                      {set.completed ? '✓' : ''}
-                    </button>
-
-                    {exerciseLog.sets.length > 1 && (
-                      <button
-                        className="remove-set-btn"
-                        onClick={() => removeSet(exerciseIndex, setIndex)}
-                      >
-                        ×
-                      </button>
+            {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => {
+              const pr = getPersonalRecord(exerciseLog.exerciseName)
+              
+              return (
+                <div key={exerciseLog.exerciseId} className="workout-exercise">
+                  <div className="exercise-header">
+                    <h3 className="exercise-title">{exerciseLog.exerciseName}</h3>
+                    {pr > 0 && (
+                      <span className="pr-badge">PR: {pr} kg</span>
                     )}
                   </div>
-                ))}
+                  
+                  <div className="sets-header">
+                    <span className="set-col">Set</span>
+                    <span className="kg-col">kg</span>
+                    <span className="reps-col">Reps</span>
+                    <span className="check-col">✓</span>
+                  </div>
 
-                <button
-                  className="add-set-btn"
-                  onClick={() => addSet(exerciseIndex)}
-                >
-                  + Add Set
-                </button>
-              </div>
-            ))}
+                  {exerciseLog.sets.map((set, setIndex) => (
+                    <div key={set.id} className={`set-row ${set.completed ? 'completed' : ''}`}>
+                      <span className="set-number">{setIndex + 1}</span>
+                      
+                      <input
+                        type="number"
+                        className="set-input"
+                        value={set.weight || ''}
+                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
+                        placeholder="0"
+                      />
+                      
+                      <input
+                        type="number"
+                        className="set-input"
+                        value={set.reps || ''}
+                        onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                        placeholder="0"
+                      />
+                      
+                      <button
+                        className={`check-btn ${set.completed ? 'completed' : ''}`}
+                        onClick={() => toggleSetCompleted(exerciseIndex, setIndex)}
+                      >
+                        {set.completed ? '✓' : ''}
+                      </button>
+
+                      {exerciseLog.sets.length > 1 && (
+                        <button
+                          className="remove-set-btn"
+                          onClick={() => removeSet(exerciseIndex, setIndex)}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+
+                  <button
+                    className="add-set-btn"
+                    onClick={() => addSet(exerciseIndex)}
+                  >
+                    + Add Set
+                  </button>
+                </div>
+              )
+            })}
           </div>
 
           <div className="workout-footer">
