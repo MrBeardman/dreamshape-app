@@ -28,23 +28,27 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - [x] Auto-fill weight/reps from previous workout
 - [x] Personal record (PR) tracking
 - [x] Green background for completed sets
+- [x] Exercise database with 60+ exercises
+- [x] Exercise autocomplete dropdown
+- [x] Workout timer (elapsed time)
+- [x] Rest timer with countdown
+- [x] Exercise management tab
+- [x] Responsive desktop layout
 
 ### In Progress 🚧
 - [ ] Edit existing templates
 - [ ] Edit templates during workout (add/remove exercises)
-- [ ] Exercise dropdown with autocomplete
 - [ ] Copy reps from row above
-- [ ] Side scroll optimization on mobile
 
 ### Planned 📋
-- [ ] Rest timer between sets
-- [ ] Timer display during workout
-- [ ] Exercise database
-- [ ] Track progress with charts
-- [ ] 1RM calculator and progression tracking
+- [ ] Track progress with charts (1RM, volume, frequency)
 - [ ] Workout notes
-- [ ] Cloud sync with Supabase
+- [ ] Custom rest times per exercise
 - [ ] Export workout data
+- [ ] Cloud sync with Supabase
+- [ ] Dark mode
+- [ ] Workout programs & periodization
+
 
 ---
 

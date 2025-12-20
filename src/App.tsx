@@ -155,8 +155,15 @@ function App() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredSuggestions, setFilteredSuggestions] = useState<Array<{name: string, muscleGroup: string, equipment: string}>>([])
   
+  // Exercise creation in Exercises tab
+  const [isCreatingExercise, setIsCreatingExercise] = useState(false)
+  const [newExerciseForDb, setNewExerciseForDb] = useState({
+    name: '',
+    muscleGroup: 'Chest',
+    equipment: 'Barbell'
+  })
   // View state
-  const [currentView, setCurrentView] = useState<'templates' | 'history'>('templates')
+  const [currentView, setCurrentView] = useState<'templates' | 'history' | 'exercises'>('templates')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
   
   // Workout logging state
@@ -465,6 +472,34 @@ function App() {
     }
   }
 
+  const addExerciseToDatabase = () => {
+    if (!newExerciseForDb.name.trim()) return
+
+    const exists = exerciseDatabase.some(ex => 
+      ex.name.toLowerCase() === newExerciseForDb.name.toLowerCase()
+    )
+
+    if (exists) {
+      alert('Exercise already exists in database!')
+      return
+    }
+
+    setExerciseDatabase([...exerciseDatabase, {
+      name: newExerciseForDb.name,
+      muscleGroup: newExerciseForDb.muscleGroup,
+      equipment: newExerciseForDb.equipment
+    }])
+
+    setNewExerciseForDb({ name: '', muscleGroup: 'Chest', equipment: 'Barbell' })
+    setIsCreatingExercise(false)
+  }
+
+  const deleteExerciseFromDatabase = (exerciseName: string) => {
+    if (confirm(`Delete "${exerciseName}" from database?`)) {
+      setExerciseDatabase(exerciseDatabase.filter(ex => ex.name !== exerciseName))
+    }
+  }
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const today = new Date()
@@ -709,6 +744,12 @@ function App() {
             >
               History ({workoutLogs.length})
             </button>
+            <button
+              className={`nav-tab ${currentView === 'exercises' ? 'active' : ''}`}
+              onClick={() => setCurrentView('exercises')}
+            >
+              Exercises ({exerciseDatabase.length})
+            </button>
           </div>
 
           {currentView === 'templates' ? (
@@ -804,6 +845,115 @@ function App() {
                   ))}
                 </div>
               )}
+            </div>
+          ) : (
+            // EXERCISES VIEW
+            <div className="main-view">
+              <div className="quick-start">
+                <h2>Exercise Database ({exerciseDatabase.length})</h2>
+                <button 
+                  className="btn-primary"
+                  onClick={() => setIsCreatingExercise(true)}
+                >
+                  + Add Exercise
+                </button>
+              </div>
+
+              {isCreatingExercise && (
+                <div className="exercise-form-card">
+                  <h3>New Exercise</h3>
+                  <div className="form-group">
+                    <label>Exercise Name</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Bench Press (Barbell)"
+                      value={newExerciseForDb.name}
+                      onChange={(e) => setNewExerciseForDb({...newExerciseForDb, name: e.target.value})}
+                      className="input"
+                    />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Muscle Group</label>
+                      <select
+                        value={newExerciseForDb.muscleGroup}
+                        onChange={(e) => setNewExerciseForDb({...newExerciseForDb, muscleGroup: e.target.value})}
+                        className="input"
+                      >
+                        <option value="Chest">Chest</option>
+                        <option value="Back">Back</option>
+                        <option value="Shoulders">Shoulders</option>
+                        <option value="Arms">Arms</option>
+                        <option value="Legs">Legs</option>
+                        <option value="Core">Core</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Equipment</label>
+                      <select
+                        value={newExerciseForDb.equipment}
+                        onChange={(e) => setNewExerciseForDb({...newExerciseForDb, equipment: e.target.value})}
+                        className="input"
+                      >
+                        <option value="Barbell">Barbell</option>
+                        <option value="Dumbbell">Dumbbell</option>
+                        <option value="Cable">Cable</option>
+                        <option value="Machine">Machine</option>
+                        <option value="Bodyweight">Bodyweight</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="form-actions">
+                    <button 
+                      className="btn-cancel"
+                      onClick={() => {
+                        setIsCreatingExercise(false)
+                        setNewExerciseForDb({ name: '', muscleGroup: 'Chest', equipment: 'Barbell' })
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      className="btn-save"
+                      onClick={addExerciseToDatabase}
+                      disabled={!newExerciseForDb.name.trim()}
+                    >
+                      Save Exercise
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="exercises-grid">
+                {['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other'].map(muscleGroup => {
+                  const exercises = exerciseDatabase.filter(ex => ex.muscleGroup === muscleGroup)
+                  if (exercises.length === 0) return null
+
+                  return (
+                    <div key={muscleGroup} className="muscle-group-section">
+                      <h3 className="muscle-group-title">{muscleGroup} ({exercises.length})</h3>
+                      <div className="exercise-cards">
+                        {exercises.map((exercise, idx) => (
+                          <div key={idx} className="exercise-card">
+                            <div className="exercise-card-header">
+                              <span className="exercise-card-name">{exercise.name}</span>
+                              <button 
+                                className="btn-remove-small"
+                                onClick={() => deleteExerciseFromDatabase(exercise.name)}
+                              >
+                                ×
+                              </button>
+                            </div>
+                            <span className="exercise-card-equipment">{exercise.equipment}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </>
