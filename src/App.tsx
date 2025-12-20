@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, Set } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog } from './types'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
 import TemplatesView from './components/TemplatesView'

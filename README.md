@@ -25,31 +25,6 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - localStorage (future: Supabase for cloud sync)
 - Deployed on Vercel
 
-## Setup Instructions
-
-### 1. Clone this repository
-
-```bash
-git clone https://github.com/MrBeardman/dreamshape-app.git
-cd dreamshape
-npm install
-```
-
-### 2. Run locally
-
-```bash
-npm run dev
-```
-
-Visit `http://localhost:5173` to see your app!
-
-### 3. Deploy to Vercel
-
-1. Push your code to GitHub
-2. Go to [vercel.com](https://vercel.com)
-3. Import your repository
-4. Deploy!
-
 ## Roadmap
 
 ### Completed ✅
