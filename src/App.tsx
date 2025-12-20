@@ -14,7 +14,29 @@ interface WorkoutTemplate {
   exercises: Exercise[]
 }
 
+interface Set {
+  id: string
+  weight: number
+  reps: number
+  completed: boolean
+}
+
+interface ExerciseLog {
+  exerciseId: string
+  exerciseName: string
+  sets: Set[]
+}
+
+interface WorkoutLog {
+  id: string
+  templateName: string
+  date: string
+  exercises: ExerciseLog[]
+  duration: number // in seconds
+}
+
 const STORAGE_KEY = 'dreamshape_templates'
+const WORKOUTS_KEY = 'dreamshape_workouts'
 
 function App() {
   // Load templates from localStorage on first render
@@ -30,16 +52,42 @@ function App() {
     }
     return []
   })
+
+  // Load workout logs
+  const [workoutLogs, setWorkoutLogs] = useState<WorkoutLog[]>(() => {
+    const saved = localStorage.getItem(WORKOUTS_KEY)
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        console.error('Failed to load workouts:', e)
+        return []
+      }
+    }
+    return []
+  })
   
   const [isCreating, setIsCreating] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [newExerciseName, setNewExerciseName] = useState('')
   const [currentExercises, setCurrentExercises] = useState<Exercise[]>([])
+  
+  // Workout logging state
+  const [activeWorkout, setActiveWorkout] = useState<{
+    templateName: string
+    exercises: ExerciseLog[]
+    startTime: number
+  } | null>(null)
 
   // Save templates to localStorage whenever they change
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
   }, [templates])
+
+  // Save workout logs to localStorage
+  useEffect(() => {
+    localStorage.setItem(WORKOUTS_KEY, JSON.stringify(workoutLogs))
+  }, [workoutLogs])
 
   const addExercise = () => {
     if (!newExerciseName.trim()) return
@@ -80,13 +128,189 @@ function App() {
     }
   }
 
+  const startWorkout = (template: WorkoutTemplate) => {
+    const exerciseLogs: ExerciseLog[] = template.exercises.map(ex => ({
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      sets: [
+        { id: '1', weight: 0, reps: 0, completed: false }
+      ]
+    }))
+
+    setActiveWorkout({
+      templateName: template.name,
+      exercises: exerciseLogs,
+      startTime: Date.now()
+    })
+  }
+
+  const updateSet = (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    updatedExercises[exerciseIndex].sets[setIndex][field] = value
+    
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+  }
+
+  const toggleSetCompleted = (exerciseIndex: number, setIndex: number) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    updatedExercises[exerciseIndex].sets[setIndex].completed = 
+      !updatedExercises[exerciseIndex].sets[setIndex].completed
+    
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+  }
+
+  const addSet = (exerciseIndex: number) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    const lastSet = updatedExercises[exerciseIndex].sets[updatedExercises[exerciseIndex].sets.length - 1]
+    
+    updatedExercises[exerciseIndex].sets.push({
+      id: Date.now().toString(),
+      weight: lastSet?.weight || 0,
+      reps: lastSet?.reps || 0,
+      completed: false
+    })
+    
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+  }
+
+  const removeSet = (exerciseIndex: number, setIndex: number) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    if (updatedExercises[exerciseIndex].sets.length > 1) {
+      updatedExercises[exerciseIndex].sets.splice(setIndex, 1)
+      
+      setActiveWorkout({
+        ...activeWorkout,
+        exercises: updatedExercises
+      })
+    }
+  }
+
+  const finishWorkout = () => {
+    if (!activeWorkout) return
+
+    const duration = Math.floor((Date.now() - activeWorkout.startTime) / 1000)
+    
+    const workoutLog: WorkoutLog = {
+      id: Date.now().toString(),
+      templateName: activeWorkout.templateName,
+      date: new Date().toISOString(),
+      exercises: activeWorkout.exercises,
+      duration
+    }
+
+    setWorkoutLogs([workoutLog, ...workoutLogs])
+    setActiveWorkout(null)
+  }
+
+  const cancelWorkout = () => {
+    if (confirm('Cancel this workout? All progress will be lost.')) {
+      setActiveWorkout(null)
+    }
+  }
+
   return (
     <div className="app">
       <header className="header">
         <h1 className="logo">💪 DreamShape</h1>
       </header>
 
-      {!isCreating ? (
+      {activeWorkout ? (
+        // WORKOUT LOGGING VIEW
+        <div className="workout-view">
+          <div className="workout-header">
+            <button className="btn-back" onClick={cancelWorkout}>
+              ✕ Cancel
+            </button>
+            <h2>{activeWorkout.templateName}</h2>
+            <button className="btn-finish" onClick={finishWorkout}>
+              Finish
+            </button>
+          </div>
+
+          <div className="workout-exercises">
+            {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => (
+              <div key={exerciseLog.exerciseId} className="workout-exercise">
+                <h3 className="exercise-title">{exerciseLog.exerciseName}</h3>
+                
+                <div className="sets-header">
+                  <span className="set-col">Set</span>
+                  <span className="kg-col">kg</span>
+                  <span className="reps-col">Reps</span>
+                  <span className="check-col">✓</span>
+                </div>
+
+                {exerciseLog.sets.map((set, setIndex) => (
+                  <div key={set.id} className="set-row">
+                    <span className="set-number">{setIndex + 1}</span>
+                    
+                    <input
+                      type="number"
+                      className="set-input"
+                      value={set.weight || ''}
+                      onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
+                      placeholder="0"
+                    />
+                    
+                    <input
+                      type="number"
+                      className="set-input"
+                      value={set.reps || ''}
+                      onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                      placeholder="0"
+                    />
+                    
+                    <button
+                      className={`check-btn ${set.completed ? 'completed' : ''}`}
+                      onClick={() => toggleSetCompleted(exerciseIndex, setIndex)}
+                    >
+                      {set.completed ? '✓' : ''}
+                    </button>
+
+                    {exerciseLog.sets.length > 1 && (
+                      <button
+                        className="remove-set-btn"
+                        onClick={() => removeSet(exerciseIndex, setIndex)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                <button
+                  className="add-set-btn"
+                  onClick={() => addSet(exerciseIndex)}
+                >
+                  + Add Set
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <div className="workout-footer">
+            <button className="btn-finish-large" onClick={finishWorkout}>
+              Finish Workout
+            </button>
+          </div>
+        </div>
+      ) : !isCreating ? (
         <div className="main-view">
           <div className="quick-start">
             <h2>My Templates ({templates.length})</h2>
@@ -124,6 +348,12 @@ function App() {
                     <span className="exercise-tag">+{template.exercises.length - 3} more</span>
                   )}
                 </div>
+                <button
+                  className="btn-start-workout"
+                  onClick={() => startWorkout(template)}
+                >
+                  Start Workout
+                </button>
               </div>
             ))}
           </div>
