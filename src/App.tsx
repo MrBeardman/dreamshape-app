@@ -72,6 +72,10 @@ function App() {
   const [newExerciseName, setNewExerciseName] = useState('')
   const [currentExercises, setCurrentExercises] = useState<Exercise[]>([])
   
+  // View state
+  const [currentView, setCurrentView] = useState<'templates' | 'history'>('templates')
+  const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
+  
   // Workout logging state
   const [activeWorkout, setActiveWorkout] = useState<{
     templateName: string
@@ -225,6 +229,43 @@ function App() {
     }
   }
 
+  const deleteWorkout = (id: string) => {
+    if (confirm('Delete this workout?')) {
+      setWorkoutLogs(workoutLogs.filter(w => w.id !== id))
+      if (selectedWorkout?.id === id) {
+        setSelectedWorkout(null)
+      }
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const today = new Date()
+    const yesterday = new Date(today)
+    yesterday.setDate(yesterday.getDate() - 1)
+    
+    const isToday = date.toDateString() === today.toDateString()
+    const isYesterday = date.toDateString() === yesterday.toDateString()
+    
+    if (isToday) return 'Today'
+    if (isYesterday) return 'Yesterday'
+    
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  }
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    if (mins < 60) return `${mins}m`
+    const hours = Math.floor(mins / 60)
+    const remainingMins = mins % 60
+    return `${hours}h ${remainingMins}m`
+  }
+
   return (
     <div className="app">
       <header className="header">
@@ -310,61 +351,175 @@ function App() {
             </button>
           </div>
         </div>
-      ) : !isCreating ? (
-        <div className="main-view">
-          <div className="quick-start">
-            <h2>My Templates ({templates.length})</h2>
+      ) : selectedWorkout ? (
+        // WORKOUT DETAIL VIEW
+        <div className="workout-detail-view">
+          <div className="workout-detail-header">
+            <button className="btn-back" onClick={() => setSelectedWorkout(null)}>
+              ← Back
+            </button>
+            <h2>{selectedWorkout.templateName}</h2>
             <button 
-              className="btn-primary"
-              onClick={() => setIsCreating(true)}
+              className="btn-remove"
+              onClick={() => deleteWorkout(selectedWorkout.id)}
             >
-              + Create Template
+              ×
             </button>
           </div>
 
-          <div className="templates-list">
-            {templates.map(template => (
-              <div key={template.id} className="template-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div style={{ flex: 1 }}>
-                    <h3>{template.name}</h3>
-                    <p className="exercise-count">
-                      {template.exercises.length} exercise{template.exercises.length !== 1 ? 's' : ''}
-                    </p>
+          <div className="workout-meta">
+            <div className="meta-item">
+              <span className="meta-label">Date</span>
+              <span className="meta-value">{formatDate(selectedWorkout.date)}</span>
+            </div>
+            <div className="meta-item">
+              <span className="meta-label">Time</span>
+              <span className="meta-value">{formatTime(selectedWorkout.date)}</span>
+            </div>
+            <div className="meta-item">
+              <span className="meta-label">Duration</span>
+              <span className="meta-value">{formatDuration(selectedWorkout.duration)}</span>
+            </div>
+          </div>
+
+          <div className="workout-exercises">
+            {selectedWorkout.exercises.map((exerciseLog) => (
+              <div key={exerciseLog.exerciseId} className="workout-exercise">
+                <h3 className="exercise-title">{exerciseLog.exerciseName}</h3>
+                
+                <div className="sets-header">
+                  <span className="set-col">Set</span>
+                  <span className="kg-col">kg</span>
+                  <span className="reps-col">Reps</span>
+                  <span className="check-col">✓</span>
+                </div>
+
+                {exerciseLog.sets.map((set, setIndex) => (
+                  <div key={set.id} className="set-row-readonly">
+                    <span className="set-number">{setIndex + 1}</span>
+                    <span className="set-value">{set.weight} kg</span>
+                    <span className="set-value">{set.reps} reps</span>
+                    <span className="set-check">{set.completed ? '✓' : '-'}</span>
                   </div>
-                  <button 
-                    onClick={() => deleteTemplate(template.id)}
-                    className="btn-remove"
-                    style={{ marginTop: '0.25rem' }}
-                  >
-                    ×
-                  </button>
-                </div>
-                <div className="exercise-preview">
-                  {template.exercises.slice(0, 3).map(ex => (
-                    <span key={ex.id} className="exercise-tag">{ex.name}</span>
-                  ))}
-                  {template.exercises.length > 3 && (
-                    <span className="exercise-tag">+{template.exercises.length - 3} more</span>
-                  )}
-                </div>
-                <button
-                  className="btn-start-workout"
-                  onClick={() => startWorkout(template)}
-                >
-                  Start Workout
-                </button>
+                ))}
               </div>
             ))}
           </div>
+        </div>
+      ) : !isCreating ? (
+        <>
+          {/* Navigation Tabs */}
+          <div className="nav-tabs">
+            <button
+              className={`nav-tab ${currentView === 'templates' ? 'active' : ''}`}
+              onClick={() => setCurrentView('templates')}
+            >
+              Templates
+            </button>
+            <button
+              className={`nav-tab ${currentView === 'history' ? 'active' : ''}`}
+              onClick={() => setCurrentView('history')}
+            >
+              History ({workoutLogs.length})
+            </button>
+          </div>
 
-          {templates.length === 0 && (
-            <div className="empty-state">
-              <p>No templates yet</p>
-              <p className="hint">Create your first workout template to get started!</p>
+          {currentView === 'templates' ? (
+            // TEMPLATES VIEW
+            <div className="main-view">
+              <div className="quick-start">
+                <h2>My Templates ({templates.length})</h2>
+                <button 
+                  className="btn-primary"
+                  onClick={() => setIsCreating(true)}
+                >
+                  + Create Template
+                </button>
+              </div>
+
+              <div className="templates-list">
+                {templates.map(template => (
+                  <div key={template.id} className="template-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+                      <div style={{ flex: 1 }}>
+                        <h3>{template.name}</h3>
+                        <p className="exercise-count">
+                          {template.exercises.length} exercise{template.exercises.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => deleteTemplate(template.id)}
+                        className="btn-remove"
+                        style={{ marginTop: '0.25rem' }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="exercise-preview">
+                      {template.exercises.slice(0, 3).map(ex => (
+                        <span key={ex.id} className="exercise-tag">{ex.name}</span>
+                      ))}
+                      {template.exercises.length > 3 && (
+                        <span className="exercise-tag">+{template.exercises.length - 3} more</span>
+                      )}
+                    </div>
+                    <button
+                      className="btn-start-workout"
+                      onClick={() => startWorkout(template)}
+                    >
+                      Start Workout
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {templates.length === 0 && (
+                <div className="empty-state">
+                  <p>No templates yet</p>
+                  <p className="hint">Create your first workout template to get started!</p>
+                </div>
+              )}
+            </div>
+          ) : (
+            // HISTORY VIEW
+            <div className="main-view">
+              <h2 style={{ marginBottom: '1rem' }}>Workout History</h2>
+              
+              {workoutLogs.length === 0 ? (
+                <div className="empty-state">
+                  <p>No workouts logged yet</p>
+                  <p className="hint">Start a workout to begin tracking your progress!</p>
+                </div>
+              ) : (
+                <div className="history-list">
+                  {workoutLogs.map((workout) => (
+                    <div 
+                      key={workout.id} 
+                      className="history-card"
+                      onClick={() => setSelectedWorkout(workout)}
+                    >
+                      <div className="history-header">
+                        <h3>{workout.templateName}</h3>
+                        <span className="history-date">{formatDate(workout.date)}</span>
+                      </div>
+                      <div className="history-details">
+                        <span className="history-detail">
+                          🏋️ {workout.exercises.length} exercises
+                        </span>
+                        <span className="history-detail">
+                          ⏱️ {formatDuration(workout.duration)}
+                        </span>
+                        <span className="history-detail">
+                          🕐 {formatTime(workout.date)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </>
       ) : (
         <div className="create-view">
           <div className="create-header">
