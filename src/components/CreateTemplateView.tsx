@@ -26,22 +26,32 @@ export default function CreateTemplateView({
   const [exercises, setExercises] = useState<Exercise[]>(templateToEdit?.exercises || [])
   const [exerciseInput, setExerciseInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [filteredSuggestions, setFilteredSuggestions] = useState<ExerciseDbEntry[]>([])
+
+  const getGroupedSuggestions = () => {
+    const searchTerm = exerciseInput.toLowerCase().trim()
+    
+    // Filter exercises based on search term
+    const filtered = searchTerm
+      ? exerciseDatabase.filter(ex =>
+          ex.name.toLowerCase().includes(searchTerm) ||
+          ex.muscleGroup.toLowerCase().includes(searchTerm)
+        )
+      : exerciseDatabase
+
+    // Group by muscle group
+    const grouped: Record<string, ExerciseDbEntry[]> = {}
+    filtered.forEach(ex => {
+      if (!grouped[ex.muscleGroup]) {
+        grouped[ex.muscleGroup] = []
+      }
+      grouped[ex.muscleGroup].push(ex)
+    })
+
+    return grouped
+  }
 
   const handleExerciseInputChange = (value: string) => {
     setExerciseInput(value)
-    
-    if (value.trim().length > 0) {
-      const filtered = exerciseDatabase.filter(ex =>
-        ex.name.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 8)
-      
-      setFilteredSuggestions(filtered)
-      setShowSuggestions(true)
-    } else {
-      setShowSuggestions(false)
-      setFilteredSuggestions([])
-    }
   }
 
   const selectExerciseFromSuggestion = (name: string, muscleGroup: string, equipment: string) => {
@@ -55,7 +65,6 @@ export default function CreateTemplateView({
     setExercises([...exercises, exercise])
     setExerciseInput('')
     setShowSuggestions(false)
-    setFilteredSuggestions([])
   }
 
   const addExercise = () => {
@@ -84,7 +93,6 @@ export default function CreateTemplateView({
     setExercises([...exercises, exercise])
     setExerciseInput('')
     setShowSuggestions(false)
-    setFilteredSuggestions([])
   }
 
   const removeExercise = (id: string) => {
@@ -130,26 +138,31 @@ export default function CreateTemplateView({
               value={exerciseInput}
               onChange={(e) => handleExerciseInputChange(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && addExercise()}
-              onFocus={() => exerciseInput && setShowSuggestions(true)}
+              onFocus={() => setShowSuggestions(true)}
               onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
               className="input"
             />
-            {showSuggestions && filteredSuggestions.length > 0 && (
+            {showSuggestions && (
               <div className="suggestions-dropdown">
-                {filteredSuggestions.map((suggestion, idx) => (
-                  <div
-                    key={idx}
-                    className="suggestion-item"
-                    onClick={() => selectExerciseFromSuggestion(
-                      suggestion.name,
-                      suggestion.muscleGroup,
-                      suggestion.equipment
-                    )}
-                  >
-                    <span className="suggestion-name">{suggestion.name}</span>
-                    <span className="suggestion-meta">
-                      {suggestion.muscleGroup} • {suggestion.equipment}
-                    </span>
+                {Object.entries(getGroupedSuggestions()).map(([group, groupExercises]) => (
+                  <div key={group}>
+                    <div className="suggestion-group-header">{group}</div>
+                    {groupExercises.map((suggestion, idx) => (
+                      <div
+                        key={idx}
+                        className="suggestion-item"
+                        onClick={() => selectExerciseFromSuggestion(
+                          suggestion.name,
+                          suggestion.muscleGroup,
+                          suggestion.equipment
+                        )}
+                      >
+                        <span className="suggestion-name">{suggestion.name}</span>
+                        <span className="suggestion-meta">
+                          {suggestion.muscleGroup} • {suggestion.equipment}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
