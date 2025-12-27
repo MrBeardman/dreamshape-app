@@ -266,7 +266,7 @@ function App() {
     }
   }
 
-  const addExerciseToWorkout = (exerciseName: string, muscleGroup: string, equipment: string) => {
+  const addExerciseToWorkout = (exerciseName: string, _muscleGroup: string, _equipment: string) => {
     if (!activeWorkout) return
 
     // Get last workout data for this exercise
