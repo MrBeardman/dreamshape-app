@@ -42,8 +42,12 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - [x] Exercise management tab
 - [x] Responsive desktop layout
 - [x] Component-based architecture
+- [x] Start empty workout with auto-naming (Monday Morning/Lunch/Evening/Night Workout)
+- [x] Add/remove exercises during workout
+- [x] Finish workout with template save options (update template, save as new, or just finish)
 
 ### In Progress 🚧
+- [ ] Drag and drop to reorder exercises during workout
 - [ ] Sticky header
 - [ ] Template notes
 - [ ] Auto-fill reps from last set of same exercise
@@ -51,7 +55,6 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - [ ] Rest time per exercise
 
 ### Planned 📋
-- [ ] Edit templates during workout (add/remove exercises)
 - [ ] Track progress with charts (1RM, volume, frequency)
 - [ ] Workout notes (per workout)
 - [ ] Export workout data

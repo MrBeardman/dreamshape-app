@@ -1,4 +1,11 @@
+import { useState } from 'react'
 import type { ActiveWorkout, WorkoutLog } from '../types'
+
+interface ExerciseDbEntry {
+  name: string
+  muscleGroup: string
+  equipment: string
+}
 
 interface WorkoutViewProps {
   activeWorkout: ActiveWorkout
@@ -6,6 +13,7 @@ interface WorkoutViewProps {
   restTimer: number | null
   restDuration: number
   workoutLogs: WorkoutLog[]
+  exerciseDatabase: ExerciseDbEntry[]
   onCancel: () => void
   onFinish: () => void
   onUpdateSet: (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => void
@@ -14,6 +22,8 @@ interface WorkoutViewProps {
   onRemoveSet: (exerciseIndex: number, setIndex: number) => void
   onSetRestDuration: (duration: number) => void
   onSkipRest: () => void
+  onAddExercise: (name: string, muscleGroup: string, equipment: string) => void
+  onRemoveExercise: (exerciseIndex: number) => void
 }
 
 export default function WorkoutView({
@@ -22,6 +32,7 @@ export default function WorkoutView({
   restTimer,
   restDuration,
   workoutLogs,
+  exerciseDatabase,
   onCancel,
   onFinish,
   onUpdateSet,
@@ -29,8 +40,39 @@ export default function WorkoutView({
   onAddSet,
   onRemoveSet,
   onSetRestDuration,
-  onSkipRest
+  onSkipRest,
+  onAddExercise,
+  onRemoveExercise
 }: WorkoutViewProps) {
+  const [exerciseInput, setExerciseInput] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const getGroupedSuggestions = () => {
+    const searchTerm = exerciseInput.toLowerCase().trim()
+    
+    const filtered = searchTerm
+      ? exerciseDatabase.filter(ex =>
+          ex.name.toLowerCase().includes(searchTerm) ||
+          ex.muscleGroup.toLowerCase().includes(searchTerm)
+        )
+      : exerciseDatabase
+
+    const grouped: Record<string, ExerciseDbEntry[]> = {}
+    filtered.forEach(ex => {
+      if (!grouped[ex.muscleGroup]) {
+        grouped[ex.muscleGroup] = []
+      }
+      grouped[ex.muscleGroup].push(ex)
+    })
+
+    return grouped
+  }
+
+  const handleAddExercise = (name: string, muscleGroup: string, equipment: string) => {
+    onAddExercise(name, muscleGroup, equipment)
+    setExerciseInput('')
+    setShowSuggestions(false)
+  }
   
   const formatElapsedTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -113,6 +155,12 @@ export default function WorkoutView({
       )}
 
       <div className="workout-exercises">
+        {activeWorkout.exercises.length === 0 && (
+          <div className="empty-workout-state">
+            <p>No exercises yet. Add your first exercise below!</p>
+          </div>
+        )}
+
         {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => {
           const pr = getPersonalRecord(exerciseLog.exerciseName)
           
@@ -120,9 +168,18 @@ export default function WorkoutView({
             <div key={exerciseLog.exerciseId} className="workout-exercise">
               <div className="exercise-header">
                 <h3 className="exercise-title">{exerciseLog.exerciseName}</h3>
-                {pr > 0 && (
-                  <span className="pr-badge">PR: {pr} kg</span>
-                )}
+                <div className="exercise-header-actions">
+                  {pr > 0 && (
+                    <span className="pr-badge">PR: {pr} kg</span>
+                  )}
+                  <button
+                    className="btn-remove-exercise"
+                    onClick={() => onRemoveExercise(exerciseIndex)}
+                    title="Remove exercise"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               
               <div className="sets-header">
@@ -179,6 +236,47 @@ export default function WorkoutView({
             </div>
           )
         })}
+
+        {/* Add Exercise Section */}
+        <div className="add-exercise-workout-section">
+          <h3 className="add-exercise-title">Add Exercise</h3>
+          <div className="exercise-input-container">
+            <input
+              type="text"
+              placeholder="Search exercises..."
+              value={exerciseInput}
+              onChange={(e) => setExerciseInput(e.target.value)}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              className="input"
+            />
+            {showSuggestions && (
+              <div className="suggestions-dropdown">
+                {Object.entries(getGroupedSuggestions()).map(([group, groupExercises]) => (
+                  <div key={group}>
+                    <div className="suggestion-group-header">{group}</div>
+                    {groupExercises.map((suggestion, idx) => (
+                      <div
+                        key={idx}
+                        className="suggestion-item"
+                        onClick={() => handleAddExercise(
+                          suggestion.name,
+                          suggestion.muscleGroup,
+                          suggestion.equipment
+                        )}
+                      >
+                        <span className="suggestion-name">{suggestion.name}</span>
+                        <span className="suggestion-meta">
+                          {suggestion.muscleGroup} • {suggestion.equipment}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="workout-footer">

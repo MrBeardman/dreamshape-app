@@ -34,6 +34,7 @@ export interface WorkoutLog {
 
 export interface ActiveWorkout {
   templateName: string
+  originalTemplateId: string | null  // null if started as empty workout
   exercises: ExerciseLog[]
   startTime: number
 }
