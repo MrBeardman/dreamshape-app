@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog } from './types'
+import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
 import TemplatesView from './components/TemplatesView'
@@ -11,72 +12,6 @@ import CreateTemplateView from './components/CreateTemplateView'
 const STORAGE_KEY = 'dreamshape_templates'
 const WORKOUTS_KEY = 'dreamshape_workouts'
 const EXERCISES_KEY = 'dreamshape_exercises'
-
-// Default exercise database
-const DEFAULT_EXERCISES = [
-  // Chest
-  { name: 'Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
-  { name: 'Incline Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
-  { name: 'Decline Bench Press (Barbell)', muscleGroup: 'Chest', equipment: 'Barbell' },
-  { name: 'Bench Press (Dumbbell)', muscleGroup: 'Chest', equipment: 'Dumbbell' },
-  { name: 'Incline Bench Press (Dumbbell)', muscleGroup: 'Chest', equipment: 'Dumbbell' },
-  { name: 'Chest Fly (Dumbbell)', muscleGroup: 'Chest', equipment: 'Dumbbell' },
-  { name: 'Chest Fly (Cable)', muscleGroup: 'Chest', equipment: 'Cable' },
-  { name: 'Chest Press (Machine)', muscleGroup: 'Chest', equipment: 'Machine' },
-  { name: 'Dips (Chest)', muscleGroup: 'Chest', equipment: 'Bodyweight' },
-  { name: 'Push-ups', muscleGroup: 'Chest', equipment: 'Bodyweight' },
-  
-  // Back
-  { name: 'Deadlift (Barbell)', muscleGroup: 'Back', equipment: 'Barbell' },
-  { name: 'Romanian Deadlift (Barbell)', muscleGroup: 'Back', equipment: 'Barbell' },
-  { name: 'Bent Over Row (Barbell)', muscleGroup: 'Back', equipment: 'Barbell' },
-  { name: 'Bent Over Row (Dumbbell)', muscleGroup: 'Back', equipment: 'Dumbbell' },
-  { name: 'T-Bar Row', muscleGroup: 'Back', equipment: 'Barbell' },
-  { name: 'Lat Pulldown (Cable)', muscleGroup: 'Back', equipment: 'Cable' },
-  { name: 'Seated Row (Cable)', muscleGroup: 'Back', equipment: 'Cable' },
-  { name: 'Pull-ups', muscleGroup: 'Back', equipment: 'Bodyweight' },
-  { name: 'Chin-ups', muscleGroup: 'Back', equipment: 'Bodyweight' },
-  
-  // Shoulders
-  { name: 'Overhead Press (Barbell)', muscleGroup: 'Shoulders', equipment: 'Barbell' },
-  { name: 'Overhead Press (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
-  { name: 'Lateral Raise (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
-  { name: 'Front Raise (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
-  { name: 'Rear Delt Fly (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
-  { name: 'Face Pulls (Cable)', muscleGroup: 'Shoulders', equipment: 'Cable' },
-  { name: 'Shrugs (Barbell)', muscleGroup: 'Shoulders', equipment: 'Barbell' },
-  { name: 'Shrugs (Dumbbell)', muscleGroup: 'Shoulders', equipment: 'Dumbbell' },
-  
-  // Arms
-  { name: 'Bicep Curl (Barbell)', muscleGroup: 'Arms', equipment: 'Barbell' },
-  { name: 'Bicep Curl (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
-  { name: 'Hammer Curl (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
-  { name: 'Preacher Curl (Barbell)', muscleGroup: 'Arms', equipment: 'Barbell' },
-  { name: 'Cable Curl', muscleGroup: 'Arms', equipment: 'Cable' },
-  { name: 'Tricep Extension (Dumbbell)', muscleGroup: 'Arms', equipment: 'Dumbbell' },
-  { name: 'Tricep Pushdown (Cable)', muscleGroup: 'Arms', equipment: 'Cable' },
-  { name: 'Skullcrusher (Barbell)', muscleGroup: 'Arms', equipment: 'Barbell' },
-  { name: 'Close Grip Bench Press', muscleGroup: 'Arms', equipment: 'Barbell' },
-  { name: 'Dips (Triceps)', muscleGroup: 'Arms', equipment: 'Bodyweight' },
-  
-  // Legs
-  { name: 'Squat (Barbell)', muscleGroup: 'Legs', equipment: 'Barbell' },
-  { name: 'Front Squat (Barbell)', muscleGroup: 'Legs', equipment: 'Barbell' },
-  { name: 'Leg Press (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
-  { name: 'Leg Extension (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
-  { name: 'Leg Curl (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
-  { name: 'Lunges (Dumbbell)', muscleGroup: 'Legs', equipment: 'Dumbbell' },
-  { name: 'Bulgarian Split Squat', muscleGroup: 'Legs', equipment: 'Dumbbell' },
-  { name: 'Calf Raise (Machine)', muscleGroup: 'Legs', equipment: 'Machine' },
-  { name: 'Hip Thrust (Barbell)', muscleGroup: 'Legs', equipment: 'Barbell' },
-  
-  // Core
-  { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { name: 'Crunches', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { name: 'Russian Twists', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { name: 'Hanging Leg Raise', muscleGroup: 'Core', equipment: 'Bodyweight' },
-  { name: 'Cable Crunch', muscleGroup: 'Core', equipment: 'Cable' },
-]
 
 function App() {
   // Load templates from localStorage
@@ -122,6 +57,7 @@ function App() {
   })
   
   const [isCreating, setIsCreating] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
   const [currentView, setCurrentView] = useState<'templates' | 'history' | 'exercises'>('templates')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
   
@@ -322,14 +258,31 @@ function App() {
   }
 
   const saveTemplate = (name: string, exercises: Exercise[]) => {
-    const newTemplate: WorkoutTemplate = {
-      id: Date.now().toString(),
-      name,
-      exercises
+    if (selectedTemplate) {
+      // Editing existing template
+      const updatedTemplates = templates.map(t => 
+        t.id === selectedTemplate.id 
+          ? { ...t, name, exercises }
+          : t
+      )
+      setTemplates(updatedTemplates)
+    } else {
+      // Creating new template
+      const newTemplate: WorkoutTemplate = {
+        id: Date.now().toString(),
+        name,
+        exercises
+      }
+      setTemplates([...templates, newTemplate])
     }
     
-    setTemplates([...templates, newTemplate])
     setIsCreating(false)
+    setSelectedTemplate(null)
+  }
+
+  const editTemplate = (template: WorkoutTemplate) => {
+    setSelectedTemplate(template)
+    setIsCreating(true)
   }
 
   const addExerciseToDatabase = (exercise: { name: string, muscleGroup: string, equipment: string }) => {
@@ -396,7 +349,11 @@ function App() {
           {currentView === 'templates' ? (
             <TemplatesView
               templates={templates}
-              onCreateTemplate={() => setIsCreating(true)}
+              onCreateTemplate={() => {
+                setSelectedTemplate(null)
+                setIsCreating(true)
+              }}
+              onEditTemplate={editTemplate}
               onDeleteTemplate={deleteTemplate}
               onStartWorkout={startWorkout}
             />
@@ -416,8 +373,12 @@ function App() {
       ) : (
         <CreateTemplateView
           exerciseDatabase={exerciseDatabase}
+          templateToEdit={selectedTemplate}
           onSave={saveTemplate}
-          onCancel={() => setIsCreating(false)}
+          onCancel={() => {
+            setIsCreating(false)
+            setSelectedTemplate(null)
+          }}
           onAddToDatabase={addExerciseToDatabase}
         />
       )}

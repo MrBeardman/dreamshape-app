@@ -3,6 +3,7 @@ import type { WorkoutTemplate } from '../types'
 interface TemplatesViewProps {
   templates: WorkoutTemplate[]
   onCreateTemplate: () => void
+  onEditTemplate: (template: WorkoutTemplate) => void
   onDeleteTemplate: (id: string) => void
   onStartWorkout: (template: WorkoutTemplate) => void
 }
@@ -10,6 +11,7 @@ interface TemplatesViewProps {
 export default function TemplatesView({
   templates,
   onCreateTemplate,
+  onEditTemplate,
   onDeleteTemplate,
   onStartWorkout
 }: TemplatesViewProps) {
@@ -51,12 +53,20 @@ export default function TemplatesView({
                 <span className="exercise-tag">+{template.exercises.length - 3} more</span>
               )}
             </div>
-            <button
-              className="btn-start-workout"
-              onClick={() => onStartWorkout(template)}
-            >
-              Start Workout
-            </button>
+            <div className="template-actions">
+              <button
+                className="btn-edit"
+                onClick={() => onEditTemplate(template)}
+              >
+                Edit
+              </button>
+              <button
+                className="btn-start-workout"
+                onClick={() => onStartWorkout(template)}
+              >
+                Start Workout
+              </button>
+            </div>
           </div>
         ))}
       </div>
