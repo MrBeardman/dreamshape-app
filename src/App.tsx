@@ -5,9 +5,10 @@ import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
 import TemplatesView from './components/TemplatesView'
-import HistoryView from './components/HistoryView'
+import WorkoutsView from './components/WorkoutsView'
 import ExercisesView from './components/ExercisesView'
 import CreateTemplateView from './components/CreateTemplateView'
+import FinishWorkoutModal from './components/FinishWorkoutModal'
 
 const STORAGE_KEY = 'dreamshape_templates'
 const WORKOUTS_KEY = 'dreamshape_workouts'
@@ -58,11 +59,13 @@ function App() {
   
   const [isCreating, setIsCreating] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
-  const [currentView, setCurrentView] = useState<'templates' | 'history' | 'exercises'>('templates')
+  const [currentView, setCurrentView] = useState<'templates' | 'workouts' | 'exercises'>('templates')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
   
   // Workout logging state
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null)
+  const [showFinishModal, setShowFinishModal] = useState(false)
+  const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>([])
   
   // Timer states
   const [elapsedTime, setElapsedTime] = useState(0)
@@ -124,6 +127,32 @@ function App() {
     return exercise || null
   }
 
+  // Get last workout data for any exercise (not template-specific)
+  const getLastExerciseData = (exerciseName: string) => {
+    for (const workout of workoutLogs) {
+      const exercise = workout.exercises.find(e => e.exerciseName === exerciseName)
+      if (exercise && exercise.sets.length > 0) {
+        return exercise
+      }
+    }
+    return null
+  }
+
+  // Generate auto workout name based on time of day
+  const getAutoWorkoutName = () => {
+    const now = new Date()
+    const hour = now.getHours()
+    const dayName = now.toLocaleDateString('en-US', { weekday: 'long' })
+    
+    let timeOfDay = 'Evening'
+    if (hour >= 6 && hour < 12) timeOfDay = 'Morning'
+    else if (hour >= 12 && hour < 15) timeOfDay = 'Lunch'
+    else if (hour >= 15 && hour < 21) timeOfDay = 'Evening'
+    else timeOfDay = 'Night'
+    
+    return `${dayName} ${timeOfDay} Workout`
+  }
+
   const deleteTemplate = (id: string) => {
     if (confirm('Delete this template?')) {
       setTemplates(templates.filter(t => t.id !== id))
@@ -156,9 +185,21 @@ function App() {
       }
     })
 
+    setOriginalTemplateExercises(template.exercises)
     setActiveWorkout({
       templateName: template.name,
+      originalTemplateId: template.id,
       exercises: exerciseLogs,
+      startTime: Date.now()
+    })
+  }
+
+  const startEmptyWorkout = () => {
+    setOriginalTemplateExercises([])
+    setActiveWorkout({
+      templateName: getAutoWorkoutName(),
+      originalTemplateId: null,
+      exercises: [],
       startTime: Date.now()
     })
   }
@@ -225,11 +266,111 @@ function App() {
     }
   }
 
+  const addExerciseToWorkout = (exerciseName: string, muscleGroup: string, equipment: string) => {
+    if (!activeWorkout) return
+
+    // Get last workout data for this exercise
+    const lastData = getLastExerciseData(exerciseName)
+
+    const newExercise: ExerciseLog = {
+      exerciseId: Date.now().toString(),
+      exerciseName,
+      sets: lastData && lastData.sets.length > 0
+        ? lastData.sets.map((set, idx) => ({
+            id: (idx + 1).toString(),
+            weight: set.weight,
+            reps: set.reps,
+            completed: false
+          }))
+        : [{ id: '1', weight: 0, reps: 0, completed: false }]
+    }
+
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: [...activeWorkout.exercises, newExercise]
+    })
+  }
+
+  const removeExerciseFromWorkout = (exerciseIndex: number) => {
+    if (!activeWorkout) return
+
+    const exercise = activeWorkout.exercises[exerciseIndex]
+    const completedSets = exercise.sets.filter(s => s.completed).length
+
+    if (completedSets > 0) {
+      if (!confirm(`You've completed ${completedSets} set(s). Remove "${exercise.exerciseName}" anyway?`)) {
+        return
+      }
+    }
+
+    const updatedExercises = activeWorkout.exercises.filter((_, idx) => idx !== exerciseIndex)
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+  }
+
   const finishWorkout = () => {
+    if (!activeWorkout) return
+    setShowFinishModal(true)
+  }
+
+  const getWorkoutChanges = () => {
+    if (!activeWorkout) return { hasChanges: false, added: [], removed: [] }
+
+    const originalNames = originalTemplateExercises.map(e => e.name)
+    const currentNames = activeWorkout.exercises.map(e => e.exerciseName)
+
+    const added = currentNames.filter(name => !originalNames.includes(name))
+    const removed = originalNames.filter(name => !currentNames.includes(name))
+
+    return {
+      hasChanges: added.length > 0 || removed.length > 0,
+      added,
+      removed
+    }
+  }
+
+  const handleUpdateTemplate = () => {
+    if (!activeWorkout || !activeWorkout.originalTemplateId) return
+
+    const updatedExercises: Exercise[] = activeWorkout.exercises.map(ex => ({
+      id: ex.exerciseId,
+      name: ex.exerciseName,
+      equipment: 'Barbell', // Keep original or default
+      muscleGroup: 'Other' // Keep original or default
+    }))
+
+    const updatedTemplates = templates.map(t =>
+      t.id === activeWorkout.originalTemplateId
+        ? { ...t, exercises: updatedExercises }
+        : t
+    )
+
+    setTemplates(updatedTemplates)
+    saveWorkoutLog()
+  }
+
+  const handleSaveAsNewTemplate = (name: string, exercises: Exercise[]) => {
+    const newTemplate: WorkoutTemplate = {
+      id: Date.now().toString(),
+      name,
+      exercises
+    }
+
+    setTemplates([...templates, newTemplate])
+    saveWorkoutLog()
+  }
+
+  const handleJustFinish = () => {
+    saveWorkoutLog()
+  }
+
+  const saveWorkoutLog = () => {
     if (!activeWorkout) return
 
     const duration = Math.floor((Date.now() - activeWorkout.startTime) / 1000)
-    
+
     const workoutLog: WorkoutLog = {
       id: Date.now().toString(),
       templateName: activeWorkout.templateName,
@@ -240,6 +381,8 @@ function App() {
 
     setWorkoutLogs([workoutLog, ...workoutLogs])
     setActiveWorkout(null)
+    setShowFinishModal(false)
+    setOriginalTemplateExercises([])
   }
 
   const cancelWorkout = () => {
@@ -302,21 +445,47 @@ function App() {
       </header>
 
       {activeWorkout ? (
-        <WorkoutView
-          activeWorkout={activeWorkout}
-          elapsedTime={elapsedTime}
-          restTimer={restTimer}
-          restDuration={restDuration}
-          workoutLogs={workoutLogs}
-          onCancel={cancelWorkout}
-          onFinish={finishWorkout}
-          onUpdateSet={updateSet}
-          onToggleSetCompleted={toggleSetCompleted}
-          onAddSet={addSet}
-          onRemoveSet={removeSet}
-          onSetRestDuration={setRestDuration}
-          onSkipRest={() => setRestTimer(null)}
-        />
+        <>
+          <WorkoutView
+            activeWorkout={activeWorkout}
+            elapsedTime={elapsedTime}
+            restTimer={restTimer}
+            restDuration={restDuration}
+            workoutLogs={workoutLogs}
+            exerciseDatabase={exerciseDatabase}
+            onCancel={cancelWorkout}
+            onFinish={finishWorkout}
+            onUpdateSet={updateSet}
+            onToggleSetCompleted={toggleSetCompleted}
+            onAddSet={addSet}
+            onRemoveSet={removeSet}
+            onSetRestDuration={setRestDuration}
+            onSkipRest={() => setRestTimer(null)}
+            onAddExercise={addExerciseToWorkout}
+            onRemoveExercise={removeExerciseFromWorkout}
+          />
+          {showFinishModal && (
+            <FinishWorkoutModal
+              originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
+              originalTemplateId={activeWorkout.originalTemplateId}
+              hasChanges={getWorkoutChanges().hasChanges}
+              changedExercises={{
+                added: getWorkoutChanges().added,
+                removed: getWorkoutChanges().removed
+              }}
+              currentExercises={activeWorkout.exercises.map(ex => ({
+                id: ex.exerciseId,
+                name: ex.exerciseName,
+                equipment: 'Barbell',
+                muscleGroup: 'Other'
+              }))}
+              onUpdateTemplate={handleUpdateTemplate}
+              onSaveAsNewTemplate={handleSaveAsNewTemplate}
+              onJustFinish={handleJustFinish}
+              onCancel={() => setShowFinishModal(false)}
+            />
+          )}
+        </>
       ) : selectedWorkout ? (
         <WorkoutDetailView
           workout={selectedWorkout}
@@ -333,10 +502,10 @@ function App() {
               Templates
             </button>
             <button
-              className={`nav-tab ${currentView === 'history' ? 'active' : ''}`}
-              onClick={() => setCurrentView('history')}
+              className={`nav-tab ${currentView === 'workouts' ? 'active' : ''}`}
+              onClick={() => setCurrentView('workouts')}
             >
-              History ({workoutLogs.length})
+              Workouts ({workoutLogs.length})
             </button>
             <button
               className={`nav-tab ${currentView === 'exercises' ? 'active' : ''}`}
@@ -357,9 +526,10 @@ function App() {
               onDeleteTemplate={deleteTemplate}
               onStartWorkout={startWorkout}
             />
-          ) : currentView === 'history' ? (
-            <HistoryView
+          ) : currentView === 'workouts' ? (
+            <WorkoutsView
               workoutLogs={workoutLogs}
+              onStartWorkout={startEmptyWorkout}
               onSelectWorkout={setSelectedWorkout}
             />
           ) : (
