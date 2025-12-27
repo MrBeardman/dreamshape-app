@@ -9,6 +9,7 @@ interface ExerciseDbEntry {
 
 interface CreateTemplateViewProps {
   exerciseDatabase: ExerciseDbEntry[]
+  templateToEdit: { id: string; name: string; exercises: Exercise[] } | null
   onSave: (name: string, exercises: Exercise[]) => void
   onCancel: () => void
   onAddToDatabase: (exercise: ExerciseDbEntry) => void
@@ -16,12 +17,13 @@ interface CreateTemplateViewProps {
 
 export default function CreateTemplateView({
   exerciseDatabase,
+  templateToEdit,
   onSave,
   onCancel,
   onAddToDatabase
 }: CreateTemplateViewProps) {
-  const [templateName, setTemplateName] = useState('')
-  const [exercises, setExercises] = useState<Exercise[]>([])
+  const [templateName, setTemplateName] = useState(templateToEdit?.name || '')
+  const [exercises, setExercises] = useState<Exercise[]>(templateToEdit?.exercises || [])
   const [exerciseInput, setExerciseInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [filteredSuggestions, setFilteredSuggestions] = useState<ExerciseDbEntry[]>([])
@@ -103,7 +105,7 @@ export default function CreateTemplateView({
         >
           ← Back
         </button>
-        <h2>New Template</h2>
+        <h2>{templateToEdit ? 'Edit Template' : 'New Template'}</h2>
       </div>
 
       <div className="form-group">
@@ -179,11 +181,11 @@ export default function CreateTemplateView({
       </div>
 
       <button 
-        className="btn-save"
-        onClick={handleSave}
-        disabled={!templateName.trim() || exercises.length === 0}
+      className="btn-save"
+      onClick={handleSave}
+      disabled={!templateName.trim() || exercises.length === 0}
       >
-        Save Template
+      {templateToEdit ? 'Update Template' : 'Save Template'}
       </button>
     </div>
   )
