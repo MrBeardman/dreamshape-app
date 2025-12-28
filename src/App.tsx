@@ -71,6 +71,11 @@ function App() {
   const [elapsedTime, setElapsedTime] = useState(0)
   const [restTimer, setRestTimer] = useState<number | null>(null)
   const [restDuration, setRestDuration] = useState(120)
+  const [activeRestTimer, setActiveRestTimer] = useState<{
+    exerciseIndex: number
+    afterSetIndex: number
+    timeRemaining: number
+  } | null>(null)
 
   // Save to localStorage
   useEffect(() => {
@@ -118,6 +123,30 @@ function App() {
 
     return () => clearInterval(interval)
   }, [restTimer])
+
+  // Inline rest timer countdown
+  useEffect(() => {
+    if (!activeRestTimer || activeRestTimer.timeRemaining <= 0) {
+      if (activeRestTimer?.timeRemaining === 0) {
+        if (navigator.vibrate) {
+          navigator.vibrate([200, 100, 200])
+        }
+      }
+      return
+    }
+
+    const interval = setInterval(() => {
+      setActiveRestTimer(prev => {
+        if (!prev || prev.timeRemaining <= 0) return null
+        return {
+          ...prev,
+          timeRemaining: prev.timeRemaining - 1
+        }
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [activeRestTimer])
 
   // Get the last workout for a specific template and exercise
   const getLastWorkoutData = (templateName: string, exerciseName: string) => {
@@ -230,7 +259,15 @@ function App() {
     })
     
     if (isCompleting) {
-      setRestTimer(restDuration)
+      // Get rest duration for this exercise (or use global default)
+      const exerciseRestDuration = updatedExercises[exerciseIndex].restDuration || restDuration
+      
+      // Start inline rest timer below this set
+      setActiveRestTimer({
+        exerciseIndex,
+        afterSetIndex: setIndex,
+        timeRemaining: exerciseRestDuration
+      })
     }
   }
 
@@ -304,6 +341,23 @@ function App() {
     }
 
     const updatedExercises = activeWorkout.exercises.filter((_, idx) => idx !== exerciseIndex)
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+    
+    // Clear rest timer if it was for this exercise
+    if (activeRestTimer?.exerciseIndex === exerciseIndex) {
+      setActiveRestTimer(null)
+    }
+  }
+
+  const setExerciseRestDuration = (exerciseIndex: number, duration: number) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    updatedExercises[exerciseIndex].restDuration = duration
+    
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
@@ -446,24 +500,27 @@ function App() {
 
       {activeWorkout ? (
         <>
-          <WorkoutView
-            activeWorkout={activeWorkout}
-            elapsedTime={elapsedTime}
-            restTimer={restTimer}
-            restDuration={restDuration}
-            workoutLogs={workoutLogs}
-            exerciseDatabase={exerciseDatabase}
-            onCancel={cancelWorkout}
-            onFinish={finishWorkout}
-            onUpdateSet={updateSet}
-            onToggleSetCompleted={toggleSetCompleted}
-            onAddSet={addSet}
-            onRemoveSet={removeSet}
-            onSetRestDuration={setRestDuration}
-            onSkipRest={() => setRestTimer(null)}
-            onAddExercise={addExerciseToWorkout}
-            onRemoveExercise={removeExerciseFromWorkout}
-          />
+      <WorkoutView
+      activeWorkout={activeWorkout}
+      elapsedTime={elapsedTime}
+      restTimer={restTimer}
+      restDuration={restDuration}
+      activeRestTimer={activeRestTimer}
+      workoutLogs={workoutLogs}
+      exerciseDatabase={exerciseDatabase}
+      onCancel={cancelWorkout}
+      onFinish={finishWorkout}
+      onUpdateSet={updateSet}
+      onToggleSetCompleted={toggleSetCompleted}
+      onAddSet={addSet}
+      onRemoveSet={removeSet}
+      onSetRestDuration={setRestDuration}
+      onSetExerciseRestDuration={setExerciseRestDuration}
+      onSkipRest={() => setRestTimer(null)}
+      onSkipInlineRest={() => setActiveRestTimer(null)}
+      onAddExercise={addExerciseToWorkout}
+      onRemoveExercise={removeExerciseFromWorkout}
+    />
           {showFinishModal && (
             <FinishWorkoutModal
               originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}

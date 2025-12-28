@@ -22,6 +22,7 @@ export interface ExerciseLog {
   exerciseId: string
   exerciseName: string
   sets: Set[]
+  restDuration?: number  // Per-exercise rest duration in seconds
 }
 
 export interface WorkoutLog {

@@ -12,6 +12,7 @@ interface WorkoutViewProps {
   elapsedTime: number
   restTimer: number | null
   restDuration: number
+  activeRestTimer: { exerciseIndex: number; afterSetIndex: number; timeRemaining: number } | null
   workoutLogs: WorkoutLog[]
   exerciseDatabase: ExerciseDbEntry[]
   onCancel: () => void
@@ -21,7 +22,9 @@ interface WorkoutViewProps {
   onAddSet: (exerciseIndex: number) => void
   onRemoveSet: (exerciseIndex: number, setIndex: number) => void
   onSetRestDuration: (duration: number) => void
+  onSetExerciseRestDuration: (exerciseIndex: number, duration: number) => void
   onSkipRest: () => void
+  onSkipInlineRest: () => void
   onAddExercise: (name: string, muscleGroup: string, equipment: string) => void
   onRemoveExercise: (exerciseIndex: number) => void
 }
@@ -31,6 +34,7 @@ export default function WorkoutView({
   elapsedTime,
   restTimer,
   restDuration,
+  activeRestTimer,
   workoutLogs,
   exerciseDatabase,
   onCancel,
@@ -40,7 +44,9 @@ export default function WorkoutView({
   onAddSet,
   onRemoveSet,
   onSetRestDuration,
+  onSetExerciseRestDuration,
   onSkipRest,
+  onSkipInlineRest,
   onAddExercise,
   onRemoveExercise
 }: WorkoutViewProps) {
@@ -163,11 +169,27 @@ export default function WorkoutView({
 
         {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => {
           const pr = getPersonalRecord(exerciseLog.exerciseName)
+          const exerciseRestDuration = exerciseLog.restDuration || restDuration
           
           return (
             <div key={exerciseLog.exerciseId} className="workout-exercise">
               <div className="exercise-header">
-                <h3 className="exercise-title">{exerciseLog.exerciseName}</h3>
+                <div className="exercise-header-left">
+                  <select 
+                    className="exercise-rest-select"
+                    value={exerciseRestDuration}
+                    onChange={(e) => onSetExerciseRestDuration(exerciseIndex, Number(e.target.value))}
+                    title="Rest duration for this exercise"
+                  >
+                    <option value={60}>1:00</option>
+                    <option value={90}>1:30</option>
+                    <option value={120}>2:00</option>
+                    <option value={180}>3:00</option>
+                    <option value={240}>4:00</option>
+                    <option value={300}>5:00</option>
+                  </select>
+                  <h3 className="exercise-title">{exerciseLog.exerciseName}</h3>
+                </div>
                 <div className="exercise-header-actions">
                   {pr > 0 && (
                     <span className="pr-badge">PR: {pr} kg</span>
@@ -190,39 +212,66 @@ export default function WorkoutView({
               </div>
 
               {exerciseLog.sets.map((set, setIndex) => (
-                <div key={set.id} className={`set-row ${set.completed ? 'completed' : ''}`}>
-                  <span className="set-number">{setIndex + 1}</span>
-                  
-                  <input
-                    type="number"
-                    className="set-input"
-                    value={set.weight || ''}
-                    onChange={(e) => onUpdateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
-                    placeholder="0"
-                  />
-                  
-                  <input
-                    type="number"
-                    className="set-input"
-                    value={set.reps || ''}
-                    onChange={(e) => onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
-                    placeholder="0"
-                  />
-                  
-                  <button
-                    className={`check-btn ${set.completed ? 'completed' : ''}`}
-                    onClick={() => onToggleSetCompleted(exerciseIndex, setIndex)}
-                  >
-                    {set.completed ? '✓' : ''}
-                  </button>
-
-                  {exerciseLog.sets.length > 1 && (
+                <div key={set.id}>
+                  <div className={`set-row ${set.completed ? 'completed' : ''}`}>
+                    <span className="set-number">{setIndex + 1}</span>
+                    
+                    <input
+                      type="number"
+                      className="set-input"
+                      value={set.weight || ''}
+                      onChange={(e) => onUpdateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))}
+                      placeholder="0"
+                    />
+                    
+                    <input
+                      type="number"
+                      className="set-input"
+                      value={set.reps || ''}
+                      onChange={(e) => onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                      placeholder="0"
+                    />
+                    
                     <button
-                      className="remove-set-btn"
-                      onClick={() => onRemoveSet(exerciseIndex, setIndex)}
+                      className={`check-btn ${set.completed ? 'completed' : ''}`}
+                      onClick={() => onToggleSetCompleted(exerciseIndex, setIndex)}
                     >
-                      ×
+                      {set.completed ? '✓' : ''}
                     </button>
+
+                    {exerciseLog.sets.length > 1 && (
+                      <button
+                        className="remove-set-btn"
+                        onClick={() => onRemoveSet(exerciseIndex, setIndex)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Inline Rest Timer */}
+                  {activeRestTimer && 
+                   activeRestTimer.exerciseIndex === exerciseIndex && 
+                   activeRestTimer.afterSetIndex === setIndex && (
+                    <div className="inline-rest-timer">
+                      <div 
+                        className="inline-rest-progress" 
+                        style={{ 
+                          width: `${(activeRestTimer.timeRemaining / exerciseRestDuration) * 100}%` 
+                        }}
+                      />
+                      <div className="inline-rest-content">
+                        <span className="inline-rest-time">
+                          Rest: {formatRestTime(activeRestTimer.timeRemaining)}
+                        </span>
+                        <button 
+                          className="inline-rest-skip"
+                          onClick={onSkipInlineRest}
+                        >
+                          Skip
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
