@@ -39,6 +39,7 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - [x] Exercise autocomplete dropdown with grouped muscle groups
 - [x] Workout timer (elapsed time)
 - [x] Rest timer with countdown
+- [x] Inline rest timer per exercise
 - [x] Exercise management tab
 - [x] Responsive desktop layout
 - [x] Component-based architecture
