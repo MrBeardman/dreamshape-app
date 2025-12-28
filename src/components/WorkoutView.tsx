@@ -241,8 +241,7 @@ function SortableExercise({
                 }}
                 title={`Click to toggle: ${setType === 'warmup' ? 'Warmup' : 'Working Set'}`}
               >
-                <span className="set-num">{setIndex + 1}</span>
-                <span className="set-badge">{setType === 'warmup' ? 'W' : 'WS'}</span>
+                {setType === 'warmup' ? 'W' : setIndex + 1}
               </button>
               
               <input
