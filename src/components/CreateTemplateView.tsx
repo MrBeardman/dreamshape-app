@@ -1,4 +1,21 @@
 import { useState } from 'react'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { Exercise } from '../types'
 
 interface ExerciseDbEntry {
@@ -15,6 +32,53 @@ interface CreateTemplateViewProps {
   onAddToDatabase: (exercise: ExerciseDbEntry) => void
 }
 
+function SortableExerciseItem({
+  exercise,
+  index,
+  onRemove,
+}: {
+  exercise: Exercise
+  index: number
+  onRemove: (id: string) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: exercise.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`exercise-item ${isDragging ? 'dragging' : ''}`}
+    >
+      <span className="exercise-number">{index + 1}</span>
+      <span className="exercise-name">{exercise.name}</span>
+      <button 
+        onClick={(e) => {
+          e.stopPropagation()
+          onRemove(exercise.id)
+        }}
+        className="btn-remove"
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 export default function CreateTemplateView({
   exerciseDatabase,
   templateToEdit,
@@ -26,6 +90,30 @@ export default function CreateTemplateView({
   const [exercises, setExercises] = useState<Exercise[]>(templateToEdit?.exercises || [])
   const [exerciseInput, setExerciseInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (over && active.id !== over.id) {
+      setExercises((items) => {
+        const oldIndex = items.findIndex(ex => ex.id === active.id)
+        const newIndex = items.findIndex(ex => ex.id === over.id)
+        
+        return arrayMove(items, oldIndex, newIndex)
+      })
+    }
+  }
 
   const getGroupedSuggestions = () => {
     const searchTerm = exerciseInput.toLowerCase().trim()
@@ -171,20 +259,27 @@ export default function CreateTemplateView({
           <button onClick={addExercise} className="btn-add">+</button>
         </div>
 
-        <div className="exercise-list">
-          {exercises.map((exercise, index) => (
-            <div key={exercise.id} className="exercise-item">
-              <span className="exercise-number">{index + 1}</span>
-              <span className="exercise-name">{exercise.name}</span>
-              <button 
-                onClick={() => removeExercise(exercise.id)}
-                className="btn-remove"
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="exercise-list">
+            <SortableContext
+              items={exercises.map(ex => ex.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {exercises.map((exercise, index) => (
+                <SortableExerciseItem
+                  key={exercise.id}
+                  exercise={exercise}
+                  index={index}
+                  onRemove={removeExercise}
+                />
+              ))}
+            </SortableContext>
+          </div>
+        </DndContext>
 
         {exercises.length === 0 && (
           <div className="empty-exercises">
@@ -194,11 +289,11 @@ export default function CreateTemplateView({
       </div>
 
       <button 
-      className="btn-save"
-      onClick={handleSave}
-      disabled={!templateName.trim() || exercises.length === 0}
+        className="btn-save"
+        onClick={handleSave}
+        disabled={!templateName.trim() || exercises.length === 0}
       >
-      {templateToEdit ? 'Update Template' : 'Save Template'}
+        {templateToEdit ? 'Update Template' : 'Save Template'}
       </button>
     </div>
   )

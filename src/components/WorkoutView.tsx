@@ -27,6 +27,7 @@ interface WorkoutViewProps {
   onSkipInlineRest: () => void
   onAddExercise: (name: string, muscleGroup: string, equipment: string) => void
   onRemoveExercise: (exerciseIndex: number) => void
+  onReorderExercises: (oldIndex: number, newIndex: number) => void
 }
 
 export default function WorkoutView({
