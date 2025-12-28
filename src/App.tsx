@@ -365,6 +365,39 @@ function App() {
   }
 
   const reorderWorkoutExercises = (oldIndex: number, newIndex: number) => {
+  if (!activeWorkout) return
+
+  const updatedExercises = [...activeWorkout.exercises]
+  const [movedExercise] = updatedExercises.splice(oldIndex, 1)
+  updatedExercises.splice(newIndex, 0, movedExercise)
+
+  setActiveWorkout({
+    ...activeWorkout,
+    exercises: updatedExercises
+  })
+
+  // Update active rest timer indices if affected
+  if (activeRestTimer) {
+    let newExerciseIndex = activeRestTimer.exerciseIndex
+    
+    if (activeRestTimer.exerciseIndex === oldIndex) {
+      newExerciseIndex = newIndex
+    } else if (oldIndex < activeRestTimer.exerciseIndex && newIndex >= activeRestTimer.exerciseIndex) {
+      newExerciseIndex = activeRestTimer.exerciseIndex - 1
+    } else if (oldIndex > activeRestTimer.exerciseIndex && newIndex <= activeRestTimer.exerciseIndex) {
+      newExerciseIndex = activeRestTimer.exerciseIndex + 1
+    }
+
+    if (newExerciseIndex !== activeRestTimer.exerciseIndex) {
+      setActiveRestTimer({
+        ...activeRestTimer,
+        exerciseIndex: newExerciseIndex
+      })
+    }
+  }
+}
+
+  const reorderWorkoutExercises = (oldIndex: number, newIndex: number) => {
     if (!activeWorkout) return
 
     const updatedExercises = [...activeWorkout.exercises]
@@ -532,51 +565,51 @@ function App() {
       </header>
 
       {activeWorkout ? (
-        <>
-      <WorkoutView
-      activeWorkout={activeWorkout}
-      elapsedTime={elapsedTime}
-      restTimer={restTimer}
-      restDuration={restDuration}
-      activeRestTimer={activeRestTimer}
-      workoutLogs={workoutLogs}
-      exerciseDatabase={exerciseDatabase}
-      onCancel={cancelWorkout}
-      onFinish={finishWorkout}
-      onUpdateSet={updateSet}
-      onToggleSetCompleted={toggleSetCompleted}
-      onAddSet={addSet}
-      onRemoveSet={removeSet}
-      onSetRestDuration={setRestDuration}
-      onSetExerciseRestDuration={setExerciseRestDuration}
-      onSkipRest={() => setRestTimer(null)}
-      onSkipInlineRest={() => setActiveRestTimer(null)}
-      onAddExercise={addExerciseToWorkout}
-      onRemoveExercise={removeExerciseFromWorkout}
-        onReorderExercises={reorderWorkoutExercises}
-          />
-          {showFinishModal && (
-            <FinishWorkoutModal
-              originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
-              originalTemplateId={activeWorkout.originalTemplateId}
-              hasChanges={getWorkoutChanges().hasChanges}
-              changedExercises={{
-                added: getWorkoutChanges().added,
-                removed: getWorkoutChanges().removed
-              }}
-              currentExercises={activeWorkout.exercises.map(ex => ({
-                id: ex.exerciseId,
-                name: ex.exerciseName,
-                equipment: 'Barbell',
-                muscleGroup: 'Other'
-              }))}
-              onUpdateTemplate={handleUpdateTemplate}
-              onSaveAsNewTemplate={handleSaveAsNewTemplate}
-              onJustFinish={handleJustFinish}
-              onCancel={() => setShowFinishModal(false)}
-            />
-          )}
-        </>
+<>
+  <WorkoutView
+    activeWorkout={activeWorkout}
+    elapsedTime={elapsedTime}
+    restTimer={restTimer}
+    restDuration={restDuration}
+    activeRestTimer={activeRestTimer}
+    workoutLogs={workoutLogs}
+    exerciseDatabase={exerciseDatabase}
+    onCancel={cancelWorkout}
+    onFinish={finishWorkout}
+    onUpdateSet={updateSet}
+    onToggleSetCompleted={toggleSetCompleted}
+    onAddSet={addSet}
+    onRemoveSet={removeSet}
+    onSetRestDuration={setRestDuration}
+    onSetExerciseRestDuration={setExerciseRestDuration}
+    onSkipRest={() => setRestTimer(null)}
+    onSkipInlineRest={() => setActiveRestTimer(null)}
+    onAddExercise={addExerciseToWorkout}
+    onRemoveExercise={removeExerciseFromWorkout}
+    onReorderExercises={reorderWorkoutExercises}
+  />
+  {showFinishModal && (
+    <FinishWorkoutModal
+      originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
+      originalTemplateId={activeWorkout.originalTemplateId}
+      hasChanges={getWorkoutChanges().hasChanges}
+      changedExercises={{
+        added: getWorkoutChanges().added,
+        removed: getWorkoutChanges().removed
+      }}
+      currentExercises={activeWorkout.exercises.map(ex => ({
+        id: ex.exerciseId,
+        name: ex.exerciseName,
+        equipment: 'Barbell',
+        muscleGroup: 'Other'
+      }))}
+      onUpdateTemplate={handleUpdateTemplate}
+      onSaveAsNewTemplate={handleSaveAsNewTemplate}
+      onJustFinish={handleJustFinish}
+      onCancel={() => setShowFinishModal(false)}
+    />
+  )}
+</>
       ) : selectedWorkout ? (
         <WorkoutDetailView
           workout={selectedWorkout}
