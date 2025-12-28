@@ -364,6 +364,39 @@ function App() {
     })
   }
 
+  const reorderWorkoutExercises = (oldIndex: number, newIndex: number) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    const [movedExercise] = updatedExercises.splice(oldIndex, 1)
+    updatedExercises.splice(newIndex, 0, movedExercise)
+
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+
+    // Update active rest timer indices if affected
+    if (activeRestTimer) {
+      let newExerciseIndex = activeRestTimer.exerciseIndex
+      
+      if (activeRestTimer.exerciseIndex === oldIndex) {
+        newExerciseIndex = newIndex
+      } else if (oldIndex < activeRestTimer.exerciseIndex && newIndex >= activeRestTimer.exerciseIndex) {
+        newExerciseIndex = activeRestTimer.exerciseIndex - 1
+      } else if (oldIndex > activeRestTimer.exerciseIndex && newIndex <= activeRestTimer.exerciseIndex) {
+        newExerciseIndex = activeRestTimer.exerciseIndex + 1
+      }
+
+      if (newExerciseIndex !== activeRestTimer.exerciseIndex) {
+        setActiveRestTimer({
+          ...activeRestTimer,
+          exerciseIndex: newExerciseIndex
+        })
+      }
+    }
+  }
+
   const finishWorkout = () => {
     if (!activeWorkout) return
     setShowFinishModal(true)
@@ -520,7 +553,8 @@ function App() {
       onSkipInlineRest={() => setActiveRestTimer(null)}
       onAddExercise={addExerciseToWorkout}
       onRemoveExercise={removeExerciseFromWorkout}
-    />
+        onReorderExercises={reorderWorkoutExercises}
+          />
           {showFinishModal && (
             <FinishWorkoutModal
               originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}

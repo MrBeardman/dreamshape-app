@@ -46,9 +46,9 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - [x] Start empty workout with auto-naming (Monday Morning/Lunch/Evening/Night Workout)
 - [x] Add/remove exercises during workout
 - [x] Finish workout with template save options (update template, save as new, or just finish)
+- [x] Drag and drop to reorder exercises (workout + templates)
 
 ### In Progress 🚧
-- [ ] Drag and drop to reorder exercises during workout
 - [ ] Sticky header
 - [ ] Template notes
 - [ ] Auto-fill reps from last set of same exercise
