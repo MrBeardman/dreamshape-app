@@ -6,10 +6,9 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
+  type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
@@ -45,6 +44,9 @@ interface WorkoutViewProps {
   onAddExercise: (name: string, muscleGroup: string, equipment: string) => void
   onRemoveExercise: (exerciseIndex: number) => void
   onReorderExercises: (oldIndex: number, newIndex: number) => void
+  onSetWorkoutNotes: (notes: string) => void
+  onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
+  onToggleSetType: (exerciseIndex: number, setIndex: number) => void
 }
 
 function SortableExercise({
@@ -60,6 +62,8 @@ function SortableExercise({
   onSetExerciseRestDuration,
   onSkipInlineRest,
   onRemoveExercise,
+  onSetExerciseNotes,
+  onToggleSetType,
   formatRestTime,
 }: {
   exercise: ExerciseLog
@@ -74,8 +78,14 @@ function SortableExercise({
   onSetExerciseRestDuration: (exerciseIndex: number, duration: number) => void
   onSkipInlineRest: () => void
   onRemoveExercise: (exerciseIndex: number) => void
+  onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
+  onToggleSetType: (exerciseIndex: number, setIndex: number) => void
   formatRestTime: (seconds: number) => string
 }) {
+  const [showNotesMenu, setShowNotesMenu] = useState(false)
+  const [isEditingNotes, setIsEditingNotes] = useState(false)
+  const [notesText, setNotesText] = useState(exercise.notes || '')
+
   const {
     attributes,
     listeners,
@@ -89,6 +99,12 @@ function SortableExercise({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  }
+
+  const handleSaveNotes = () => {
+    onSetExerciseNotes(exerciseIndex, notesText)
+    setIsEditingNotes(false)
+    setShowNotesMenu(false)
   }
 
   return (
@@ -124,6 +140,32 @@ function SortableExercise({
           {pr > 0 && (
             <span className="pr-badge">PR: {pr} kg</span>
           )}
+          <div className="exercise-menu-container">
+            <button
+              className="btn-exercise-menu"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowNotesMenu(!showNotesMenu)
+              }}
+              title="Exercise options"
+            >
+              ⋮
+            </button>
+            {showNotesMenu && (
+              <div className="exercise-menu-dropdown">
+                <button
+                  className="menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setIsEditingNotes(true)
+                    setShowNotesMenu(false)
+                  }}
+                >
+                  {exercise.notes ? '✏️ Edit note' : '📝 Add note'}
+                </button>
+              </div>
+            )}
+          </div>
           <button
             className="btn-remove-exercise"
             onClick={(e) => {
@@ -136,6 +178,48 @@ function SortableExercise({
           </button>
         </div>
       </div>
+
+      {/* Exercise Notes */}
+      {isEditingNotes && (
+        <div className="exercise-notes-edit" onClick={(e) => e.stopPropagation()}>
+          <textarea
+            className="notes-textarea"
+            placeholder="Add a note for this exercise..."
+            value={notesText}
+            onChange={(e) => setNotesText(e.target.value)}
+            rows={3}
+            autoFocus
+          />
+          <div className="notes-actions">
+            <button
+              className="btn-notes-cancel"
+              onClick={(e) => {
+                e.stopPropagation()
+                setIsEditingNotes(false)
+                setNotesText(exercise.notes || '')
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-notes-save"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleSaveNotes()
+              }}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {exercise.notes && !isEditingNotes && (
+        <div className="exercise-notes-display" onClick={(e) => e.stopPropagation()}>
+          <span className="notes-icon">📝</span>
+          <span className="notes-text">{exercise.notes}</span>
+        </div>
+      )}
       
       <div className="sets-header">
         <span className="set-col">Set</span>
@@ -144,87 +228,100 @@ function SortableExercise({
         <span className="check-col">✓</span>
       </div>
 
-      {exercise.sets.map((set, setIndex) => (
-        <div key={set.id}>
-          <div className={`set-row ${set.completed ? 'completed' : ''}`}>
-            <span className="set-number">{setIndex + 1}</span>
-            
-            <input
-              type="number"
-              className="set-input"
-              value={set.weight || ''}
-              onChange={(e) => {
-                e.stopPropagation()
-                onUpdateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))
-              }}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="0"
-            />
-            
-            <input
-              type="number"
-              className="set-input"
-              value={set.reps || ''}
-              onChange={(e) => {
-                e.stopPropagation()
-                onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))
-              }}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="0"
-            />
-            
-            <button
-              className={`check-btn ${set.completed ? 'completed' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                onToggleSetCompleted(exerciseIndex, setIndex)
-              }}
-            >
-              {set.completed ? '✓' : ''}
-            </button>
-
-            {exercise.sets.length > 1 && (
+      {exercise.sets.map((set, setIndex) => {
+        const setType = set.type || 'working'
+        return (
+          <div key={set.id}>
+            <div className={`set-row ${set.completed ? 'completed' : ''}`}>
               <button
-                className="remove-set-btn"
+                className={`set-number-badge ${setType}`}
                 onClick={(e) => {
                   e.stopPropagation()
-                  onRemoveSet(exerciseIndex, setIndex)
+                  onToggleSetType(exerciseIndex, setIndex)
+                }}
+                title={`Click to toggle: ${setType === 'warmup' ? 'Warmup' : 'Working Set'}`}
+              >
+                <span className="set-num">{setIndex + 1}</span>
+                <span className="set-badge">{setType === 'warmup' ? 'W' : 'WS'}</span>
+              </button>
+              
+              <input
+                type="number"
+                className="set-input"
+                value={set.weight || ''}
+                onChange={(e) => {
+                  e.stopPropagation()
+                  onUpdateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value))
+                }}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="0"
+              />
+              
+              <input
+                type="number"
+                className="set-input"
+                value={set.reps || ''}
+                onChange={(e) => {
+                  e.stopPropagation()
+                  onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))
+                }}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="0"
+              />
+              
+              <button
+                className={`check-btn ${set.completed ? 'completed' : ''}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleSetCompleted(exerciseIndex, setIndex)
                 }}
               >
-                ×
+                {set.completed ? '✓' : ''}
               </button>
-            )}
-          </div>
 
-          {/* Inline Rest Timer */}
-          {activeRestTimer && 
-           activeRestTimer.exerciseIndex === exerciseIndex && 
-           activeRestTimer.afterSetIndex === setIndex && (
-            <div className="inline-rest-timer">
-              <div 
-                className="inline-rest-progress" 
-                style={{ 
-                  width: `${((exerciseRestDuration - activeRestTimer.timeRemaining) / exerciseRestDuration) * 100}%` 
-                }}
-              />
-              <div className="inline-rest-content">
-                <span className="inline-rest-time">
-                  Rest: {formatRestTime(activeRestTimer.timeRemaining)}
-                </span>
-                <button 
-                  className="inline-rest-skip"
+              {exercise.sets.length > 1 && (
+                <button
+                  className="remove-set-btn"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onSkipInlineRest()
+                    onRemoveSet(exerciseIndex, setIndex)
                   }}
                 >
-                  Skip
+                  ×
                 </button>
-              </div>
+              )}
             </div>
-          )}
-        </div>
-      ))}
+
+            {/* Inline Rest Timer */}
+            {activeRestTimer && 
+             activeRestTimer.exerciseIndex === exerciseIndex && 
+             activeRestTimer.afterSetIndex === setIndex && (
+              <div className="inline-rest-timer">
+                <div 
+                  className="inline-rest-progress" 
+                  style={{ 
+                    width: `${((exerciseRestDuration - activeRestTimer.timeRemaining) / exerciseRestDuration) * 100}%` 
+                  }}
+                />
+                <div className="inline-rest-content">
+                  <span className="inline-rest-time">
+                    Rest: {formatRestTime(activeRestTimer.timeRemaining)}
+                  </span>
+                  <button 
+                    className="inline-rest-skip"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onSkipInlineRest()
+                    }}
+                  >
+                    Skip
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
 
       <button
         className="add-set-btn"
@@ -260,14 +357,19 @@ export default function WorkoutView({
   onAddExercise,
   onRemoveExercise,
   onReorderExercises,
+  onSetWorkoutNotes,
+  onSetExerciseNotes,
+  onToggleSetType,
 }: WorkoutViewProps) {
   const [exerciseInput, setExerciseInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [showWorkoutNotes, setShowWorkoutNotes] = useState(false)
+  const [workoutNotesText, setWorkoutNotesText] = useState(activeWorkout.notes || '')
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // 8px movement before drag starts
+        distance: 8,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -342,39 +444,87 @@ export default function WorkoutView({
     return maxWeight
   }
 
+  const handleSaveWorkoutNotes = () => {
+    onSetWorkoutNotes(workoutNotesText)
+    setShowWorkoutNotes(false)
+  }
+
   return (
     <div className="workout-view">
-      <div className="workout-header">
+      {/* Sticky Header */}
+      <div className="workout-header-sticky">
         <button className="btn-back" onClick={onCancel}>
-          ✕ Cancel
+          ✕
         </button>
-        <h2>{activeWorkout.templateName}</h2>
+        <span className="workout-time">{formatElapsedTime(elapsedTime)}</span>
         <button className="btn-finish" onClick={onFinish}>
           Finish
         </button>
       </div>
 
-      {/* Workout Timer */}
-      <div className="workout-timer">
-        <div>
-          <span className="timer-label">Workout Duration</span>
-          <span className="timer-value">{formatElapsedTime(elapsedTime)}</span>
+      {/* Workout Title & Notes */}
+      <div className="workout-title-section">
+        <h2>{activeWorkout.templateName}</h2>
+        <button 
+          className="btn-workout-notes"
+          onClick={() => setShowWorkoutNotes(!showWorkoutNotes)}
+        >
+          {activeWorkout.notes ? '📝 Edit notes' : '📝 Add notes'}
+        </button>
+      </div>
+
+      {showWorkoutNotes && (
+        <div className="workout-notes-edit">
+          <textarea
+            className="notes-textarea"
+            placeholder="Add notes for this workout..."
+            value={workoutNotesText}
+            onChange={(e) => setWorkoutNotesText(e.target.value)}
+            rows={3}
+            autoFocus
+          />
+          <div className="notes-actions">
+            <button
+              className="btn-notes-cancel"
+              onClick={() => {
+                setShowWorkoutNotes(false)
+                setWorkoutNotesText(activeWorkout.notes || '')
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-notes-save"
+              onClick={handleSaveWorkoutNotes}
+            >
+              Save
+            </button>
+          </div>
         </div>
-        <div className="rest-settings">
-          <label className="rest-label-small">Rest: </label>
-          <select 
-            className="rest-select"
-            value={restDuration}
-            onChange={(e) => onSetRestDuration(Number(e.target.value))}
-          >
-            <option value={60}>1:00</option>
-            <option value={90}>1:30</option>
-            <option value={120}>2:00</option>
-            <option value={180}>3:00</option>
-            <option value={240}>4:00</option>
-            <option value={300}>5:00</option>
-          </select>
+      )}
+
+      {activeWorkout.notes && !showWorkoutNotes && (
+        <div className="workout-notes-display">
+          <span className="notes-icon">📝</span>
+          <span className="notes-text">{activeWorkout.notes}</span>
         </div>
+      )}
+
+      {/* Rest Settings */}
+      <div className="rest-settings-bar">
+        <label className="rest-label-small">Default Rest: </label>
+        <select 
+          className="rest-select"
+          value={restDuration}
+          onChange={(e) => onSetRestDuration(Number(e.target.value))}
+        >
+          <option value={60}>1:00</option>
+          <option value={90}>1:30</option>
+          <option value={120}>2:00</option>
+          <option value={180}>3:00</option>
+          <option value={240}>4:00</option>
+          <option value={300}>5:00</option>
+        </select>
       </div>
 
       {/* Rest Timer Overlay */}
@@ -428,6 +578,8 @@ export default function WorkoutView({
                   onSetExerciseRestDuration={onSetExerciseRestDuration}
                   onSkipInlineRest={onSkipInlineRest}
                   onRemoveExercise={onRemoveExercise}
+                  onSetExerciseNotes={onSetExerciseNotes}
+                  onToggleSetType={onToggleSetType}
                   formatRestTime={formatRestTime}
                 />
               )
