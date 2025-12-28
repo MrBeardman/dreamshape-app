@@ -397,6 +397,40 @@ function App() {
     }
   }
 
+  const setWorkoutNotes = (notes: string) => {
+    if (!activeWorkout) return
+    
+    setActiveWorkout({
+      ...activeWorkout,
+      notes
+    })
+  }
+
+  const setExerciseNotes = (exerciseIndex: number, notes: string) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    updatedExercises[exerciseIndex].notes = notes
+    
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+  }
+
+  const toggleSetType = (exerciseIndex: number, setIndex: number) => {
+    if (!activeWorkout) return
+
+    const updatedExercises = [...activeWorkout.exercises]
+    const currentType = updatedExercises[exerciseIndex].sets[setIndex].type || 'working'
+    updatedExercises[exerciseIndex].sets[setIndex].type = currentType === 'warmup' ? 'working' : 'warmup'
+    
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: updatedExercises
+    })
+  }
+
   const finishWorkout = () => {
     if (!activeWorkout) return
     setShowFinishModal(true)
@@ -554,6 +588,9 @@ function App() {
     onAddExercise={addExerciseToWorkout}
     onRemoveExercise={removeExerciseFromWorkout}
     onReorderExercises={reorderWorkoutExercises}
+    onSetWorkoutNotes={setWorkoutNotes}
+    onSetExerciseNotes={setExerciseNotes}
+    onToggleSetType={toggleSetType}
   />
   {showFinishModal && (
     <FinishWorkoutModal

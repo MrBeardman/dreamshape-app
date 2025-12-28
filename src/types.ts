@@ -3,12 +3,14 @@ export interface Exercise {
   name: string
   equipment: string
   muscleGroup: string
+  notes?: string  // Per-exercise notes
 }
 
 export interface WorkoutTemplate {
   id: string
   name: string
   exercises: Exercise[]
+  notes?: string  // Global template notes
 }
 
 export interface Set {
@@ -16,6 +18,7 @@ export interface Set {
   weight: number
   reps: number
   completed: boolean
+  type?: 'warmup' | 'working'  // Set type, defaults to working
 }
 
 export interface ExerciseLog {
@@ -23,6 +26,7 @@ export interface ExerciseLog {
   exerciseName: string
   sets: Set[]
   restDuration?: number  // Per-exercise rest duration in seconds
+  notes?: string  // Per-exercise notes during workout
 }
 
 export interface WorkoutLog {
@@ -38,4 +42,5 @@ export interface ActiveWorkout {
   originalTemplateId: string | null  // null if started as empty workout
   exercises: ExerciseLog[]
   startTime: number
+  notes?: string  // Global workout notes
 }
