@@ -46,17 +46,16 @@ Your personal workout tracking app - Shape your dreams and your physique!
 - [x] Start empty workout with auto-naming (Monday Morning/Lunch/Evening/Night Workout)
 - [x] Add/remove exercises during workout
 - [x] Finish workout with template save options (update template, save as new, or just finish)
-- [x] Drag and drop to reorder exercises (workout + templates)
+- [x] Drag and drop to reorder exercises during workout
+- [x] Sticky header
+- [x] Template notes
+- [x] Auto-fill reps from last set of same exercise
+- [x] Set type indicators (working set / warmup)
 
 ### In Progress 🚧
-- [ ] Sticky header
-- [ ] Template notes
-- [ ] Auto-fill reps from last set of same exercise
-- [ ] Set type indicators (working set / warmup)
-- [ ] Rest time per exercise
+- [ ] Track progress with charts (1RM, volume, frequency)
 
 ### Planned 📋
-- [ ] Track progress with charts (1RM, volume, frequency)
 - [ ] Workout notes (per workout)
 - [ ] Export workout data
 - [ ] Cloud sync with Supabase
