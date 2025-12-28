@@ -257,7 +257,7 @@ export default function WorkoutView({
                       <div 
                         className="inline-rest-progress" 
                         style={{ 
-                          width: `${(activeRestTimer.timeRemaining / exerciseRestDuration) * 100}%` 
+                          width: `${((exerciseRestDuration - activeRestTimer.timeRemaining) / exerciseRestDuration) * 100}%` 
                         }}
                       />
                       <div className="inline-rest-content">
