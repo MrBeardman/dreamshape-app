@@ -67,7 +67,6 @@ function App() {
 
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
-  const [loading, setLoading] = useState(true)
   // Sync state
   const [syncService, setSyncService] = useState<SyncService | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -163,8 +162,9 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+
   // In return statement, wrap everything:
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="loading-screen">
         <h1>💪 DreamShape</h1>
@@ -176,8 +176,6 @@ function App() {
   if (!user) {
     return <AuthView onAuthSuccess={() => { }} />
   }
-
-
 
 
   // Save to localStorage
