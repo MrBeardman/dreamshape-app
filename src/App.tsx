@@ -72,6 +72,17 @@ function App() {
   const [syncService, setSyncService] = useState<SyncService | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem('dreamshape_profile')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        return { name: 'Jan', memberSince: new Date().toISOString() }
+      }
+    }
+    return { name: 'Jan', memberSince: new Date().toISOString() }
+  })
   const [isCreating, setIsCreating] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
   const [currentView, setCurrentView] = useState<'dashboard' | 'progress' | 'start' | 'library' | 'profile'>('dashboard')
@@ -152,59 +163,6 @@ function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // Check authentication on mount
-  useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setAuthLoading(false)
-
-      // Initialize sync service if user is logged in
-      if (session?.user) {
-        const sync = new SyncService(session.user.id)
-        setSyncService(sync)
-
-        // Migrate localStorage data to Supabase (first login)
-        handleInitialSync(sync)
-      }
-    })
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-
-      if (session?.user) {
-        const sync = new SyncService(session.user.id)
-        setSyncService(sync)
-        handleInitialSync(sync)
-      } else {
-        setSyncService(null)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  // Add auth check on mount
-  useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
   // In return statement, wrap everything:
   if (loading) {
     return (
@@ -220,17 +178,7 @@ function App() {
   }
 
 
-  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    const saved = localStorage.getItem('dreamshape_profile')
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch (e) {
-        return { name: 'Jan', memberSince: new Date().toISOString() }
-      }
-    }
-    return { name: 'Jan', memberSince: new Date().toISOString() }
-  })
+
 
   // Save to localStorage
   useEffect(() => {
@@ -625,28 +573,24 @@ function App() {
     }
   }
 
-  
+
 
   const handleInitialSync = async (sync: SyncService) => {
     try {
       setIsSyncing(true)
 
-      // Migrate local data to Supabase
       await sync.migrateLocalDataToSupabase()
-
-      // Load all data from Supabase
       const data = await sync.loadAllData()
 
-      // Update state with Supabase data
       if (data.profile) {
         setUserProfile(data.profile)
       }
       setTemplates(data.templates)
       setWorkoutLogs(data.workouts)
 
-      // Merge exercises (default + custom)
+      // This line might be the issue:
       const allExercises = [
-        ...DEFAULT_EXERCISES,
+        ...DEFAULT_EXERCISES,  // ← Make sure DEFAULT_EXERCISES is imported
         ...data.exercises.filter(e =>
           !DEFAULT_EXERCISES.some(d => d.name === e.name)
         )
