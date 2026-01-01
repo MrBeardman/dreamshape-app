@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react'
+import { supabase } from './lib/supabase'
+import { SyncService } from './lib/syncService'
+import SyncIndicator from './components/SyncIndicator'
+import AuthView from './components/AuthView'
+import type { User } from '@supabase/supabase-js'
 import './App.css'
 import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile } from './types'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
@@ -47,7 +52,7 @@ function App() {
   })
 
   // Load exercise database
-  const [exerciseDatabase, setExerciseDatabase] = useState<Array<{name: string, muscleGroup: string, equipment: string}>>(() => {
+  const [exerciseDatabase, setExerciseDatabase] = useState<Array<{ name: string, muscleGroup: string, equipment: string }>>(() => {
     const saved = localStorage.getItem(EXERCISES_KEY)
     if (saved) {
       try {
@@ -59,17 +64,24 @@ function App() {
     }
     return DEFAULT_EXERCISES
   })
-  
+
+  const [user, setUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
+  // Sync state
+  const [syncService, setSyncService] = useState<SyncService | null>(null)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
   const [currentView, setCurrentView] = useState<'dashboard' | 'progress' | 'start' | 'library' | 'profile'>('dashboard')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
-  
+
   // Workout logging state
   const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null)
   const [showFinishModal, setShowFinishModal] = useState(false)
   const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>([])
-  
+
   // Timer states
   const [elapsedTime, setElapsedTime] = useState(0)
   const [restTimer, setRestTimer] = useState<number | null>(null)
@@ -80,17 +92,145 @@ function App() {
     timeRemaining: number
   } | null>(null)
 
-const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-  const saved = localStorage.getItem('dreamshape_profile')
-  if (saved) {
-    try {
-      return JSON.parse(saved)
-    } catch (e) {
-      return { name: 'Jan', memberSince: new Date().toISOString() }
+
+  const handleUpdateProfile = async (profile: UserProfile) => {
+    setUserProfile(profile)
+
+    // Sync to Supabase
+    if (syncService) {
+      setIsSyncing(true)
+      try {
+        await syncService.updateProfile(profile)
+        setLastSyncTime(new Date())
+      } catch (error) {
+        console.error('Failed to update profile:', error)
+      } finally {
+        setIsSyncing(false)
+      }
     }
   }
-  return { name: 'Jan', memberSince: new Date().toISOString() }
-})
+
+  const handleSignOut = async () => {
+    if (confirm('Sign out?')) {
+      await supabase.auth.signOut()
+      setSyncService(null)
+      setLastSyncTime(null)
+    }
+  }
+  // Check authentication on mount
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+
+      // Initialize sync service if user is logged in
+      if (session?.user) {
+        const sync = new SyncService(session.user.id)
+        setSyncService(sync)
+
+        // Migrate localStorage data to Supabase (first login)
+        handleInitialSync(sync)
+      }
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+
+      if (session?.user) {
+        const sync = new SyncService(session.user.id)
+        setSyncService(sync)
+        handleInitialSync(sync)
+      } else {
+        setSyncService(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // Check authentication on mount
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setAuthLoading(false)
+
+      // Initialize sync service if user is logged in
+      if (session?.user) {
+        const sync = new SyncService(session.user.id)
+        setSyncService(sync)
+
+        // Migrate localStorage data to Supabase (first login)
+        handleInitialSync(sync)
+      }
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+
+      if (session?.user) {
+        const sync = new SyncService(session.user.id)
+        setSyncService(sync)
+        handleInitialSync(sync)
+      } else {
+        setSyncService(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // Add auth check on mount
+  useEffect(() => {
+    // Check active session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // In return statement, wrap everything:
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <h1>💪 DreamShape</h1>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <AuthView onAuthSuccess={() => { }} />
+  }
+
+
+  const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+    const saved = localStorage.getItem('dreamshape_profile')
+    if (saved) {
+      try {
+        return JSON.parse(saved)
+      } catch (e) {
+        return { name: 'Jan', memberSince: new Date().toISOString() }
+      }
+    }
+    return { name: 'Jan', memberSince: new Date().toISOString() }
+  })
 
   // Save to localStorage
   useEffect(() => {
@@ -106,9 +246,9 @@ const [userProfile, setUserProfile] = useState<UserProfile>(() => {
   }, [exerciseDatabase])
 
   // Save profile to localStorage
-useEffect(() => {
-  localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile))
-}, [userProfile])
+  useEffect(() => {
+    localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile))
+  }, [userProfile])
 
   // Workout timer - updates every second
   useEffect(() => {
@@ -192,26 +332,39 @@ useEffect(() => {
     const now = new Date()
     const hour = now.getHours()
     const dayName = now.toLocaleDateString('en-US', { weekday: 'long' })
-    
+
     let timeOfDay = 'Evening'
     if (hour >= 6 && hour < 12) timeOfDay = 'Morning'
     else if (hour >= 12 && hour < 15) timeOfDay = 'Lunch'
     else if (hour >= 15 && hour < 21) timeOfDay = 'Evening'
     else timeOfDay = 'Night'
-    
+
     return `${dayName} ${timeOfDay} Workout`
   }
 
-  const deleteTemplate = (id: string) => {
+  const deleteTemplate = async (id: string) => {
     if (confirm('Delete this template?')) {
       setTemplates(templates.filter(t => t.id !== id))
+
+      // Sync to Supabase
+      if (syncService) {
+        setIsSyncing(true)
+        try {
+          await syncService.deleteTemplate(id)
+          setLastSyncTime(new Date())
+        } catch (error) {
+          console.error('Failed to delete template:', error)
+        } finally {
+          setIsSyncing(false)
+        }
+      }
     }
   }
 
   const startWorkout = (template: WorkoutTemplate) => {
     const exerciseLogs: ExerciseLog[] = template.exercises.map(ex => {
       const lastData = getLastWorkoutData(template.name, ex.name)
-      
+
       if (lastData && lastData.sets.length > 0) {
         return {
           exerciseId: ex.id,
@@ -258,7 +411,7 @@ useEffect(() => {
 
     const updatedExercises = [...activeWorkout.exercises]
     updatedExercises[exerciseIndex].sets[setIndex][field] = value
-    
+
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
@@ -270,18 +423,18 @@ useEffect(() => {
 
     const updatedExercises = [...activeWorkout.exercises]
     const isCompleting = !updatedExercises[exerciseIndex].sets[setIndex].completed
-    
+
     updatedExercises[exerciseIndex].sets[setIndex].completed = isCompleting
-    
+
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
     })
-    
+
     if (isCompleting) {
       // Get rest duration for this exercise (or use global default)
       const exerciseRestDuration = updatedExercises[exerciseIndex].restDuration || restDuration
-      
+
       // Start inline rest timer below this set
       setActiveRestTimer({
         exerciseIndex,
@@ -296,14 +449,14 @@ useEffect(() => {
 
     const updatedExercises = [...activeWorkout.exercises]
     const lastSet = updatedExercises[exerciseIndex].sets[updatedExercises[exerciseIndex].sets.length - 1]
-    
+
     updatedExercises[exerciseIndex].sets.push({
       id: Date.now().toString(),
       weight: lastSet?.weight || 0,
       reps: lastSet?.reps || 0,
       completed: false
     })
-    
+
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
@@ -334,11 +487,11 @@ useEffect(() => {
       exerciseName,
       sets: lastData && lastData.sets.length > 0
         ? lastData.sets.map((set, idx) => ({
-            id: (idx + 1).toString(),
-            weight: set.weight,
-            reps: set.reps,
-            completed: false
-          }))
+          id: (idx + 1).toString(),
+          weight: set.weight,
+          reps: set.reps,
+          completed: false
+        }))
         : [{ id: '1', weight: 0, reps: 0, completed: false }]
     }
 
@@ -365,7 +518,7 @@ useEffect(() => {
       ...activeWorkout,
       exercises: updatedExercises
     })
-    
+
     // Clear rest timer if it was for this exercise
     if (activeRestTimer?.exerciseIndex === exerciseIndex) {
       setActiveRestTimer(null)
@@ -377,7 +530,7 @@ useEffect(() => {
 
     const updatedExercises = [...activeWorkout.exercises]
     updatedExercises[exerciseIndex].restDuration = duration
-    
+
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
@@ -399,7 +552,7 @@ useEffect(() => {
     // Update active rest timer indices if affected
     if (activeRestTimer) {
       let newExerciseIndex = activeRestTimer.exerciseIndex
-      
+
       if (activeRestTimer.exerciseIndex === oldIndex) {
         newExerciseIndex = newIndex
       } else if (oldIndex < activeRestTimer.exerciseIndex && newIndex >= activeRestTimer.exerciseIndex) {
@@ -419,7 +572,7 @@ useEffect(() => {
 
   const setWorkoutNotes = (notes: string) => {
     if (!activeWorkout) return
-    
+
     setActiveWorkout({
       ...activeWorkout,
       notes
@@ -431,7 +584,7 @@ useEffect(() => {
 
     const updatedExercises = [...activeWorkout.exercises]
     updatedExercises[exerciseIndex].notes = notes
-    
+
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
@@ -444,7 +597,7 @@ useEffect(() => {
     const updatedExercises = [...activeWorkout.exercises]
     const currentType = updatedExercises[exerciseIndex].sets[setIndex].type || 'working'
     updatedExercises[exerciseIndex].sets[setIndex].type = currentType === 'warmup' ? 'working' : 'warmup'
-    
+
     setActiveWorkout({
       ...activeWorkout,
       exercises: updatedExercises
@@ -469,6 +622,42 @@ useEffect(() => {
       hasChanges: added.length > 0 || removed.length > 0,
       added,
       removed
+    }
+  }
+
+  
+
+  const handleInitialSync = async (sync: SyncService) => {
+    try {
+      setIsSyncing(true)
+
+      // Migrate local data to Supabase
+      await sync.migrateLocalDataToSupabase()
+
+      // Load all data from Supabase
+      const data = await sync.loadAllData()
+
+      // Update state with Supabase data
+      if (data.profile) {
+        setUserProfile(data.profile)
+      }
+      setTemplates(data.templates)
+      setWorkoutLogs(data.workouts)
+
+      // Merge exercises (default + custom)
+      const allExercises = [
+        ...DEFAULT_EXERCISES,
+        ...data.exercises.filter(e =>
+          !DEFAULT_EXERCISES.some(d => d.name === e.name)
+        )
+      ]
+      setExerciseDatabase(allExercises)
+
+      setLastSyncTime(new Date())
+    } catch (error) {
+      console.error('Initial sync failed:', error)
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -507,7 +696,7 @@ useEffect(() => {
     saveWorkoutLog()
   }
 
-  const saveWorkoutLog = () => {
+  const saveWorkoutLog = async () => {
     if (!activeWorkout) return
 
     const duration = Math.floor((Date.now() - activeWorkout.startTime) / 1000)
@@ -521,6 +710,20 @@ useEffect(() => {
     }
 
     setWorkoutLogs([workoutLog, ...workoutLogs])
+
+    // Sync to Supabase
+    if (syncService) {
+      setIsSyncing(true)
+      try {
+        await syncService.createWorkout(workoutLog)
+        setLastSyncTime(new Date())
+      } catch (error) {
+        console.error('Failed to sync workout:', error)
+      } finally {
+        setIsSyncing(false)
+      }
+    }
+
     setActiveWorkout(null)
     setShowFinishModal(false)
     setOriginalTemplateExercises([])
@@ -532,34 +735,64 @@ useEffect(() => {
     }
   }
 
-  const deleteWorkout = (id: string) => {
+  const deleteWorkout = async (id: string) => {
     if (confirm('Delete this workout?')) {
       setWorkoutLogs(workoutLogs.filter(w => w.id !== id))
       if (selectedWorkout?.id === id) {
         setSelectedWorkout(null)
       }
+
+      // Sync to Supabase
+      if (syncService) {
+        setIsSyncing(true)
+        try {
+          await syncService.deleteWorkout(id)
+          setLastSyncTime(new Date())
+        } catch (error) {
+          console.error('Failed to delete workout:', error)
+        } finally {
+          setIsSyncing(false)
+        }
+      }
     }
   }
 
-  const saveTemplate = (name: string, exercises: Exercise[]) => {
-    if (selectedTemplate) {
-      // Editing existing template
-      const updatedTemplates = templates.map(t => 
-        t.id === selectedTemplate.id 
-          ? { ...t, name, exercises }
-          : t
-      )
-      setTemplates(updatedTemplates)
-    } else {
-      // Creating new template
-      const newTemplate: WorkoutTemplate = {
+  const saveTemplate = async (name: string, exercises: Exercise[]) => {
+    const template: WorkoutTemplate = selectedTemplate
+      ? { ...selectedTemplate, name, exercises }
+      : {
         id: Date.now().toString(),
         name,
         exercises
       }
-      setTemplates([...templates, newTemplate])
+
+    // Update state & localStorage
+    if (selectedTemplate) {
+      const updatedTemplates = templates.map(t =>
+        t.id === selectedTemplate.id ? template : t
+      )
+      setTemplates(updatedTemplates)
+    } else {
+      setTemplates([...templates, template])
     }
-    
+
+    // Sync to Supabase
+    if (syncService) {
+      setIsSyncing(true)
+      try {
+        if (selectedTemplate) {
+          await syncService.updateTemplate(template)
+        } else {
+          await syncService.createTemplate(template)
+        }
+        setLastSyncTime(new Date())
+      } catch (error) {
+        console.error('Failed to sync template:', error)
+      } finally {
+        setIsSyncing(false)
+      }
+    }
+
     setIsCreating(false)
     setSelectedTemplate(null)
   }
@@ -569,153 +802,197 @@ useEffect(() => {
     setIsCreating(true)
   }
 
-  const addExerciseToDatabase = (exercise: { name: string, muscleGroup: string, equipment: string }) => {
+  const addExerciseToDatabase = async (exercise: { name: string, muscleGroup: string, equipment: string }) => {
     setExerciseDatabase([...exerciseDatabase, exercise])
-  }
 
-  const deleteExerciseFromDatabase = (exerciseName: string) => {
-    if (confirm(`Delete "${exerciseName}" from database?`)) {
-      setExerciseDatabase(exerciseDatabase.filter(ex => ex.name !== exerciseName))
+    // Sync to Supabase
+    if (syncService) {
+      setIsSyncing(true)
+      try {
+        await syncService.createCustomExercise(exercise)
+        setLastSyncTime(new Date())
+      } catch (error) {
+        console.error('Failed to sync exercise:', error)
+      } finally {
+        setIsSyncing(false)
+      }
     }
   }
 
+  const deleteExerciseFromDatabase = async (exerciseName: string) => {
+    if (confirm(`Delete "${exerciseName}" from database?`)) {
+      setExerciseDatabase(exerciseDatabase.filter(ex => ex.name !== exerciseName))
+
+      // Sync to Supabase
+      if (syncService) {
+        setIsSyncing(true)
+        try {
+          await syncService.deleteCustomExercise(exerciseName)
+          setLastSyncTime(new Date())
+        } catch (error) {
+          console.error('Failed to delete exercise:', error)
+        } finally {
+          setIsSyncing(false)
+        }
+      }
+    }
+  }
+
+
+
+
+
   return (
     <div className="app">
-      <header className="header">
-        <h1 className="logo">💪 DreamShape</h1>
-      </header>
-
-      {activeWorkout ? (
-<>
-  <WorkoutView
-    activeWorkout={activeWorkout}
-    elapsedTime={elapsedTime}
-    restTimer={restTimer}
-    restDuration={restDuration}
-    activeRestTimer={activeRestTimer}
-    workoutLogs={workoutLogs}
-    exerciseDatabase={exerciseDatabase}
-    onCancel={cancelWorkout}
-    onFinish={finishWorkout}
-    onUpdateSet={updateSet}
-    onToggleSetCompleted={toggleSetCompleted}
-    onAddSet={addSet}
-    onRemoveSet={removeSet}
-    onSetRestDuration={setRestDuration}
-    onSetExerciseRestDuration={setExerciseRestDuration}
-    onSkipRest={() => setRestTimer(null)}
-    onSkipInlineRest={() => setActiveRestTimer(null)}
-    onAddExercise={addExerciseToWorkout}
-    onRemoveExercise={removeExerciseFromWorkout}
-    onReorderExercises={reorderWorkoutExercises}
-    onSetWorkoutNotes={setWorkoutNotes}
-    onSetExerciseNotes={setExerciseNotes}
-    onToggleSetType={toggleSetType}
-  />
-  {showFinishModal && (
-    <FinishWorkoutModal
-      originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
-      originalTemplateId={activeWorkout.originalTemplateId}
-      hasChanges={getWorkoutChanges().hasChanges}
-      changedExercises={{
-        added: getWorkoutChanges().added,
-        removed: getWorkoutChanges().removed
-      }}
-      currentExercises={activeWorkout.exercises.map(ex => ({
-        id: ex.exerciseId,
-        name: ex.exerciseName,
-        equipment: 'Barbell',
-        muscleGroup: 'Other'
-      }))}
-      onUpdateTemplate={handleUpdateTemplate}
-      onSaveAsNewTemplate={handleSaveAsNewTemplate}
-      onJustFinish={handleJustFinish}
-      onCancel={() => setShowFinishModal(false)}
-    />
-  )}
-</>
-      ) : selectedWorkout ? (
-        <WorkoutDetailView
-          workout={selectedWorkout}
-          onBack={() => setSelectedWorkout(null)}
-          onDelete={deleteWorkout}
-        />
-     ) : !isCreating ? (
-  <>
-    {currentView === 'dashboard' && (
-      <DashboardView
-        templates={templates}
-        workoutLogs={workoutLogs}
-        userProfile={userProfile}
-        onStartWorkout={startWorkout}
-        onStartEmptyWorkout={startEmptyWorkout}
-        onEditProfile={() => setCurrentView('profile')}
-        onViewAllTemplates={() => setCurrentView('library')}
-      />
-    )}
-    
-    {currentView === 'progress' && (
-      <WorkoutsView
-        workoutLogs={workoutLogs}
-        onStartWorkout={startEmptyWorkout}
-        onSelectWorkout={setSelectedWorkout}
-      />
-    )}
-    
-    {currentView === 'start' && (
-      <TemplatesView
-        templates={templates}
-        onCreateTemplate={() => {
-          setSelectedTemplate(null)
-          setIsCreating(true)
-        }}
-        onEditTemplate={editTemplate}
-        onDeleteTemplate={deleteTemplate}
-        onStartWorkout={startWorkout}
-      />
-    )}
-    
-    {currentView === 'library' && (
-      <LibraryView
-        templates={templates}
-        exerciseDatabase={exerciseDatabase}
-        onCreateTemplate={() => {
-          setSelectedTemplate(null)
-          setIsCreating(true)
-        }}
-        onEditTemplate={editTemplate}
-        onDeleteTemplate={deleteTemplate}
-        onStartWorkout={startWorkout}
-        onAddExercise={addExerciseToDatabase}
-        onDeleteExercise={deleteExerciseFromDatabase}
-      />
-    )}
-    
-    {currentView === 'profile' && (
-      <ProfileView
-        userProfile={userProfile}
-        workoutLogs={workoutLogs}
-        onUpdateProfile={setUserProfile}
-      />
-    )}
-    
-    {/* Bottom Navigation */}
-    <BottomNav
-      currentView={currentView}
-      onNavigate={setCurrentView}
-    />
-  </>
+      {/* Sync Indicator */}
+      {user && (
+        <SyncIndicator isSyncing={isSyncing} lastSyncTime={lastSyncTime} />
+      )}
+      {/* Loading Screen */}
+      {authLoading ? (
+        <div className="loading-screen">
+          <h1 className="loading-logo">💪 DreamShape</h1>
+          <p className="loading-text">Loading...</p>
+        </div>
+      ) : !user ? (
+        /* Auth Screen */
+        <AuthView onAuthSuccess={() => { }} />
       ) : (
-        <CreateTemplateView
-          exerciseDatabase={exerciseDatabase}
-          templateToEdit={selectedTemplate}
-          onSave={saveTemplate}
-          onCancel={() => {
-            setIsCreating(false)
-            setSelectedTemplate(null)
-          }}
-          onAddToDatabase={addExerciseToDatabase}
-        />
+        <>   { }
+          {activeWorkout ? (
+            <>
+              <WorkoutView
+                activeWorkout={activeWorkout}
+                elapsedTime={elapsedTime}
+                restTimer={restTimer}
+                restDuration={restDuration}
+                activeRestTimer={activeRestTimer}
+                workoutLogs={workoutLogs}
+                exerciseDatabase={exerciseDatabase}
+                onCancel={cancelWorkout}
+                onFinish={finishWorkout}
+                onUpdateSet={updateSet}
+                onToggleSetCompleted={toggleSetCompleted}
+                onAddSet={addSet}
+                onRemoveSet={removeSet}
+                onSetRestDuration={setRestDuration}
+                onSetExerciseRestDuration={setExerciseRestDuration}
+                onSkipRest={() => setRestTimer(null)}
+                onSkipInlineRest={() => setActiveRestTimer(null)}
+                onAddExercise={addExerciseToWorkout}
+                onRemoveExercise={removeExerciseFromWorkout}
+                onReorderExercises={reorderWorkoutExercises}
+                onSetWorkoutNotes={setWorkoutNotes}
+                onSetExerciseNotes={setExerciseNotes}
+                onToggleSetType={toggleSetType}
+              />
+              {showFinishModal && (
+                <FinishWorkoutModal
+                  originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
+                  originalTemplateId={activeWorkout.originalTemplateId}
+                  hasChanges={getWorkoutChanges().hasChanges}
+                  changedExercises={{
+                    added: getWorkoutChanges().added,
+                    removed: getWorkoutChanges().removed
+                  }}
+                  currentExercises={activeWorkout.exercises.map(ex => ({
+                    id: ex.exerciseId,
+                    name: ex.exerciseName,
+                    equipment: 'Barbell',
+                    muscleGroup: 'Other'
+                  }))}
+                  onUpdateTemplate={handleUpdateTemplate}
+                  onSaveAsNewTemplate={handleSaveAsNewTemplate}
+                  onJustFinish={handleJustFinish}
+                  onCancel={() => setShowFinishModal(false)}
+                />
+              )}
+            </>
+          ) : selectedWorkout ? (
+            <WorkoutDetailView
+              workout={selectedWorkout}
+              onBack={() => setSelectedWorkout(null)}
+              onDelete={deleteWorkout}
+            />
+          ) : !isCreating ? (
+            <>
+              {currentView === 'dashboard' && (
+                <DashboardView
+                  templates={templates}
+                  workoutLogs={workoutLogs}
+                  userProfile={userProfile}
+                  onStartWorkout={startWorkout}
+                  onStartEmptyWorkout={startEmptyWorkout}
+                  onEditProfile={() => setCurrentView('profile')}
+                  onViewAllTemplates={() => setCurrentView('library')}
+                />
+              )}
+
+              {currentView === 'progress' && (
+                <WorkoutsView
+                  workoutLogs={workoutLogs}
+                  onStartWorkout={startEmptyWorkout}
+                  onSelectWorkout={setSelectedWorkout}
+                />
+              )}
+
+              {currentView === 'start' && (
+                <TemplatesView
+                  templates={templates}
+                  onCreateTemplate={() => {
+                    setSelectedTemplate(null)
+                    setIsCreating(true)
+                  }}
+                  onEditTemplate={editTemplate}
+                  onDeleteTemplate={deleteTemplate}
+                  onStartWorkout={startWorkout}
+                />
+              )}
+
+              {currentView === 'library' && (
+                <LibraryView
+                  templates={templates}
+                  exerciseDatabase={exerciseDatabase}
+                  onCreateTemplate={() => {
+                    setSelectedTemplate(null)
+                    setIsCreating(true)
+                  }}
+                  onEditTemplate={editTemplate}
+                  onDeleteTemplate={deleteTemplate}
+                  onStartWorkout={startWorkout}
+                  onAddExercise={addExerciseToDatabase}
+                  onDeleteExercise={deleteExerciseFromDatabase}
+                />
+              )}
+
+              {currentView === 'profile' && (
+                <ProfileView
+                  userProfile={userProfile}
+                  workoutLogs={workoutLogs}
+                  onUpdateProfile={handleUpdateProfile}
+                  onSignOut={handleSignOut}
+                />
+              )}
+
+              {/* Bottom Navigation */}
+              <BottomNav
+                currentView={currentView}
+                onNavigate={setCurrentView}
+              />
+            </>
+          ) : (
+            <CreateTemplateView
+              exerciseDatabase={exerciseDatabase}
+              templateToEdit={selectedTemplate}
+              onSave={saveTemplate}
+              onCancel={() => {
+                setIsCreating(false)
+                setSelectedTemplate(null)
+              }}
+              onAddToDatabase={addExerciseToDatabase}
+            />
+          )}
+        </>
       )}
     </div>
   )
