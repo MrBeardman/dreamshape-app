@@ -103,10 +103,41 @@ function App() {
   } | null>(null)
 
 
+  // ============================================
+  // FUNCTIONS - MUST BE BEFORE useEffect
+  // ============================================
+
+  const handleInitialSync = async (sync: SyncService) => {
+    try {
+      setIsSyncing(true)
+      await sync.migrateLocalDataToSupabase()
+      const data = await sync.loadAllData()
+
+      if (data.profile) {
+        setUserProfile(data.profile)
+      }
+      setTemplates(data.templates)
+      setWorkoutLogs(data.workouts)
+
+      const allExercises = [
+        ...DEFAULT_EXERCISES,
+        ...data.exercises.filter(e =>
+          !DEFAULT_EXERCISES.some(d => d.name === e.name)
+        )
+      ]
+      setExerciseDatabase(allExercises)
+
+      setLastSyncTime(new Date())
+    } catch (error) {
+      console.error('Initial sync failed:', error)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   const handleUpdateProfile = async (profile: UserProfile) => {
     setUserProfile(profile)
 
-    // Sync to Supabase
     if (syncService) {
       setIsSyncing(true)
       try {
@@ -127,6 +158,11 @@ function App() {
       setLastSyncTime(null)
     }
   }
+
+  // ============================================
+  // useEffect HOOKS
+  // ============================================
+
   // Check authentication on mount
   useEffect(() => {
     // Check active session
@@ -161,22 +197,6 @@ function App() {
 
     return () => subscription.unsubscribe()
   }, [])
-
-
-  // In return statement, wrap everything:
-  if (authLoading) {
-    return (
-      <div className="loading-screen">
-        <h1>💪 DreamShape</h1>
-        <p>Loading...</p>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return <AuthView onAuthSuccess={() => { }} />
-  }
-
 
   // Save to localStorage
   useEffect(() => {
@@ -572,36 +592,6 @@ function App() {
   }
 
 
-
-  const handleInitialSync = async (sync: SyncService) => {
-    try {
-      setIsSyncing(true)
-
-      await sync.migrateLocalDataToSupabase()
-      const data = await sync.loadAllData()
-
-      if (data.profile) {
-        setUserProfile(data.profile)
-      }
-      setTemplates(data.templates)
-      setWorkoutLogs(data.workouts)
-
-      // This line might be the issue:
-      const allExercises = [
-        ...DEFAULT_EXERCISES,  // ← Make sure DEFAULT_EXERCISES is imported
-        ...data.exercises.filter(e =>
-          !DEFAULT_EXERCISES.some(d => d.name === e.name)
-        )
-      ]
-      setExerciseDatabase(allExercises)
-
-      setLastSyncTime(new Date())
-    } catch (error) {
-      console.error('Initial sync failed:', error)
-    } finally {
-      setIsSyncing(false)
-    }
-  }
 
   const handleUpdateTemplate = () => {
     if (!activeWorkout || !activeWorkout.originalTemplateId) return
