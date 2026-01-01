@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react'
 import './App.css'
-import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile } from './types'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
 import TemplatesView from './components/TemplatesView'
 import WorkoutsView from './components/WorkoutsView'
-import ExercisesView from './components/ExercisesView'
 import CreateTemplateView from './components/CreateTemplateView'
 import FinishWorkoutModal from './components/FinishWorkoutModal'
+import DashboardView from './components/DashboardView'
+import BottomNav from './components/BottomNav'
+import LibraryView from './components/LibraryView'
+import ProfileView from './components/ProfileView'
 
 const STORAGE_KEY = 'dreamshape_templates'
 const WORKOUTS_KEY = 'dreamshape_workouts'
@@ -59,7 +62,7 @@ function App() {
   
   const [isCreating, setIsCreating] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
-  const [currentView, setCurrentView] = useState<'templates' | 'workouts' | 'exercises'>('templates')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'progress' | 'start' | 'library' | 'profile'>('dashboard')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
   
   // Workout logging state
@@ -77,6 +80,18 @@ function App() {
     timeRemaining: number
   } | null>(null)
 
+const [userProfile, setUserProfile] = useState<UserProfile>(() => {
+  const saved = localStorage.getItem('dreamshape_profile')
+  if (saved) {
+    try {
+      return JSON.parse(saved)
+    } catch (e) {
+      return { name: 'Jan', memberSince: new Date().toISOString() }
+    }
+  }
+  return { name: 'Jan', memberSince: new Date().toISOString() }
+})
+
   // Save to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates))
@@ -89,6 +104,11 @@ function App() {
   useEffect(() => {
     localStorage.setItem(EXERCISES_KEY, JSON.stringify(exerciseDatabase))
   }, [exerciseDatabase])
+
+  // Save profile to localStorage
+useEffect(() => {
+  localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile))
+}, [userProfile])
 
   // Workout timer - updates every second
   useEffect(() => {
@@ -620,54 +640,71 @@ function App() {
           onBack={() => setSelectedWorkout(null)}
           onDelete={deleteWorkout}
         />
-      ) : !isCreating ? (
-        <>
-          <div className="nav-tabs">
-            <button
-              className={`nav-tab ${currentView === 'templates' ? 'active' : ''}`}
-              onClick={() => setCurrentView('templates')}
-            >
-              Templates
-            </button>
-            <button
-              className={`nav-tab ${currentView === 'workouts' ? 'active' : ''}`}
-              onClick={() => setCurrentView('workouts')}
-            >
-              Workouts ({workoutLogs.length})
-            </button>
-            <button
-              className={`nav-tab ${currentView === 'exercises' ? 'active' : ''}`}
-              onClick={() => setCurrentView('exercises')}
-            >
-              Exercises ({exerciseDatabase.length})
-            </button>
-          </div>
-
-          {currentView === 'templates' ? (
-            <TemplatesView
-              templates={templates}
-              onCreateTemplate={() => {
-                setSelectedTemplate(null)
-                setIsCreating(true)
-              }}
-              onEditTemplate={editTemplate}
-              onDeleteTemplate={deleteTemplate}
-              onStartWorkout={startWorkout}
-            />
-          ) : currentView === 'workouts' ? (
-            <WorkoutsView
-              workoutLogs={workoutLogs}
-              onStartWorkout={startEmptyWorkout}
-              onSelectWorkout={setSelectedWorkout}
-            />
-          ) : (
-            <ExercisesView
-              exerciseDatabase={exerciseDatabase}
-              onAddExercise={addExerciseToDatabase}
-              onDeleteExercise={deleteExerciseFromDatabase}
-            />
-          )}
-        </>
+     ) : !isCreating ? (
+  <>
+    {currentView === 'dashboard' && (
+      <DashboardView
+        templates={templates}
+        workoutLogs={workoutLogs}
+        userProfile={userProfile}
+        onStartWorkout={startWorkout}
+        onStartEmptyWorkout={startEmptyWorkout}
+        onEditProfile={() => setCurrentView('profile')}
+        onViewAllTemplates={() => setCurrentView('library')}
+      />
+    )}
+    
+    {currentView === 'progress' && (
+      <WorkoutsView
+        workoutLogs={workoutLogs}
+        onStartWorkout={startEmptyWorkout}
+        onSelectWorkout={setSelectedWorkout}
+      />
+    )}
+    
+    {currentView === 'start' && (
+      <TemplatesView
+        templates={templates}
+        onCreateTemplate={() => {
+          setSelectedTemplate(null)
+          setIsCreating(true)
+        }}
+        onEditTemplate={editTemplate}
+        onDeleteTemplate={deleteTemplate}
+        onStartWorkout={startWorkout}
+      />
+    )}
+    
+    {currentView === 'library' && (
+      <LibraryView
+        templates={templates}
+        exerciseDatabase={exerciseDatabase}
+        onCreateTemplate={() => {
+          setSelectedTemplate(null)
+          setIsCreating(true)
+        }}
+        onEditTemplate={editTemplate}
+        onDeleteTemplate={deleteTemplate}
+        onStartWorkout={startWorkout}
+        onAddExercise={addExerciseToDatabase}
+        onDeleteExercise={deleteExerciseFromDatabase}
+      />
+    )}
+    
+    {currentView === 'profile' && (
+      <ProfileView
+        userProfile={userProfile}
+        workoutLogs={workoutLogs}
+        onUpdateProfile={setUserProfile}
+      />
+    )}
+    
+    {/* Bottom Navigation */}
+    <BottomNav
+      currentView={currentView}
+      onNavigate={setCurrentView}
+    />
+  </>
       ) : (
         <CreateTemplateView
           exerciseDatabase={exerciseDatabase}

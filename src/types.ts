@@ -35,6 +35,7 @@ export interface WorkoutLog {
   date: string
   exercises: ExerciseLog[]
   duration: number
+  activityType?: 'workout' | 'cardio' | 'stretching' | 'recovery'  // For streak tracking
 }
 
 export interface ActiveWorkout {
@@ -43,4 +44,9 @@ export interface ActiveWorkout {
   exercises: ExerciseLog[]
   startTime: number
   notes?: string  // Global workout notes
+}
+
+export interface UserProfile {
+  name: string
+  memberSince: string
 }
