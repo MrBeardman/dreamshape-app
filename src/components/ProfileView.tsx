@@ -5,15 +5,20 @@ interface ProfileViewProps {
   userProfile: UserProfile
   workoutLogs: WorkoutLog[]
   onUpdateProfile: (profile: UserProfile) => void
+  onSignOut: () => void
 }
 
 export default function ProfileView({
   userProfile,
   workoutLogs,
   onUpdateProfile,
+  onSignOut,
 }: ProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(userProfile.name)
+
+
+
 
   const handleSave = () => {
     onUpdateProfile({ ...userProfile, name })
@@ -38,7 +43,7 @@ export default function ProfileView({
 
   const getMostFrequentExercise = () => {
     const exerciseCounts: Record<string, number> = {}
-    
+
     workoutLogs.forEach(workout => {
       workout.exercises.forEach(exercise => {
         exerciseCounts[exercise.exerciseName] = (exerciseCounts[exercise.exerciseName] || 0) + 1
@@ -59,7 +64,7 @@ export default function ProfileView({
         <div className="profile-avatar-large">
           {userProfile.name.charAt(0).toUpperCase()}
         </div>
-        
+
         {isEditing ? (
           <div className="profile-edit-form">
             <input
@@ -89,9 +94,9 @@ export default function ProfileView({
           <div className="profile-info-section">
             <h1 className="profile-name-large">{userProfile.name}</h1>
             <p className="profile-member-since">
-              Member since {new Date(userProfile.memberSince).toLocaleDateString('en-US', { 
-                month: 'long', 
-                year: 'numeric' 
+              Member since {new Date(userProfile.memberSince).toLocaleDateString('en-US', {
+                month: 'long',
+                year: 'numeric'
               })}
             </p>
             <button className="btn-edit" onClick={() => setIsEditing(true)}>
@@ -103,7 +108,7 @@ export default function ProfileView({
 
       <div className="profile-stats-section">
         <h2 className="section-title">📊 Your Stats</h2>
-        
+
         <div className="profile-stats-grid">
           <div className="profile-stat-card">
             <div className="profile-stat-icon">💪</div>
@@ -133,7 +138,7 @@ export default function ProfileView({
 
       <div className="profile-info-section-details">
         <h2 className="section-title">ℹ️ About</h2>
-        
+
         <div className="info-card">
           <p className="info-text">
             DreamShape helps you track your workouts, monitor progress, and achieve your fitness goals.
@@ -149,7 +154,7 @@ export default function ProfileView({
 
       <div className="profile-danger-zone">
         <h2 className="section-title">⚠️ Data Management</h2>
-        
+
         <div className="danger-card">
           <p className="danger-text">
             Your data is stored locally in your browser. Make sure to back up regularly!
@@ -171,6 +176,11 @@ export default function ProfileView({
           }}>
             Export Data
           </button>
+          <div className="profile-actions">
+            <button className="btn-sign-out" onClick={onSignOut}>
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
     </div>
