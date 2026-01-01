@@ -115,9 +115,14 @@ function App() {
 
       if (data.profile) {
         setUserProfile(data.profile)
+        localStorage.setItem('dreamshape_profile', JSON.stringify(data.profile))
       }
+      
       setTemplates(data.templates)
+      localStorage.setItem('dreamshape_templates', JSON.stringify(data.templates))
+      
       setWorkoutLogs(data.workouts)
+      localStorage.setItem('dreamshape_workouts', JSON.stringify(data.workouts))
 
       const allExercises = [
         ...DEFAULT_EXERCISES,
@@ -126,8 +131,10 @@ function App() {
         )
       ]
       setExerciseDatabase(allExercises)
+      localStorage.setItem('dreamshape_exercises', JSON.stringify(allExercises))
 
       setLastSyncTime(new Date())
+      console.log('✅ Sync complete! Templates:', data.templates.length, 'Workouts:', data.workouts.length)
     } catch (error) {
       console.error('Initial sync failed:', error)
     } finally {
@@ -165,37 +172,49 @@ function App() {
 
   // Check authentication on mount
   useEffect(() => {
+    let isMounted = true
+    let hasInitializedSync = false
+
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return
+      
       setUser(session?.user ?? null)
       setAuthLoading(false)
 
       // Initialize sync service if user is logged in
-      if (session?.user) {
+      if (session?.user && !hasInitializedSync) {
+        hasInitializedSync = true
         const sync = new SyncService(session.user.id)
         setSyncService(sync)
-
-        // Migrate localStorage data to Supabase (first login)
         handleInitialSync(sync)
       }
     })
 
-    // Listen for auth changes
+    // Listen for auth changes (sign in/out only, not initial session)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return
+      
+      // Only handle SIGNED_IN and SIGNED_OUT events, ignore INITIAL_SESSION
+      if (event === 'INITIAL_SESSION') return
+      
       setUser(session?.user ?? null)
 
-      if (session?.user) {
+      if (session?.user && event === 'SIGNED_IN') {
         const sync = new SyncService(session.user.id)
         setSyncService(sync)
         handleInitialSync(sync)
-      } else {
+      } else if (event === 'SIGNED_OUT') {
         setSyncService(null)
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   // Save to localStorage
@@ -641,7 +660,10 @@ function App() {
       duration
     }
 
-    setWorkoutLogs([workoutLog, ...workoutLogs])
+    const updatedWorkouts = [workoutLog, ...workoutLogs]
+    setWorkoutLogs(updatedWorkouts)
+    localStorage.setItem(WORKOUTS_KEY, JSON.stringify(updatedWorkouts))
+    console.log('💾 Workout saved to localStorage:', workoutLog.templateName)
 
     // Sync to Supabase
     if (syncService) {
@@ -649,6 +671,7 @@ function App() {
       try {
         await syncService.createWorkout(workoutLog)
         setLastSyncTime(new Date())
+        console.log('☁️ Workout synced to Supabase:', workoutLog.templateName)
       } catch (error) {
         console.error('Failed to sync workout:', error)
       } finally {
@@ -698,15 +721,19 @@ function App() {
         exercises
       }
 
-    // Update state & localStorage
+    // Update state & immediately save to localStorage
+    let updatedTemplates: WorkoutTemplate[]
     if (selectedTemplate) {
-      const updatedTemplates = templates.map(t =>
+      updatedTemplates = templates.map(t =>
         t.id === selectedTemplate.id ? template : t
       )
-      setTemplates(updatedTemplates)
     } else {
-      setTemplates([...templates, template])
+      updatedTemplates = [...templates, template]
     }
+    
+    setTemplates(updatedTemplates)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTemplates))
+    console.log('💾 Template saved to localStorage:', template.name)
 
     // Sync to Supabase
     if (syncService) {
@@ -718,6 +745,7 @@ function App() {
           await syncService.createTemplate(template)
         }
         setLastSyncTime(new Date())
+        console.log('☁️ Template synced to Supabase:', template.name)
       } catch (error) {
         console.error('Failed to sync template:', error)
       } finally {
