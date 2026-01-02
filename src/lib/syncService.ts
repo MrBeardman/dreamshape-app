@@ -179,31 +179,48 @@ export class SyncService {
   // ============================================
   async createTemplate(template: WorkoutTemplate): Promise<void> {
     try {
-      await supabase.from('templates').insert({
+      console.log('💾 Saving template to Supabase:', template.name)
+      
+      const { data, error } = await supabase.from('templates').insert({
         id: template.id,
         user_id: this.userId,
         name: template.name,
         exercises: template.exercises,
-        notes: template.notes,
-      })
+        notes: template.notes || null,
+      }).select()
+      
+      if (error) {
+        console.error('❌ Supabase error creating template:', error)
+        console.error('Template data:', JSON.stringify(template, null, 2))
+        throw error
+      }
+      
+      console.log('✅ Template saved successfully:', data)
     } catch (error) {
-      console.error('Failed to create template:', error)
+      console.error('❌ Failed to create template:', error)
+      throw error
     }
   }
 
   async updateTemplate(template: WorkoutTemplate): Promise<void> {
     try {
-      await supabase
+      const { error } = await supabase
         .from('templates')
         .update({
           name: template.name,
           exercises: template.exercises,
-          notes: template.notes,
+          notes: template.notes || null,
         })
         .eq('id', template.id)
         .eq('user_id', this.userId)
+      
+      if (error) {
+        console.error('Supabase error updating template:', error)
+        throw error
+      }
     } catch (error) {
       console.error('Failed to update template:', error)
+      throw error
     }
   }
 
@@ -224,7 +241,9 @@ export class SyncService {
   // ============================================
   async createWorkout(workout: WorkoutLog): Promise<void> {
     try {
-      await supabase.from('workouts').insert({
+      console.log('💾 Saving workout to Supabase:', workout.templateName)
+      
+      const { data, error } = await supabase.from('workouts').insert({
         id: workout.id,
         user_id: this.userId,
         template_name: workout.templateName,
@@ -232,9 +251,18 @@ export class SyncService {
         duration: workout.duration,
         exercises: workout.exercises,
         activity_type: workout.activityType || 'workout',
-      })
+      }).select()
+      
+      if (error) {
+        console.error('❌ Supabase error creating workout:', error)
+        console.error('Workout data:', JSON.stringify(workout, null, 2))
+        throw error
+      }
+      
+      console.log('✅ Workout saved successfully:', data)
     } catch (error) {
-      console.error('Failed to create workout:', error)
+      console.error('❌ Failed to create workout:', error)
+      throw error // Re-throw so App.tsx knows it failed
     }
   }
 

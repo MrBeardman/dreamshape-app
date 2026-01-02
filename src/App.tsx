@@ -117,10 +117,10 @@ function App() {
         setUserProfile(data.profile)
         localStorage.setItem('dreamshape_profile', JSON.stringify(data.profile))
       }
-      
+
       setTemplates(data.templates)
       localStorage.setItem('dreamshape_templates', JSON.stringify(data.templates))
-      
+
       setWorkoutLogs(data.workouts)
       localStorage.setItem('dreamshape_workouts', JSON.stringify(data.workouts))
 
@@ -178,7 +178,7 @@ function App() {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isMounted) return
-      
+
       setUser(session?.user ?? null)
       setAuthLoading(false)
 
@@ -196,10 +196,10 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isMounted) return
-      
+
       // Only handle SIGNED_IN and SIGNED_OUT events, ignore INITIAL_SESSION
       if (event === 'INITIAL_SESSION') return
-      
+
       setUser(session?.user ?? null)
 
       if (session?.user && event === 'SIGNED_IN') {
@@ -468,7 +468,7 @@ function App() {
     const lastData = getLastExerciseData(exerciseName)
 
     const newExercise: ExerciseLog = {
-      exerciseId: Date.now().toString(),
+      exerciseId: crypto.randomUUID(),
       exerciseName,
       sets: lastData && lastData.sets.length > 0
         ? lastData.sets.map((set, idx) => ({
@@ -634,7 +634,7 @@ function App() {
 
   const handleSaveAsNewTemplate = (name: string, exercises: Exercise[]) => {
     const newTemplate: WorkoutTemplate = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       name,
       exercises
     }
@@ -653,7 +653,7 @@ function App() {
     const duration = Math.floor((Date.now() - activeWorkout.startTime) / 1000)
 
     const workoutLog: WorkoutLog = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       templateName: activeWorkout.templateName,
       date: new Date().toISOString(),
       exercises: activeWorkout.exercises,
@@ -716,7 +716,7 @@ function App() {
     const template: WorkoutTemplate = selectedTemplate
       ? { ...selectedTemplate, name, exercises }
       : {
-        id: Date.now().toString(),
+        id: crypto.randomUUID(), // Generate proper UUID
         name,
         exercises
       }
@@ -730,7 +730,7 @@ function App() {
     } else {
       updatedTemplates = [...templates, template]
     }
-    
+
     setTemplates(updatedTemplates)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTemplates))
     console.log('💾 Template saved to localStorage:', template.name)

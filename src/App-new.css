@@ -1,0 +1,14 @@
+/* ==========================================
+   DREAMSHAPE - MAIN STYLES
+   Modern Professional Fitness Tracker
+   ========================================== */
+
+/* Design System */
+@import './styles/variables.css';
+@import './styles/base.css';
+
+/* Component Styles */
+@import './styles/components/theme-toggle.css';
+
+/* Legacy styles will be migrated below */
+/* TODO: Break these into component-specific files */

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { UserProfile, WorkoutLog } from '../types'
+import ThemeToggle from './ThemeToggle'
 
 interface ProfileViewProps {
   userProfile: UserProfile
@@ -63,6 +64,10 @@ export default function ProfileView({
       <div className="profile-view-header">
         <div className="profile-avatar-large">
           {userProfile.name.charAt(0).toUpperCase()}
+        </div>
+        <div className="profile-header">
+          <h2>Profile</h2>
+          <ThemeToggle />
         </div>
 
         {isEditing ? (
