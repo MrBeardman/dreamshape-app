@@ -1,0 +1,182 @@
+/* ==========================================
+   DREAMSHAPE DESIGN SYSTEM
+   Modern, Professional Fitness App
+   ========================================== */
+
+:root {
+  /* ===== PRIMARY COLORS ===== */
+  --primary: #1e3a8a;           /* Navy blue - main brand color */
+  --primary-hover: #1e40af;     /* Lighter navy on hover */
+  --primary-light: #3b82f6;     /* Bright blue accent */
+  --primary-dark: #1e293b;      /* Darker navy */
+  
+  /* ===== LIGHT MODE ===== */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;      /* Slight gray background */
+  --bg-tertiary: #f1f5f9;       /* Card backgrounds */
+  --bg-hover: #e2e8f0;          /* Hover states */
+  
+  --text-primary: #0f172a;      /* Main text */
+  --text-secondary: #64748b;    /* Secondary text */
+  --text-tertiary: #94a3b8;     /* Tertiary/muted text */
+  
+  --border: #e2e8f0;            /* Default borders */
+  --border-hover: #cbd5e1;      /* Hover borders */
+  
+  /* ===== SEMANTIC COLORS ===== */
+  --success: #10b981;           /* Green for completed, PRs */
+  --success-bg: #d1fae5;
+  --warning: #f59e0b;           /* Orange for warnings */
+  --warning-bg: #fef3c7;
+  --error: #ef4444;             /* Red for errors, delete */
+  --error-bg: #fee2e2;
+  --info: #3b82f6;              /* Blue for info */
+  --info-bg: #dbeafe;
+  
+  /* ===== CHART COLORS ===== */
+  --chart-1: #3b82f6;           /* Blue */
+  --chart-2: #8b5cf6;           /* Purple */
+  --chart-3: #10b981;           /* Green */
+  --chart-4: #f59e0b;           /* Orange */
+  --chart-5: #ec4899;           /* Pink */
+  
+  /* ===== SPACING ===== */
+  --spacing-xs: 0.25rem;        /* 4px */
+  --spacing-sm: 0.5rem;         /* 8px */
+  --spacing-md: 1rem;           /* 16px */
+  --spacing-lg: 1.5rem;         /* 24px */
+  --spacing-xl: 2rem;           /* 32px */
+  --spacing-2xl: 3rem;          /* 48px */
+  
+  /* ===== BORDER RADIUS ===== */
+  --radius-sm: 0.375rem;        /* 6px */
+  --radius-md: 0.5rem;          /* 8px */
+  --radius-lg: 0.75rem;         /* 12px */
+  --radius-xl: 1rem;            /* 16px */
+  --radius-full: 9999px;        /* Full circle */
+  
+  /* ===== SHADOWS ===== */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  
+  /* ===== TRANSITIONS ===== */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+  
+  /* ===== TYPOGRAPHY ===== */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  --font-mono: 'SF Mono', 'Consolas', 'Liberation Mono', monospace;
+  
+  --text-xs: 0.75rem;           /* 12px */
+  --text-sm: 0.875rem;          /* 14px */
+  --text-base: 1rem;            /* 16px */
+  --text-lg: 1.125rem;          /* 18px */
+  --text-xl: 1.25rem;           /* 20px */
+  --text-2xl: 1.5rem;           /* 24px */
+  --text-3xl: 1.875rem;         /* 30px */
+  --text-4xl: 2.25rem;          /* 36px */
+  
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+}
+
+/* ===== DARK MODE ===== */
+[data-theme="dark"] {
+  --bg-primary: #0a0f1e;        /* Deep navy-black */
+  --bg-secondary: #111827;      /* Lighter dark */
+  --bg-tertiary: #1f2937;       /* Card backgrounds */
+  --bg-hover: #374151;          /* Hover states */
+  
+  --text-primary: #f1f5f9;      /* Main text */
+  --text-secondary: #94a3b8;    /* Secondary text */
+  --text-tertiary: #64748b;     /* Tertiary/muted text */
+  
+  --border: #1f2937;            /* Default borders */
+  --border-hover: #374151;      /* Hover borders */
+  
+  --primary: #3b82f6;           /* Brighter blue for dark mode */
+  --primary-hover: #60a5fa;
+  
+  /* Adjust shadows for dark mode */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.6);
+}
+
+/* ===== GLOBAL RESETS ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Text */
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-tertiary { color: var(--text-tertiary); }
+
+.text-xs { font-size: var(--text-xs); }
+.text-sm { font-size: var(--text-sm); }
+.text-base { font-size: var(--text-base); }
+.text-lg { font-size: var(--text-lg); }
+.text-xl { font-size: var(--text-xl); }
+.text-2xl { font-size: var(--text-2xl); }
+.text-3xl { font-size: var(--text-3xl); }
+
+.font-normal { font-weight: var(--font-normal); }
+.font-medium { font-weight: var(--font-medium); }
+.font-semibold { font-weight: var(--font-semibold); }
+.font-bold { font-weight: var(--font-bold); }
+
+/* Spacing */
+.p-xs { padding: var(--spacing-xs); }
+.p-sm { padding: var(--spacing-sm); }
+.p-md { padding: var(--spacing-md); }
+.p-lg { padding: var(--spacing-lg); }
+.p-xl { padding: var(--spacing-xl); }
+
+.m-xs { margin: var(--spacing-xs); }
+.m-sm { margin: var(--spacing-sm); }
+.m-md { margin: var(--spacing-md); }
+.m-lg { margin: var(--spacing-lg); }
+.m-xl { margin: var(--spacing-xl); }
+
+/* Borders */
+.rounded-sm { border-radius: var(--radius-sm); }
+.rounded-md { border-radius: var(--radius-md); }
+.rounded-lg { border-radius: var(--radius-lg); }
+.rounded-xl { border-radius: var(--radius-xl); }
+.rounded-full { border-radius: var(--radius-full); }
+
+/* Shadows */
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+
+/* Transitions */
+.transition { transition: all var(--transition-base); }
+.transition-fast { transition: all var(--transition-fast); }
+.transition-slow { transition: all var(--transition-slow); }
