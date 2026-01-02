@@ -29,18 +29,30 @@ export default function FinishWorkoutModal({
 }: FinishWorkoutModalProps) {
   const [selectedOption, setSelectedOption] = useState<'update' | 'new' | 'finish'>('finish')
   const [newTemplateName, setNewTemplateName] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
 
-  const handleFinish = () => {
-    if (selectedOption === 'update' && originalTemplateId) {
-      onUpdateTemplate()
-    } else if (selectedOption === 'new') {
-      if (!newTemplateName.trim()) {
-        alert('Please enter a template name')
-        return
+  const handleFinish = async () => {
+    if (isSaving) return // Prevent double-clicks
+    
+    setIsSaving(true)
+    
+    try {
+      if (selectedOption === 'update' && originalTemplateId) {
+        await onUpdateTemplate()
+      } else if (selectedOption === 'new') {
+        if (!newTemplateName.trim()) {
+          alert('Please enter a template name')
+          setIsSaving(false)
+          return
+        }
+        await onSaveAsNewTemplate(newTemplateName, currentExercises)
+      } else {
+        await onJustFinish()
       }
-      onSaveAsNewTemplate(newTemplateName, currentExercises)
-    } else {
-      onJustFinish()
+    } catch (error) {
+      console.error('Error finishing workout:', error)
+      alert('Failed to save workout. Please try again.')
+      setIsSaving(false)
     }
   }
 
@@ -107,11 +119,19 @@ export default function FinishWorkoutModal({
         </div>
 
         <div className="modal-actions">
-          <button className="btn-modal-cancel" onClick={onCancel}>
+          <button 
+            className="btn-modal-cancel" 
+            onClick={onCancel}
+            disabled={isSaving}
+          >
             Cancel
           </button>
-          <button className="btn-modal-finish" onClick={handleFinish}>
-            Finish
+          <button 
+            className="btn-modal-finish" 
+            onClick={handleFinish}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Saving...' : 'Finish'}
           </button>
         </div>
       </div>

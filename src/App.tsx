@@ -612,7 +612,7 @@ function App() {
 
 
 
-  const handleUpdateTemplate = () => {
+  const handleUpdateTemplate = async () => {
     if (!activeWorkout || !activeWorkout.originalTemplateId) return
 
     const updatedExercises: Exercise[] = activeWorkout.exercises.map(ex => ({
@@ -622,29 +622,84 @@ function App() {
       muscleGroup: 'Other' // Keep original or default
     }))
 
+    const updatedTemplate = templates.find(t => t.id === activeWorkout.originalTemplateId)
+    if (!updatedTemplate) {
+      console.error('Template not found for update')
+      await saveWorkoutLog()
+      return
+    }
+
+    const newTemplate = { ...updatedTemplate, exercises: updatedExercises }
     const updatedTemplates = templates.map(t =>
-      t.id === activeWorkout.originalTemplateId
-        ? { ...t, exercises: updatedExercises }
-        : t
+      t.id === activeWorkout.originalTemplateId ? newTemplate : t
     )
 
+    // Update state & immediately save to localStorage
     setTemplates(updatedTemplates)
-    saveWorkoutLog()
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTemplates))
+    console.log('💾 Template updated in localStorage:', newTemplate.name)
+
+    // Sync to Supabase BEFORE saving workout
+    if (syncService) {
+      setIsSyncing(true)
+      try {
+        await syncService.updateTemplate(newTemplate)
+        setLastSyncTime(new Date())
+        console.log('☁️ Template synced to Supabase:', newTemplate.name)
+      } catch (error) {
+        console.error('Failed to sync template:', error)
+      } finally {
+        setIsSyncing(false)
+      }
+    }
+
+    // Now save the workout
+    await saveWorkoutLog()
   }
 
-  const handleSaveAsNewTemplate = (name: string, exercises: Exercise[]) => {
+  const handleSaveAsNewTemplate = async (name: string, exercises: Exercise[]) => {
+    // Check if template with same name already exists
+    const existingTemplate = templates.find(t => t.name.toLowerCase() === name.toLowerCase())
+    if (existingTemplate) {
+      if (!confirm(`A template named "${name}" already exists. Create anyway?`)) {
+        // Still save the workout, just don't create the duplicate template
+        await saveWorkoutLog()
+        return
+      }
+    }
+
     const newTemplate: WorkoutTemplate = {
       id: crypto.randomUUID(),
       name,
       exercises
     }
 
-    setTemplates([...templates, newTemplate])
-    saveWorkoutLog()
+    // Update state & immediately save to localStorage
+    const updatedTemplates = [...templates, newTemplate]
+    setTemplates(updatedTemplates)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedTemplates))
+    console.log('💾 Template saved to localStorage:', newTemplate.name)
+
+    // Sync to Supabase BEFORE saving workout
+    if (syncService) {
+      setIsSyncing(true)
+      try {
+        await syncService.createTemplate(newTemplate)
+        setLastSyncTime(new Date())
+        console.log('☁️ Template synced to Supabase:', newTemplate.name)
+      } catch (error) {
+        console.error('Failed to sync template:', error)
+      } finally {
+        setIsSyncing(false)
+      }
+    }
+
+    // Now save the workout
+    await saveWorkoutLog()
   }
 
-  const handleJustFinish = () => {
-    saveWorkoutLog()
+  const handleJustFinish = async () => {
+    await saveWorkoutLog()
   }
 
   const saveWorkoutLog = async () => {
