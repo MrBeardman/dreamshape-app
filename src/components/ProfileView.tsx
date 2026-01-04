@@ -183,9 +183,17 @@ export default function ProfileView({
                   👑
                 </span>
               )}
+              {userProfile.role === 'tester' && (
+                <span className="tester-badge" title="Beta Tester">
+                  🧪
+                </span>
+              )}
             </div>
             <p className="profile-member-since">
-              {userProfile.role === 'creator' ? 'Creator' : 'Member'} since {new Date(userProfile.memberSince).toLocaleDateString('en-US', {
+              {userProfile.role === 'creator' && 'Creator'}
+              {userProfile.role === 'tester' && 'Beta Tester'}
+              {(!userProfile.role || userProfile.role === 'member') && 'Member'}
+              {' '}since {new Date(userProfile.memberSince).toLocaleDateString('en-US', {
                 month: 'long',
                 year: 'numeric'
               })}

@@ -36,7 +36,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
       options: {
         data: {
           name: name || 'User',
-          role: email.toLowerCase().includes('bigi') ? 'creator' : 'member' // Mark Bigi as creator
+          role: 'tester' // All new signups are testers
         }
       }
     })
