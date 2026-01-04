@@ -1,0 +1,135 @@
+/* ==========================================
+   DREAMSHAPE - MAIN STYLES
+   Modern Professional Fitness Tracker
+   ========================================== */
+
+/* Design System Foundation */
+@import './styles/variables.css';
+@import './styles/base.css';
+
+/* New Component Styles */
+@import './styles/components/theme-toggle.css';
+@import './styles/components/sync-indicator.css';
+@import './styles/components/bottom-nav.css';
+@import './styles/components/desktop-layout.css';
+@import './styles/components/dashboard.css';
+@import './styles/components/profile.css';
+@import './styles/components/workouts.css';
+@import './styles/components/library.css';
+@import './styles/components/workout.css';
+
+/* ==========================================
+   LEGACY STYLES (To be migrated)
+   ========================================== */
+
+/* Global font weight adjustments for lighter look */
+body {
+  font-family: var(--font-sans);
+  font-weight: var(--font-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-semibold);
+}
+
+strong, b {
+  font-weight: var(--font-semibold);
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  max-width: 100%;
+  margin: 0 auto;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  transition: background-color var(--transition-base), color var(--transition-base);
+}
+
+/* Constrain content on mobile only */
+@media (max-width: 768px) {
+  .main-view,
+  .create-view,
+  .workout-view,
+  .workout-detail-view {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+}
+
+/* Desktop layout - use more space */
+@media (min-width: 769px) {
+  .templates-list,
+  .history-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .template-card,
+  .history-card {
+    margin: 0;
+  }
+}
+
+.logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.main-view,
+.create-view {
+  padding: 1rem;
+  padding-bottom: 5rem; /* Space for bottom nav */
+}
+
+.quick-start {
+  margin-bottom: 2rem;
+}
+
+.quick-start h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.templates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.template-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  transition: all var(--transition-base);
+}
+
+.template-card:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-md);
+}
+
+.template-card h3 {
+  font-size: 1.125rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.template-card p {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* Continue with existing styles... */
+/* TODO: Migrate these to component-specific files */
