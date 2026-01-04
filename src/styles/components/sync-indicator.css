@@ -1,0 +1,63 @@
+/* ==========================================
+   SYNC INDICATOR - Styled for All Devices
+   ========================================== */
+
+.sync-indicator {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.sync-dot,
+.sync-spinner,
+.sync-check {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sync-indicator.offline .sync-dot {
+  background: var(--error);
+  animation: pulse 2s infinite;
+}
+
+.sync-indicator.syncing .sync-spinner {
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin 0.6s linear infinite;
+}
+
+.sync-indicator.synced .sync-check {
+  width: auto;
+  height: auto;
+  color: var(--success);
+  font-size: var(--text-sm);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Hide on mobile when sidebar is visible (desktop only issue) */
+@media (min-width: 1024px) {
+  .sync-indicator {
+    /* Adjust position to not overlap with sidebar */
+    right: 2rem;
+  }
+}

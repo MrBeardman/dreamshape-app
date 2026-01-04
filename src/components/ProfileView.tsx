@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import type { UserProfile, WorkoutLog } from '../types'
-import ThemeToggle from './ThemeToggle'
 
 interface ProfileViewProps {
   userProfile: UserProfile
@@ -17,9 +16,6 @@ export default function ProfileView({
 }: ProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(userProfile.name)
-
-
-
 
   const handleSave = () => {
     onUpdateProfile({ ...userProfile, name })
@@ -42,6 +38,40 @@ export default function ProfileView({
     return hours
   }
 
+  const getWeeklyGoalProgress = () => {
+    const now = new Date()
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() - now.getDay())
+    weekStart.setHours(0, 0, 0, 0)
+
+    const thisWeekWorkouts = workoutLogs.filter(w => {
+      const workoutDate = new Date(w.date)
+      return workoutDate >= weekStart
+    }).length
+
+    const goal = 4 // 4 workouts per week goal
+    return Math.min((thisWeekWorkouts / goal) * 100, 100)
+  }
+
+  const getConsistencyScore = () => {
+    if (workoutLogs.length === 0) return 0
+    
+    const last30Days = workoutLogs.filter(w => {
+      const workoutDate = new Date(w.date)
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+      return workoutDate >= thirtyDaysAgo
+    }).length
+
+    return Math.min((last30Days / 12) * 100, 100) // 12 workouts in 30 days = 100%
+  }
+
+  const getVolumeProgress = () => {
+    const monthlyGoal = 50000 // 50 tons
+    const currentVolume = getTotalVolume()
+    return Math.min((currentVolume / monthlyGoal) * 100, 100)
+  }
+
   const getMostFrequentExercise = () => {
     const exerciseCounts: Record<string, number> = {}
 
@@ -58,23 +88,72 @@ export default function ProfileView({
   const totalVolume = getTotalVolume()
   const totalHours = getTotalDuration()
   const favoriteExercise = getMostFrequentExercise()
+  const weeklyProgress = getWeeklyGoalProgress()
+  const consistencyScore = getConsistencyScore()
+  const volumeProgress = getVolumeProgress()
+
+  // SVG circle progress
+  const CircleProgress = ({ percentage, color }: { percentage: number, color: string }) => {
+    const radius = 36
+    const circumference = 2 * Math.PI * radius
+    const offset = circumference - (percentage / 100) * circumference
+
+    return (
+      <svg width="100" height="100" className="circle-progress">
+        <circle
+          cx="50"
+          cy="50"
+          r={radius}
+          fill="none"
+          stroke="rgba(255, 255, 255, 0.1)"
+          strokeWidth="8"
+        />
+        <circle
+          cx="50"
+          cy="50"
+          r={radius}
+          fill="none"
+          stroke={color}
+          strokeWidth="8"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform="rotate(-90 50 50)"
+          className="circle-progress-bar"
+        />
+        <text
+          x="50"
+          y="50"
+          textAnchor="middle"
+          dy="0.35em"
+          fontSize="20"
+          fontWeight="bold"
+          fill="white"
+        >
+          {Math.round(percentage)}%
+        </text>
+      </svg>
+    )
+  }
 
   return (
     <div className="profile-view">
-      <div className="profile-view-header">
+      {/* Header */}
+      <div className="profile-header">
+        <h2 className="view-title">Profile</h2>
+      </div>
+
+      {/* User Info Card */}
+      <div className="profile-user-card">
         <div className="profile-avatar-large">
           {userProfile.name.charAt(0).toUpperCase()}
         </div>
-        <div className="profile-header">
-          <h2>Profile</h2>
-          <ThemeToggle />
-        </div>
-
+        
         {isEditing ? (
           <div className="profile-edit-form">
             <input
               type="text"
-              className="profile-name-input"
+              className="input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
@@ -82,7 +161,7 @@ export default function ProfileView({
             />
             <div className="profile-edit-actions">
               <button
-                className="btn-cancel"
+                className="btn btn-secondary"
                 onClick={() => {
                   setName(userProfile.name)
                   setIsEditing(false)
@@ -90,101 +169,198 @@ export default function ProfileView({
               >
                 Cancel
               </button>
-              <button className="btn-save" onClick={handleSave}>
+              <button className="btn btn-primary" onClick={handleSave}>
                 Save
               </button>
             </div>
           </div>
         ) : (
-          <div className="profile-info-section">
-            <h1 className="profile-name-large">{userProfile.name}</h1>
+          <div className="profile-user-info">
+            <h1 className="profile-name">{userProfile.name}</h1>
             <p className="profile-member-since">
               Member since {new Date(userProfile.memberSince).toLocaleDateString('en-US', {
                 month: 'long',
                 year: 'numeric'
               })}
             </p>
-            <button className="btn-edit" onClick={() => setIsEditing(true)}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setIsEditing(true)}>
               Edit Profile
             </button>
           </div>
         )}
       </div>
 
-      <div className="profile-stats-section">
-        <h2 className="section-title">📊 Your Stats</h2>
-
-        <div className="profile-stats-grid">
-          <div className="profile-stat-card">
-            <div className="profile-stat-icon">💪</div>
-            <div className="profile-stat-value">{workoutLogs.length}</div>
-            <div className="profile-stat-label">Total Workouts</div>
+      {/* Progress Widgets */}
+      <div className="profile-section">
+        <h3 className="section-title">Goals</h3>
+        
+        <div className="progress-widgets">
+          <div className="widget-card">
+            <CircleProgress percentage={weeklyProgress} color="#fbbf24" />
+            <div className="widget-info">
+              <div className="widget-label">Weekly Goal</div>
+              <div className="widget-sublabel">{Math.round(weeklyProgress / 25)} / 4 workouts</div>
+            </div>
           </div>
 
-          <div className="profile-stat-card">
-            <div className="profile-stat-icon">⚡</div>
-            <div className="profile-stat-value">{(totalVolume / 1000).toFixed(1)}t</div>
-            <div className="profile-stat-label">Total Volume</div>
+          <div className="widget-card">
+            <CircleProgress percentage={consistencyScore} color="#10b981" />
+            <div className="widget-info">
+              <div className="widget-label">Consistency</div>
+              <div className="widget-sublabel">Last 30 days</div>
+            </div>
           </div>
 
-          <div className="profile-stat-card">
-            <div className="profile-stat-icon">⏱️</div>
-            <div className="profile-stat-value">{totalHours}h</div>
-            <div className="profile-stat-label">Time Spent</div>
-          </div>
-
-          <div className="profile-stat-card">
-            <div className="profile-stat-icon">⭐</div>
-            <div className="profile-stat-value-small">{favoriteExercise}</div>
-            <div className="profile-stat-label">Favorite Exercise</div>
+          <div className="widget-card">
+            <CircleProgress percentage={volumeProgress} color="#3b82f6" />
+            <div className="widget-info">
+              <div className="widget-label">Volume</div>
+              <div className="widget-sublabel">{(totalVolume / 1000).toFixed(1)}t total</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="profile-info-section-details">
-        <h2 className="section-title">ℹ️ About</h2>
+      {/* Stats Grid */}
+      <div className="profile-section">
+        <h3 className="section-title">Lifetime Stats</h3>
+        
+        <div className="stats-list">
+          <div className="stat-item">
+            <div className="stat-item-label">Total Workouts</div>
+            <div className="stat-item-value">{workoutLogs.length}</div>
+          </div>
 
-        <div className="info-card">
-          <p className="info-text">
-            DreamShape helps you track your workouts, monitor progress, and achieve your fitness goals.
-          </p>
-          <p className="info-text">
-            <strong>Version:</strong> 1.0.0
-          </p>
-          <p className="info-text">
-            <strong>Created by:</strong> Jan Matyas
-          </p>
+          <div className="stat-item">
+            <div className="stat-item-label">Total Volume</div>
+            <div className="stat-item-value">{(totalVolume / 1000).toFixed(1)} tons</div>
+          </div>
+
+          <div className="stat-item">
+            <div className="stat-item-label">Time Spent</div>
+            <div className="stat-item-value">{totalHours} hours</div>
+          </div>
+
+          <div className="stat-item">
+            <div className="stat-item-label">Favorite Exercise</div>
+            <div className="stat-item-value">{favoriteExercise}</div>
+          </div>
         </div>
       </div>
 
-      <div className="profile-danger-zone">
-        <h2 className="section-title">⚠️ Data Management</h2>
-
-        <div className="danger-card">
-          <p className="danger-text">
-            Your data is stored locally in your browser. Make sure to back up regularly!
-          </p>
-          <button className="btn-danger" onClick={() => {
-            if (confirm('This will export all your data. Continue?')) {
-              const data = {
-                workouts: workoutLogs,
-                profile: userProfile,
-                exportedAt: new Date().toISOString()
+      {/* Actions */}
+      <div className="profile-section">
+        <h3 className="section-title">Data & Settings</h3>
+        
+        <div className="action-list">
+          <button 
+            className="action-item"
+            onClick={() => {
+              if (confirm('Export all your workout data?')) {
+                const data = {
+                  workouts: workoutLogs,
+                  profile: userProfile,
+                  exportedAt: new Date().toISOString()
+                }
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `dreamshape-backup-${new Date().toISOString().split('T')[0]}.json`
+                a.click()
               }
-              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              a.download = `dreamshape-backup-${new Date().toISOString().split('T')[0]}.json`
-              a.click()
-            }
-          }}>
-            Export Data
+            }}
+          >
+            <span>Export Data</span>
+            <span className="action-arrow">→</span>
           </button>
-          <div className="profile-actions">
-            <button className="btn-sign-out" onClick={onSignOut}>
-              Sign Out
-            </button>
+
+          <button className="action-item action-item-danger" onClick={onSignOut}>
+            <span>Sign Out</span>
+            <span className="action-arrow">→</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Consistency Calendar */}
+      <div className="profile-section">
+        <div className="calendar-container">
+          <h3 className="calendar-title">Consistency Calendar</h3>
+          <p className="calendar-subtitle">Last 12 weeks</p>
+          
+          <div className="calendar-wrapper">
+            {/* Y-axis (days of week) */}
+            <div className="calendar-y-axis">
+              <div className="calendar-y-label">Mon</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Wed</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Fri</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Sun</div>
+            </div>
+
+            <div className="calendar-main">
+              {/* Grid */}
+              <div className="calendar-grid">
+                {(() => {
+                  const today = new Date()
+                  const days = []
+                  
+                  // Generate 84 days (12 weeks)
+                  for (let i = 83; i >= 0; i--) {
+                    const date = new Date(today)
+                    date.setDate(date.getDate() - i)
+                    
+                    // Check if there's a workout on this day
+                    const hasWorkout = workoutLogs.some(w => {
+                      const workoutDate = new Date(w.date)
+                      return workoutDate.toDateString() === date.toDateString()
+                    })
+                    
+                    days.push(
+                      <div
+                        key={i}
+                        className={`calendar-day ${hasWorkout ? 'active' : ''}`}
+                        title={date.toLocaleDateString()}
+                      />
+                    )
+                  }
+                  
+                  return days
+                })()}
+              </div>
+
+              {/* X-axis (weeks/months) */}
+              <div className="calendar-x-axis">
+                {(() => {
+                  const labels = []
+                  const today = new Date()
+                  
+                  // Generate month labels for last 12 weeks
+                  for (let i = 0; i < 12; i++) {
+                    const date = new Date(today)
+                    date.setDate(date.getDate() - (11 - i) * 7)
+                    
+                    labels.push(
+                      <div key={i} className="calendar-x-label">
+                        {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
+                      </div>
+                    )
+                  }
+                  
+                  return labels
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="calendar-legend">
+            <span>Less</span>
+            <div className="calendar-day"></div>
+            <div className="calendar-day active"></div>
+            <span>More</span>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { SyncService } from './lib/syncService'
 import SyncIndicator from './components/SyncIndicator'
 import AuthView from './components/AuthView'
 import type { User } from '@supabase/supabase-js'
-import './App.css'
+import './App-redesign.css'
 import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile } from './types'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
@@ -15,6 +15,7 @@ import CreateTemplateView from './components/CreateTemplateView'
 import FinishWorkoutModal from './components/FinishWorkoutModal'
 import DashboardView from './components/DashboardView'
 import BottomNav from './components/BottomNav'
+import SidebarNav from './components/SidebarNav'
 import LibraryView from './components/LibraryView'
 import ProfileView from './components/ProfileView'
 
@@ -853,164 +854,174 @@ function App() {
     }
   }
 
-
-
-
-
   return (
-    <div className="app">
-      {/* Sync Indicator */}
-      {user && (
-        <SyncIndicator isSyncing={isSyncing} lastSyncTime={lastSyncTime} />
-      )}
-      {/* Loading Screen */}
-      {authLoading ? (
-        <div className="loading-screen">
-          <h1 className="loading-logo">💪 DreamShape</h1>
-          <p className="loading-text">Loading...</p>
-        </div>
-      ) : !user ? (
-        /* Auth Screen */
-        <AuthView onAuthSuccess={() => { }} />
-      ) : (
-        <>   { }
-          {activeWorkout ? (
-            <>
-              <WorkoutView
-                activeWorkout={activeWorkout}
-                elapsedTime={elapsedTime}
-                restTimer={restTimer}
-                restDuration={restDuration}
-                activeRestTimer={activeRestTimer}
-                workoutLogs={workoutLogs}
-                exerciseDatabase={exerciseDatabase}
-                onCancel={cancelWorkout}
-                onFinish={finishWorkout}
-                onUpdateSet={updateSet}
-                onToggleSetCompleted={toggleSetCompleted}
-                onAddSet={addSet}
-                onRemoveSet={removeSet}
-                onSetRestDuration={setRestDuration}
-                onSetExerciseRestDuration={setExerciseRestDuration}
-                onSkipRest={() => setRestTimer(null)}
-                onSkipInlineRest={() => setActiveRestTimer(null)}
-                onAddExercise={addExerciseToWorkout}
-                onRemoveExercise={removeExerciseFromWorkout}
-                onReorderExercises={reorderWorkoutExercises}
-                onSetWorkoutNotes={setWorkoutNotes}
-                onSetExerciseNotes={setExerciseNotes}
-                onToggleSetType={toggleSetType}
-              />
-              {showFinishModal && (
-                <FinishWorkoutModal
-                  originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
-                  originalTemplateId={activeWorkout.originalTemplateId}
-                  hasChanges={getWorkoutChanges().hasChanges}
-                  changedExercises={{
-                    added: getWorkoutChanges().added,
-                    removed: getWorkoutChanges().removed
-                  }}
-                  currentExercises={activeWorkout.exercises.map(ex => ({
-                    id: ex.exerciseId,
-                    name: ex.exerciseName,
-                    equipment: 'Barbell',
-                    muscleGroup: 'Other'
-                  }))}
-                  onUpdateTemplate={handleUpdateTemplate}
-                  onSaveAsNewTemplate={handleSaveAsNewTemplate}
-                  onJustFinish={handleJustFinish}
-                  onCancel={() => setShowFinishModal(false)}
-                />
-              )}
-            </>
-          ) : selectedWorkout ? (
-            <WorkoutDetailView
-              workout={selectedWorkout}
-              onBack={() => setSelectedWorkout(null)}
-              onDelete={deleteWorkout}
-            />
-          ) : !isCreating ? (
-            <>
-              {currentView === 'dashboard' && (
-                <DashboardView
-                  templates={templates}
+  <div className="app">
+    {/* Loading Screen */}
+    {authLoading ? (
+      <div className="loading-screen">
+        <h1 className="loading-logo">💪 DreamShape</h1>
+        <p className="loading-text">Loading...</p>
+      </div>
+    ) : !user ? (
+      /* Auth Screen */
+      <AuthView onAuthSuccess={() => { }} />
+    ) : (
+      <>
+        {/* Desktop Sidebar Navigation - only show when not in workout/detail/create */}
+        {!activeWorkout && !selectedWorkout && !isCreating && (
+          <SidebarNav 
+            currentView={currentView}
+            onNavigate={setCurrentView}
+            userName={userProfile.name}
+          />
+        )}
+
+        {/* Main Content Wrapper */}
+        <div className="desktop-main">
+          <div className="desktop-content">
+            {/* Sync Indicator */}
+            {user && (
+              <SyncIndicator isSyncing={isSyncing} lastSyncTime={lastSyncTime} />
+            )}
+
+            {activeWorkout ? (
+              <>
+                <WorkoutView
+                  activeWorkout={activeWorkout}
+                  elapsedTime={elapsedTime}
+                  restTimer={restTimer}
+                  restDuration={restDuration}
+                  activeRestTimer={activeRestTimer}
                   workoutLogs={workoutLogs}
-                  userProfile={userProfile}
-                  onStartWorkout={startWorkout}
-                  onStartEmptyWorkout={startEmptyWorkout}
-                  onEditProfile={() => setCurrentView('profile')}
-                  onViewAllTemplates={() => setCurrentView('library')}
-                />
-              )}
-
-              {currentView === 'progress' && (
-                <WorkoutsView
-                  workoutLogs={workoutLogs}
-                  onStartWorkout={startEmptyWorkout}
-                  onSelectWorkout={setSelectedWorkout}
-                />
-              )}
-
-              {currentView === 'start' && (
-                <TemplatesView
-                  templates={templates}
-                  onCreateTemplate={() => {
-                    setSelectedTemplate(null)
-                    setIsCreating(true)
-                  }}
-                  onEditTemplate={editTemplate}
-                  onDeleteTemplate={deleteTemplate}
-                  onStartWorkout={startWorkout}
-                />
-              )}
-
-              {currentView === 'library' && (
-                <LibraryView
-                  templates={templates}
                   exerciseDatabase={exerciseDatabase}
-                  onCreateTemplate={() => {
-                    setSelectedTemplate(null)
-                    setIsCreating(true)
-                  }}
-                  onEditTemplate={editTemplate}
-                  onDeleteTemplate={deleteTemplate}
-                  onStartWorkout={startWorkout}
-                  onAddExercise={addExerciseToDatabase}
-                  onDeleteExercise={deleteExerciseFromDatabase}
+                  onCancel={cancelWorkout}
+                  onFinish={finishWorkout}
+                  onUpdateSet={updateSet}
+                  onToggleSetCompleted={toggleSetCompleted}
+                  onAddSet={addSet}
+                  onRemoveSet={removeSet}
+                  onSetRestDuration={setRestDuration}
+                  onSetExerciseRestDuration={setExerciseRestDuration}
+                  onSkipRest={() => setRestTimer(null)}
+                  onSkipInlineRest={() => setActiveRestTimer(null)}
+                  onAddExercise={addExerciseToWorkout}
+                  onRemoveExercise={removeExerciseFromWorkout}
+                  onReorderExercises={reorderWorkoutExercises}
+                  onSetWorkoutNotes={setWorkoutNotes}
+                  onSetExerciseNotes={setExerciseNotes}
+                  onToggleSetType={toggleSetType}
                 />
-              )}
-
-              {currentView === 'profile' && (
-                <ProfileView
-                  userProfile={userProfile}
-                  workoutLogs={workoutLogs}
-                  onUpdateProfile={handleUpdateProfile}
-                  onSignOut={handleSignOut}
-                />
-              )}
-
-              {/* Bottom Navigation */}
-              <BottomNav
-                currentView={currentView}
-                onNavigate={setCurrentView}
+                {showFinishModal && (
+                  <FinishWorkoutModal
+                    originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
+                    originalTemplateId={activeWorkout.originalTemplateId}
+                    hasChanges={getWorkoutChanges().hasChanges}
+                    changedExercises={{
+                      added: getWorkoutChanges().added,
+                      removed: getWorkoutChanges().removed
+                    }}
+                    currentExercises={activeWorkout.exercises.map(ex => ({
+                      id: ex.exerciseId,
+                      name: ex.exerciseName,
+                      equipment: 'Barbell',
+                      muscleGroup: 'Other'
+                    }))}
+                    onUpdateTemplate={handleUpdateTemplate}
+                    onSaveAsNewTemplate={handleSaveAsNewTemplate}
+                    onJustFinish={handleJustFinish}
+                    onCancel={() => setShowFinishModal(false)}
+                  />
+                )}
+              </>
+            ) : selectedWorkout ? (
+              <WorkoutDetailView
+                workout={selectedWorkout}
+                onBack={() => setSelectedWorkout(null)}
+                onDelete={deleteWorkout}
               />
-            </>
-          ) : (
-            <CreateTemplateView
-              exerciseDatabase={exerciseDatabase}
-              templateToEdit={selectedTemplate}
-              onSave={saveTemplate}
-              onCancel={() => {
-                setIsCreating(false)
-                setSelectedTemplate(null)
-              }}
-              onAddToDatabase={addExerciseToDatabase}
-            />
-          )}
-        </>
-      )}
-    </div>
-  )
-}
+            ) : !isCreating ? (
+              <>
+                {currentView === 'dashboard' && (
+                  <DashboardView
+                    templates={templates}
+                    workoutLogs={workoutLogs}
+                    userProfile={userProfile}
+                    onStartWorkout={startWorkout}
+                    onStartEmptyWorkout={startEmptyWorkout}
+                    onEditProfile={() => setCurrentView('profile')}
+                    onViewAllTemplates={() => setCurrentView('library')}
+                  />
+                )}
 
+                {currentView === 'progress' && (
+                  <WorkoutsView
+                    workoutLogs={workoutLogs}
+                    onStartWorkout={startEmptyWorkout}
+                    onSelectWorkout={setSelectedWorkout}
+                  />
+                )}
+
+                {currentView === 'start' && (
+                  <TemplatesView
+                    templates={templates}
+                    onCreateTemplate={() => {
+                      setSelectedTemplate(null)
+                      setIsCreating(true)
+                    }}
+                    onEditTemplate={editTemplate}
+                    onDeleteTemplate={deleteTemplate}
+                    onStartWorkout={startWorkout}
+                  />
+                )}
+
+                {currentView === 'library' && (
+                  <LibraryView
+                    templates={templates}
+                    exerciseDatabase={exerciseDatabase}
+                    onCreateTemplate={() => {
+                      setSelectedTemplate(null)
+                      setIsCreating(true)
+                    }}
+                    onEditTemplate={editTemplate}
+                    onDeleteTemplate={deleteTemplate}
+                    onStartWorkout={startWorkout}
+                    onAddExercise={addExerciseToDatabase}
+                    onDeleteExercise={deleteExerciseFromDatabase}
+                  />
+                )}
+
+                {currentView === 'profile' && (
+                  <ProfileView
+                    userProfile={userProfile}
+                    workoutLogs={workoutLogs}
+                    onUpdateProfile={handleUpdateProfile}
+                    onSignOut={handleSignOut}
+                  />
+                )}
+
+                {/* Bottom Navigation - Mobile Only */}
+                <BottomNav
+                  currentView={currentView}
+                  onNavigate={setCurrentView}
+                />
+              </>
+            ) : (
+              <CreateTemplateView
+                exerciseDatabase={exerciseDatabase}
+                templateToEdit={selectedTemplate}
+                onSave={saveTemplate}
+                onCancel={() => {
+                  setIsCreating(false)
+                  setSelectedTemplate(null)
+                }}
+                onAddToDatabase={addExerciseToDatabase}
+              />
+            )}
+          </div>
+        </div>
+      </>
+    )}
+  </div>
+)
+}
 export default App

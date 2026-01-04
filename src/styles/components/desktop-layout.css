@@ -1,0 +1,233 @@
+/* ==========================================
+   DESKTOP LAYOUT - Sidebar Navigation
+   Full-width desktop app layout
+   ========================================== */
+
+/* MOBILE: Hide sidebar by default */
+.sidebar-nav {
+  display: none;
+}
+
+/* MOBILE: Main content takes full width */
+.desktop-main {
+  width: 100%;
+}
+
+.desktop-content {
+  width: 100%;
+  min-height: 100vh;
+  background: var(--bg-secondary);
+}
+
+/* Desktop Layout Container */
+@media (min-width: 1024px) {
+  .app {
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Sidebar Navigation */
+  .sidebar-nav {
+    display: flex; /* Show on desktop */
+    width: 240px;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border);
+    flex-direction: column;
+    flex-shrink: 0;
+    padding: 1.5rem 0;
+  }
+
+  .sidebar-header {
+    padding: 0 1.5rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 1rem;
+  }
+
+  .sidebar-logo {
+    font-size: var(--text-xl);
+    font-weight: var(--font-semibold);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .sidebar-logo-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-weight: var(--font-bold);
+    font-size: var(--text-base);
+  }
+
+  .sidebar-nav-items {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0 0.75rem;
+  }
+
+  .sidebar-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    cursor: pointer;
+    transition: all var(--transition-base);
+    text-align: left;
+    width: 100%;
+  }
+
+  .sidebar-nav-item:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+  }
+
+  .sidebar-nav-item.active {
+    background: var(--primary);
+    color: #000;
+    font-weight: var(--font-semibold);
+  }
+
+  .sidebar-nav-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-base);
+  }
+
+  .sidebar-user:hover {
+    background: var(--bg-hover);
+  }
+
+  .sidebar-user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(217, 119, 6, 0.2) 100%);
+    border: 2px solid var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    font-weight: var(--font-bold);
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+
+  .sidebar-user-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sidebar-user-name {
+    font-size: var(--text-sm);
+    font-weight: var(--font-medium);
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar-user-role {
+    font-size: var(--text-xs);
+    color: var(--text-tertiary);
+  }
+
+  /* Main Content Area */
+  .desktop-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .desktop-content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg-secondary);
+  }
+
+  /* Hide mobile bottom nav on desktop */
+  .bottom-nav {
+    display: none;
+  }
+
+  /* Remove bottom padding from views */
+  .dashboard-view,
+  .workouts-view,
+  .library-view,
+  .profile-view {
+    padding-bottom: 2rem;
+  }
+
+  /* Full width views */
+  .dashboard-view,
+  .workouts-view,
+  .library-view,
+  .profile-view {
+    max-width: 100%;
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+
+  /* Responsive grid for dashboard */
+  .dashboard-view .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 1200px;
+  }
+
+  .dashboard-view .charts-section {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    max-width: 1400px;
+  }
+
+  .dashboard-view .section-title {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Extra large screens */
+@media (min-width: 1440px) {
+  .sidebar-nav {
+    width: 280px;
+  }
+
+  .desktop-content {
+    padding: 0 3rem;
+  }
+}

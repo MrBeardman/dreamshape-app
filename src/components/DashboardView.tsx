@@ -213,9 +213,7 @@ export default function DashboardView({
         </div>
         
         <div className="stat-card streak">
-          <div className="stat-value">
-            🔥 {currentStreak}
-          </div>
+          <div className="stat-value">{currentStreak}</div>
           <div className="stat-label">Day Streak</div>
         </div>
         
@@ -228,7 +226,7 @@ export default function DashboardView({
       {/* Best PRs */}
       {bestPRs.length > 0 && (
         <div className="prs-section">
-          <h3 className="section-title">💪 Best PRs</h3>
+          <h3 className="section-title">Best PRs</h3>
           <div className="prs-list">
             {bestPRs.map(([exercise, weight], idx) => (
               <div key={exercise} className="pr-item">
@@ -244,7 +242,6 @@ export default function DashboardView({
       {/* Quick Actions */}
       <div className="quick-actions">
         <button className="btn-action-primary" onClick={onStartEmptyWorkout}>
-          <span className="action-icon">🚀</span>
           <span>Start Empty Workout</span>
         </button>
       </div>
@@ -253,7 +250,7 @@ export default function DashboardView({
       {templates.length > 0 && (
         <div className="templates-section">
           <div className="section-header">
-            <h3 className="section-title">💪 Your Templates</h3>
+            <h3 className="section-title">Your Templates</h3>
             <button className="btn-see-all" onClick={onViewAllTemplates}>
               See All →
             </button>
@@ -279,7 +276,7 @@ export default function DashboardView({
 
       {/* Charts Section */}
       <div className="charts-section">
-        <h3 className="section-title">📊 Progress</h3>
+        <h3 className="section-title">Progress</h3>
         
         {/* Workout Frequency */}
         <div className="chart-card">
