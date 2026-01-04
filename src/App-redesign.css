@@ -10,6 +10,7 @@
 /* New Component Styles */
 @import './styles/components/theme-toggle.css';
 @import './styles/components/sync-indicator.css';
+@import './styles/components/auth.css';
 @import './styles/components/bottom-nav.css';
 @import './styles/components/desktop-layout.css';
 @import './styles/components/dashboard.css';
