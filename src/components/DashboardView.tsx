@@ -330,15 +330,54 @@ export default function DashboardView({
         <div className="chart-card">
           <h4 className="chart-title">Consistency Calendar</h4>
           <p className="chart-subtitle">Last 12 weeks</p>
-          <div className="heatmap-grid">
-            {heatmapData.map((day, idx) => (
-              <div
-                key={idx}
-                className={`heatmap-day ${day.count > 0 ? 'active' : ''}`}
-                title={day.date}
-              />
-            ))}
+          
+          <div className="calendar-wrapper">
+            {/* Y-axis (days of week) */}
+            <div className="calendar-y-axis">
+              <div className="calendar-y-label">Mon</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Wed</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Fri</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Sun</div>
+            </div>
+
+            <div className="calendar-main">
+              {/* Grid */}
+              <div className="heatmap-grid">
+                {heatmapData.map((day, idx) => (
+                  <div
+                    key={idx}
+                    className={`heatmap-day ${day.count > 0 ? 'active' : ''}`}
+                    title={day.date}
+                  />
+                ))}
+              </div>
+
+              {/* X-axis (months) */}
+              <div className="calendar-x-axis">
+                {(() => {
+                  const labels = []
+                  const today = new Date()
+                  
+                  for (let i = 0; i < 12; i++) {
+                    const date = new Date(today)
+                    date.setDate(today.getDate() - (11 - i) * 7)
+                    
+                    labels.push(
+                      <div key={i} className="calendar-x-label">
+                        {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
+                      </div>
+                    )
+                  }
+                  
+                  return labels
+                })()}
+              </div>
+            </div>
           </div>
+
           <div className="heatmap-legend">
             <span>Less</span>
             <div className="heatmap-day"></div>
