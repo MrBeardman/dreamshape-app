@@ -92,41 +92,41 @@ export default function ProfileView({
   const consistencyScore = getConsistencyScore()
   const volumeProgress = getVolumeProgress()
 
-  // SVG circle progress
+  // SVG circle progress - smaller for mobile
   const CircleProgress = ({ percentage, color }: { percentage: number, color: string }) => {
-    const radius = 36
+    const radius = 28 // Reduced from 36
     const circumference = 2 * Math.PI * radius
     const offset = circumference - (percentage / 100) * circumference
 
     return (
-      <svg width="100" height="100" className="circle-progress">
+      <svg width="70" height="70" className="circle-progress">
         <circle
-          cx="50"
-          cy="50"
+          cx="35"
+          cy="35"
           r={radius}
           fill="none"
           stroke="rgba(255, 255, 255, 0.1)"
-          strokeWidth="8"
+          strokeWidth="6"
         />
         <circle
-          cx="50"
-          cy="50"
+          cx="35"
+          cy="35"
           r={radius}
           fill="none"
           stroke={color}
-          strokeWidth="8"
+          strokeWidth="6"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          transform="rotate(-90 50 50)"
+          transform="rotate(-90 35 35)"
           className="circle-progress-bar"
         />
         <text
-          x="50"
-          y="50"
+          x="35"
+          y="35"
           textAnchor="middle"
           dy="0.35em"
-          fontSize="20"
+          fontSize="16"
           fontWeight="bold"
           fill="white"
         >
