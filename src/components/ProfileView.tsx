@@ -144,13 +144,17 @@ export default function ProfileView({
       </div>
 
       {/* User Info Card */}
-      <div className="profile-user-card">
+      <div 
+        className="profile-user-card" 
+        onClick={() => !isEditing && setIsEditing(true)}
+        style={{ cursor: isEditing ? 'default' : 'pointer' }}
+      >
         <div className="profile-avatar-large">
           {userProfile.name.charAt(0).toUpperCase()}
         </div>
         
         {isEditing ? (
-          <div className="profile-edit-form">
+          <div className="profile-edit-form" onClick={(e) => e.stopPropagation()}>
             <input
               type="text"
               className="input"
@@ -198,9 +202,6 @@ export default function ProfileView({
                 year: 'numeric'
               })}
             </p>
-            <button className="btn btn-secondary btn-sm" onClick={() => setIsEditing(true)}>
-              Edit Profile
-            </button>
           </div>
         )}
       </div>
@@ -294,89 +295,6 @@ export default function ProfileView({
             <span>Sign Out</span>
             <span className="action-arrow">→</span>
           </button>
-        </div>
-      </div>
-
-      {/* Consistency Calendar */}
-      <div className="profile-section">
-        <div className="calendar-container">
-          <h3 className="calendar-title">Consistency Calendar</h3>
-          <p className="calendar-subtitle">Last 12 weeks</p>
-          
-          <div className="calendar-wrapper">
-            {/* Y-axis (days of week) */}
-            <div className="calendar-y-axis">
-              <div className="calendar-y-label">Mon</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Wed</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Fri</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Sun</div>
-            </div>
-
-            <div className="calendar-main">
-              {/* Grid */}
-              <div className="calendar-grid">
-                {(() => {
-                  const today = new Date()
-                  const days = []
-                  
-                  // Generate 84 days (12 weeks)
-                  for (let i = 83; i >= 0; i--) {
-                    const date = new Date(today)
-                    date.setDate(date.getDate() - i)
-                    
-                    // Check if there's a workout on this day
-                    const hasWorkout = workoutLogs.some(w => {
-                      const workoutDate = new Date(w.date)
-                      return workoutDate.toDateString() === date.toDateString()
-                    })
-                    
-                    days.push(
-                      <div
-                        key={i}
-                        className={`calendar-day ${hasWorkout ? 'active' : ''}`}
-                        title={date.toLocaleDateString()}
-                      />
-                    )
-                  }
-                  
-                  return days
-                })()}
-              </div>
-
-              {/* X-axis (weeks/months) */}
-              <div className="calendar-x-axis">
-                {(() => {
-                  const labels = []
-                  const today = new Date()
-                  
-                  // Generate month labels for last 12 weeks
-                  for (let i = 0; i < 12; i++) {
-                    const date = new Date(today)
-                    date.setDate(date.getDate() - (11 - i) * 7)
-                    
-                    labels.push(
-                      <div key={i} className="calendar-x-label">
-                        {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
-                      </div>
-                    )
-                  }
-                  
-                  return labels
-                })()}
-              </div>
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="calendar-legend">
-            <span>Less</span>
-            <div className="calendar-day"></div>
-            <div className="calendar-day active"></div>
-            <span>More</span>
-          </div>
         </div>
       </div>
     </div>
