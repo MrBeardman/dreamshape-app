@@ -49,5 +49,5 @@ export interface ActiveWorkout {
 export interface UserProfile {
   name: string
   memberSince: string
-  role?: 'creator' | 'member' // Creator badge for special users
+  role?: 'creator' | 'tester' | 'member' // Creator = app creator, Tester = beta tester, Member = regular
 }

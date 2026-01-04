@@ -74,12 +74,27 @@
   animation: crownGlow 2s ease-in-out infinite;
 }
 
+.tester-badge {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+  animation: testerGlow 2s ease-in-out infinite;
+}
+
 @keyframes crownGlow {
   0%, 100% {
     filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6));
   }
   50% {
     filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.9));
+  }
+}
+
+@keyframes testerGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
+  }
+  50% {
+    filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.9));
   }
 }
 
