@@ -10,9 +10,12 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [signupCode, setSignupCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  const SIGNUP_CODE = 'BIGIISTHEBEST'
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,12 +23,20 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
     setError(null)
     setMessage(null)
 
+    // Check signup code
+    if (signupCode !== SIGNUP_CODE) {
+      setError('Invalid signup code. DreamShape is currently in testing.')
+      setLoading(false)
+      return
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          name: name || 'User'
+          name: name || 'User',
+          role: email.toLowerCase().includes('bigi') ? 'creator' : 'member' // Mark Bigi as creator
         }
       }
     })
@@ -134,6 +145,22 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
               <p className="form-hint">At least 6 characters</p>
             )}
           </div>
+
+          {mode === 'signup' && (
+            <div className="form-group">
+              <label htmlFor="signupCode">Signup Code 🔑</label>
+              <input
+                id="signupCode"
+                type="text"
+                placeholder="Enter signup code"
+                value={signupCode}
+                onChange={(e) => setSignupCode(e.target.value.toUpperCase())}
+                required
+                disabled={loading}
+              />
+              <p className="form-hint">App is in testing - code required</p>
+            </div>
+          )}
 
           {error && (
             <div className="auth-error">
