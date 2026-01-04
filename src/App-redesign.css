@@ -64,7 +64,13 @@ body {
   font-weight: var(--font-normal);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow: hidden; /* Prevent body scroll on desktop */
+}
+
+/* Prevent body scroll on desktop only */
+@media (min-width: 1024px) {
+  body {
+    overflow: hidden;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {
