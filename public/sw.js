@@ -1,5 +1,5 @@
 // DreamShape Service Worker
-const CACHE_NAME = 'dreamshape-v1';
+const CACHE_NAME = 'dreamshape-v2' // Bumped version to force update;
 const urlsToCache = [
   '/',
   '/index.html'
