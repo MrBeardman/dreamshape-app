@@ -292,6 +292,8 @@
 .search-box {
   position: relative;
   margin-bottom: 1rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .search-icon {
@@ -305,6 +307,7 @@
 
 .search-input {
   width: 100%;
+  max-width: 100%;
   padding: 0.875rem 1rem 0.875rem 3rem;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
@@ -313,6 +316,7 @@
   font-size: var(--text-base);
   font-family: var(--font-sans);
   transition: all var(--transition-base);
+  box-sizing: border-box;
 }
 
 .search-input:focus {

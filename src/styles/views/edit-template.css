@@ -3,7 +3,8 @@
    Template editing interface
    ========================================== */
 
-.edit-template-view {
+.edit-template-view,
+.create-view {
   padding: 1rem 1rem 6rem;
   max-width: 1200px;
   margin: 0 auto;
@@ -12,12 +13,14 @@
 }
 
 /* ===== HEADER ===== */
-.edit-template-header {
+.edit-template-header,
+.create-header {
   margin-bottom: 1.5rem;
   padding-top: 0.5rem;
 }
 
-.edit-template-header h2 {
+.edit-template-header h2,
+.create-header h2 {
   font-size: var(--text-2xl);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
@@ -32,6 +35,7 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
+  font-family: var(--font-sans);
   cursor: pointer;
   transition: all var(--transition-base);
   display: inline-flex;
@@ -104,11 +108,34 @@
 }
 
 /* ===== EXERCISES LIST ===== */
-.exercises-list {
+.exercises-list,
+.exercise-list {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.exercises-section {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.exercises-section h3 {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.empty-exercises {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
 }
 
 .exercise-item {
@@ -173,14 +200,16 @@
 }
 
 /* ===== ADD EXERCISE ===== */
-.add-exercise-section {
+.add-exercise-section,
+.add-exercise {
   display: flex;
   gap: 0.75rem;
   align-items: flex-end;
   margin-top: 1rem;
 }
 
-.add-exercise-section .form-group {
+.add-exercise-section .form-group,
+.add-exercise .exercise-input-container {
   flex: 1;
   margin-bottom: 0;
 }
@@ -209,7 +238,8 @@
 }
 
 /* ===== SUBMIT BUTTON ===== */
-.btn-submit {
+.btn-submit,
+.btn-save {
   width: 100%;
   padding: 1rem;
   background: var(--primary);
@@ -218,19 +248,29 @@
   color: #000;
   font-size: var(--text-base);
   font-weight: var(--font-bold);
+  font-family: var(--font-sans);
   cursor: pointer;
   transition: all var(--transition-base);
   box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
 }
 
-.btn-submit:hover {
+.btn-submit:hover,
+.btn-save:hover {
   background: var(--primary-light);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(251, 191, 36, 0.4);
 }
 
-.btn-submit:active {
+.btn-submit:active,
+.btn-save:active {
   transform: translateY(0);
+}
+
+.btn-submit:disabled,
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
 }
 
 /* ===== RESPONSIVE ===== */

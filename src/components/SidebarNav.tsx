@@ -1,10 +1,13 @@
+import type { UserProfile } from '../types'
+
 interface SidebarNavProps {
   currentView: 'dashboard' | 'progress' | 'start' | 'library' | 'profile'
   onNavigate: (view: 'dashboard' | 'progress' | 'start' | 'library' | 'profile') => void
   userName: string
+  userProfile?: UserProfile
 }
 
-export default function SidebarNav({ currentView, onNavigate, userName }: SidebarNavProps) {
+export default function SidebarNav({ currentView, onNavigate, userName, userProfile }: SidebarNavProps) {
   return (
     <nav className="sidebar-nav">
       <div className="sidebar-header">
@@ -77,7 +80,11 @@ export default function SidebarNav({ currentView, onNavigate, userName }: Sideba
           </div>
           <div className="sidebar-user-info">
             <div className="sidebar-user-name">{userName}</div>
-            <div className="sidebar-user-role">Member</div>
+            <div className="sidebar-user-role">
+              {userProfile?.role === 'creator' && 'Creator'}
+              {userProfile?.role === 'tester' && 'Beta Tester'}
+              {(!userProfile?.role || userProfile.role === 'member') && 'Member'}
+            </div>
           </div>
         </div>
       </div>

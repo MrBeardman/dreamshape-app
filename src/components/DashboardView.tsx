@@ -1,4 +1,5 @@
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import CircularProgress from './CircularProgress'
 import type { WorkoutTemplate, WorkoutLog, UserProfile } from '../types'
 
 interface DashboardViewProps {
@@ -204,19 +205,40 @@ export default function DashboardView({
 
       {/* Stats Grid */}
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-value">{totalWorkouts}</div>
-          <div className="stat-label">Workouts</div>
+        <div className="widget-card">
+          <CircularProgress
+            value={totalWorkouts}
+            max={Math.max(100, totalWorkouts)}
+            size={80}
+            strokeWidth={6}
+            color="#3b82f6"
+            label="Workouts"
+            subtitle="Total"
+          />
         </div>
         
-        <div className="stat-card streak">
-          <div className="stat-value">{currentStreak}</div>
-          <div className="stat-label">Day Streak</div>
+        <div className="widget-card">
+          <CircularProgress
+            value={currentStreak}
+            max={Math.max(30, currentStreak)}
+            size={80}
+            strokeWidth={6}
+            color="#f59e0b"
+            label="Day Streak"
+            subtitle="Current"
+          />
         </div>
         
-        <div className="stat-card">
-          <div className="stat-value">{avgPerWeek}</div>
-          <div className="stat-label">Per Week</div>
+        <div className="widget-card">
+          <CircularProgress
+            value={parseFloat(avgPerWeek)}
+            max={7}
+            size={80}
+            strokeWidth={6}
+            color="#10b981"
+            label="Per Week"
+            subtitle="Average"
+          />
         </div>
       </div>
 

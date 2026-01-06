@@ -887,6 +887,7 @@ function App() {
             currentView={currentView}
             onNavigate={setCurrentView}
             userName={userProfile.name}
+            userProfile={userProfile}
           />
         )}
 
