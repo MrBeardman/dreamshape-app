@@ -8,6 +8,7 @@ interface CircularProgressProps {
   color?: string
   label: string
   subtitle?: string
+  displayMode?: 'percentage' | 'value' | 'fraction' // New prop
 }
 
 export default function CircularProgress({
@@ -17,7 +18,8 @@ export default function CircularProgress({
   strokeWidth = 8,
   color = '#fbbf24',
   label,
-  subtitle
+  subtitle,
+  displayMode = 'percentage' // Default to percentage for backward compatibility
 }: CircularProgressProps) {
   const [animatedValue, setAnimatedValue] = useState(0)
   const [hasAnimated, setHasAnimated] = useState(false)
@@ -55,6 +57,18 @@ export default function CircularProgress({
 
     return () => clearTimeout(startDelay)
   }, [value, hasAnimated])
+
+  // Determine what to display inside the circle
+  const getDisplayText = () => {
+    if (displayMode === 'percentage') {
+      return `${Math.round(animatedPercentage)}%`
+    } else if (displayMode === 'value') {
+      return Math.round(animatedValue).toString()
+    } else if (displayMode === 'fraction') {
+      return `${Math.round(animatedValue)}/${max}`
+    }
+    return `${Math.round(animatedPercentage)}%`
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
@@ -96,7 +110,7 @@ export default function CircularProgress({
           fill="white"
           style={{ transform: 'rotate(90deg)', transformOrigin: `${size / 2}px ${size / 2}px` }}
         >
-          {Math.round(animatedPercentage)}%
+          {getDisplayText()}
         </text>
       </svg>
       

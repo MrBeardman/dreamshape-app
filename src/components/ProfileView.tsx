@@ -177,6 +177,7 @@ export default function ProfileView({
               color="#fbbf24"
               label="Weekly Goal"
               subtitle={`${Math.round(weeklyProgress / 25)} / 4 workouts`}
+              displayMode="percentage"
             />
           </div>
 
@@ -189,6 +190,7 @@ export default function ProfileView({
               color="#10b981"
               label="Consistency"
               subtitle="Last 30 days"
+              displayMode="percentage"
             />
           </div>
 
@@ -201,6 +203,7 @@ export default function ProfileView({
               color="#3b82f6"
               label="Volume"
               subtitle={`${(totalVolume / 1000).toFixed(1)}t total`}
+              displayMode="percentage"
             />
           </div>
         </div>
