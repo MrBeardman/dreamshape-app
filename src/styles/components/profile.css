@@ -5,7 +5,7 @@
 
 .profile-view {
   padding: 1rem 1rem 6rem;
-  max-width: 600px;
+  max-width: 1200px;
   margin: 0 auto;
   background: var(--bg-secondary);
   min-height: 100vh;
@@ -124,6 +124,8 @@
 /* ===== SECTIONS ===== */
 .profile-section {
   margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .section-title {
@@ -131,6 +133,7 @@
   font-weight: var(--font-semibold);
   color: var(--text-primary);
   margin-bottom: 1rem;
+  width: 100%;
 }
 
 /* ===== PROGRESS WIDGETS (Goals) ===== */
@@ -138,6 +141,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
+  width: -webkit-fill-available;
 }
 
 .widget-card {
@@ -187,6 +191,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  width: -webkit-fill-available;
 }
 
 .stat-item {
@@ -224,6 +229,7 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.75rem;
+  width: -webkit-fill-available;
 }
 
 .action-item {
@@ -441,19 +447,15 @@
     padding: 2rem 3rem 2rem;
   }
 
-  .progress-widgets {
-    max-width: 1200px;
+  .profile-user-card {
+    max-width: -webkit-fill-available;
+    margin-left: auto;
+    margin-right: auto;
   }
 
-  .stats-list {
-    max-width: 1200px;
-  }
-
+  .progress-widgets,
+  .stats-list,
   .action-list {
-    max-width: 800px;
-  }
-
-  .calendar-container {
-    max-width: 1200px;
+    max-width: 100%; /* Full width */
   }
 }

@@ -5,7 +5,7 @@
 
 .library-view {
   padding: 1rem 1rem 6rem;
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
   background: var(--bg-secondary);
   min-height: 100vh;
@@ -137,6 +137,41 @@
 .template-actions {
   display: flex;
   gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.template-actions button {
+  flex: 1;
+  padding: 0.625rem 1rem;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.template-actions button:first-child {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.template-actions button:first-child:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.template-actions button:last-child {
+  background: var(--primary);
+  color: #000;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+}
+
+.template-actions button:last-child:hover {
+  background: var(--primary-light);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
 }
 
 .btn-icon-action {
@@ -152,6 +187,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-icon-action svg {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px;
+  min-height: 18px;
+  stroke: currentColor;
+  flex-shrink: 0;
 }
 
 .btn-icon-action:hover {
@@ -161,6 +206,7 @@
 }
 
 .btn-icon-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
   border-color: var(--error);
   color: var(--error);
 }
@@ -371,18 +417,23 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .exercise-item-name {
   font-size: var(--text-base);
   font-weight: var(--font-medium);
   color: var(--text-primary);
+  flex: 1;
 }
 
 .exercise-item-equipment {
   font-size: var(--text-sm);
   color: var(--text-tertiary);
   font-weight: var(--font-medium);
+  white-space: nowrap;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--border);
 }
 
 /* ===== RESPONSIVE ===== */

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import CircularProgress from './CircularProgress'
 import type { UserProfile, WorkoutLog } from '../types'
 
 interface ProfileViewProps {
@@ -92,50 +93,6 @@ export default function ProfileView({
   const consistencyScore = getConsistencyScore()
   const volumeProgress = getVolumeProgress()
 
-  // SVG circle progress - smaller for mobile
-  const CircleProgress = ({ percentage, color }: { percentage: number, color: string }) => {
-    const radius = 28 // Reduced from 36
-    const circumference = 2 * Math.PI * radius
-    const offset = circumference - (percentage / 100) * circumference
-
-    return (
-      <svg width="70" height="70" className="circle-progress">
-        <circle
-          cx="35"
-          cy="35"
-          r={radius}
-          fill="none"
-          stroke="rgba(255, 255, 255, 0.1)"
-          strokeWidth="6"
-        />
-        <circle
-          cx="35"
-          cy="35"
-          r={radius}
-          fill="none"
-          stroke={color}
-          strokeWidth="6"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          transform="rotate(-90 35 35)"
-          className="circle-progress-bar"
-        />
-        <text
-          x="35"
-          y="35"
-          textAnchor="middle"
-          dy="0.35em"
-          fontSize="16"
-          fontWeight="bold"
-          fill="white"
-        >
-          {Math.round(percentage)}%
-        </text>
-      </svg>
-    )
-  }
-
   return (
     <div className="profile-view">
       {/* Header */}
@@ -212,27 +169,39 @@ export default function ProfileView({
         
         <div className="progress-widgets">
           <div className="widget-card">
-            <CircleProgress percentage={weeklyProgress} color="#fbbf24" />
-            <div className="widget-info">
-              <div className="widget-label">Weekly Goal</div>
-              <div className="widget-sublabel">{Math.round(weeklyProgress / 25)} / 4 workouts</div>
-            </div>
+            <CircularProgress 
+              value={weeklyProgress} 
+              max={100}
+              size={80}
+              strokeWidth={6}
+              color="#fbbf24"
+              label="Weekly Goal"
+              subtitle={`${Math.round(weeklyProgress / 25)} / 4 workouts`}
+            />
           </div>
 
           <div className="widget-card">
-            <CircleProgress percentage={consistencyScore} color="#10b981" />
-            <div className="widget-info">
-              <div className="widget-label">Consistency</div>
-              <div className="widget-sublabel">Last 30 days</div>
-            </div>
+            <CircularProgress 
+              value={consistencyScore} 
+              max={100}
+              size={80}
+              strokeWidth={6}
+              color="#10b981"
+              label="Consistency"
+              subtitle="Last 30 days"
+            />
           </div>
 
           <div className="widget-card">
-            <CircleProgress percentage={volumeProgress} color="#3b82f6" />
-            <div className="widget-info">
-              <div className="widget-label">Volume</div>
-              <div className="widget-sublabel">{(totalVolume / 1000).toFixed(1)}t total</div>
-            </div>
+            <CircularProgress 
+              value={volumeProgress} 
+              max={100}
+              size={80}
+              strokeWidth={6}
+              color="#3b82f6"
+              label="Volume"
+              subtitle={`${(totalVolume / 1000).toFixed(1)}t total`}
+            />
           </div>
         </div>
       </div>
