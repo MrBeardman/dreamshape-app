@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react'
+
 interface CircularProgressProps {
   value: number
   max: number
@@ -6,7 +8,6 @@ interface CircularProgressProps {
   color?: string
   label: string
   subtitle?: string
-  showPercentage?: boolean
 }
 
 export default function CircularProgress({
@@ -16,47 +17,99 @@ export default function CircularProgress({
   strokeWidth = 8,
   color = '#fbbf24',
   label,
-  subtitle,
-  showPercentage = false
+  subtitle
 }: CircularProgressProps) {
+  const [animatedValue, setAnimatedValue] = useState(0)
+  const [hasAnimated, setHasAnimated] = useState(false)
+
   const radius = (size - strokeWidth) / 2
   const circumference = radius * 2 * Math.PI
-  const percentage = Math.min((value / max) * 100, 100)
-  const offset = circumference - (percentage / 100) * circumference
+  const animatedPercentage = Math.min((animatedValue / max) * 100, 100)
+  const offset = circumference - (animatedPercentage / 100) * circumference
+
+  useEffect(() => {
+    if (hasAnimated) return
+
+    // Delay start slightly for staggered effect
+    const startDelay = setTimeout(() => {
+      const duration = 1500 // 1.5 seconds
+      const steps = 60
+      const increment = value / steps
+      const stepDuration = duration / steps
+      let currentStep = 0
+
+      const timer = setInterval(() => {
+        currentStep++
+        const newValue = Math.min(increment * currentStep, value)
+        setAnimatedValue(newValue)
+
+        if (currentStep >= steps) {
+          clearInterval(timer)
+          setAnimatedValue(value)
+          setHasAnimated(true)
+        }
+      }, stepDuration)
+
+      return () => clearInterval(timer)
+    }, 200)
+
+    return () => clearTimeout(startDelay)
+  }, [value, hasAnimated])
 
   return (
-    <div className="circular-progress" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="circular-progress-svg">
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         {/* Background circle */}
         <circle
-          className="circular-progress-bg"
           cx={size / 2}
           cy={size / 2}
           r={radius}
+          fill="none"
+          stroke="rgba(255, 255, 255, 0.1)"
           strokeWidth={strokeWidth}
         />
         
         {/* Progress circle */}
         <circle
-          className="circular-progress-bar"
           cx={size / 2}
           cy={size / 2}
           r={radius}
+          fill="none"
+          stroke={color}
           strokeWidth={strokeWidth}
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ stroke: color }}
+          strokeLinecap="round"
+          style={{ 
+            transition: 'stroke-dashoffset 0.1s ease-out'
+          }}
         />
+        
+        {/* Percentage text inside circle */}
+        <text
+          x={size / 2}
+          y={size / 2}
+          textAnchor="middle"
+          dy="0.35em"
+          fontSize="16"
+          fontWeight="bold"
+          fill="white"
+          style={{ transform: 'rotate(90deg)', transformOrigin: `${size / 2}px ${size / 2}px` }}
+        >
+          {Math.round(animatedPercentage)}%
+        </text>
       </svg>
       
-      <div className="circular-progress-content">
-        {showPercentage ? (
-          <div className="circular-progress-percentage">{Math.round(percentage)}%</div>
-        ) : (
-          <div className="circular-progress-value">{value}</div>
+      {/* Labels below circle */}
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-primary)' }}>
+          {label}
+        </div>
+        {subtitle && (
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.125rem' }}>
+            {subtitle}
+          </div>
         )}
-        <div className="circular-progress-label">{label}</div>
-        {subtitle && <div className="circular-progress-subtitle">{subtitle}</div>}
       </div>
     </div>
   )

@@ -108,15 +108,29 @@ function App() {
   // FUNCTIONS - MUST BE BEFORE useEffect
   // ============================================
 
-  const handleInitialSync = async (sync: SyncService) => {
+  const handleInitialSync = async (sync: SyncService, user: User) => {
     try {
       setIsSyncing(true)
       await sync.migrateLocalDataToSupabase()
       const data = await sync.loadAllData()
 
       if (data.profile) {
-        setUserProfile(data.profile)
-        localStorage.setItem('dreamshape_profile', JSON.stringify(data.profile))
+        // Merge profile with user metadata (role from Supabase)
+        const profileWithRole = {
+          ...data.profile,
+          role: user.user_metadata?.role || data.profile.role
+        }
+        setUserProfile(profileWithRole)
+        localStorage.setItem('dreamshape_profile', JSON.stringify(profileWithRole))
+      } else if (user) {
+        // Create new profile with role from Supabase metadata
+        const newProfile: UserProfile = {
+          name: user.email?.split('@')[0] || 'User',
+          memberSince: user.created_at || new Date().toISOString(),
+          role: user.user_metadata?.role || undefined
+        }
+        setUserProfile(newProfile)
+        localStorage.setItem('dreamshape_profile', JSON.stringify(newProfile))
       }
 
       setTemplates(data.templates)
@@ -188,7 +202,7 @@ function App() {
         hasInitializedSync = true
         const sync = new SyncService(session.user.id)
         setSyncService(sync)
-        handleInitialSync(sync)
+        handleInitialSync(sync, session.user)
       }
     })
 
@@ -206,7 +220,7 @@ function App() {
       if (session?.user && event === 'SIGNED_IN') {
         const sync = new SyncService(session.user.id)
         setSyncService(sync)
-        handleInitialSync(sync)
+        handleInitialSync(sync, session.user)
       } else if (event === 'SIGNED_OUT') {
         setSyncService(null)
       }

@@ -17,7 +17,7 @@ export default function DashboardView({
   userProfile,
   onStartWorkout,
   onStartEmptyWorkout,
-  onEditProfile,
+  //onEditProfile, - not used currently
   onViewAllTemplates,
 }: DashboardViewProps) {
   
@@ -198,9 +198,6 @@ export default function DashboardView({
           </div>
           <div className="profile-info">
             <h2 className="profile-name">{userProfile.name}</h2>
-            <button className="btn-edit-profile" onClick={onEditProfile}>
-              Edit Profile
-            </button>
           </div>
         </div>
       </div>

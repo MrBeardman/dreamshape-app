@@ -19,6 +19,11 @@
 @import './styles/components/library.css';
 @import './styles/components/workout.css';
 
+/* View-specific styles */
+@import './styles/views/templates.css';
+@import './styles/views/edit-template.css';
+@import './styles/views/workout-detail.css';
+
 /* ==========================================
    CUSTOM SCROLLBAR STYLING
    Dark themed scrollbars

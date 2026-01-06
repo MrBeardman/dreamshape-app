@@ -7,6 +7,7 @@ interface SyncIndicatorProps {
 
 export default function SyncIndicator({ isSyncing, lastSyncTime }: SyncIndicatorProps) {
   const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [isVisible, setIsVisible] = useState(true)
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -20,6 +21,24 @@ export default function SyncIndicator({ isSyncing, lastSyncTime }: SyncIndicator
       window.removeEventListener('offline', handleOffline)
     }
   }, [])
+
+  // Auto-hide after 2 seconds when sync completes
+  useEffect(() => {
+    if (!isSyncing && isOnline) {
+      const timer = setTimeout(() => {
+        setIsVisible(false)
+      }, 2000)
+
+      return () => clearTimeout(timer)
+    } else {
+      setIsVisible(true)
+    }
+  }, [isSyncing, isOnline])
+
+  // Don't render if hidden and not syncing/offline
+  if (!isVisible && !isSyncing && isOnline) {
+    return null
+  }
 
   const formatLastSync = () => {
     if (!lastSyncTime) return 'Never synced'
