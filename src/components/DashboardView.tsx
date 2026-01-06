@@ -208,36 +208,39 @@ export default function DashboardView({
         <div className="widget-card">
           <CircularProgress
             value={totalWorkouts}
-            max={Math.max(100, totalWorkouts)}
+            max={313} // 365 days - 52 weeks × 2 rest days = 261 workout days target
             size={80}
             strokeWidth={6}
             color="#3b82f6"
             label="Workouts"
             subtitle="Total"
+            displayMode="value" // Show actual number
           />
         </div>
         
         <div className="widget-card">
           <CircularProgress
             value={currentStreak}
-            max={Math.max(30, currentStreak)}
+            max={365} // Full year streak as max goal
             size={80}
             strokeWidth={6}
             color="#f59e0b"
             label="Day Streak"
             subtitle="Current"
+            displayMode="value" // Show actual days
           />
         </div>
         
         <div className="widget-card">
           <CircularProgress
-            value={parseFloat(avgPerWeek)}
-            max={7}
+            value={Number(avgPerWeek)}
+            max={5} // 5 workouts per week (realistic sustainable goal)
             size={80}
             strokeWidth={6}
             color="#10b981"
             label="Per Week"
             subtitle="Average"
+            displayMode="value" // Show actual number
           />
         </div>
       </div>
