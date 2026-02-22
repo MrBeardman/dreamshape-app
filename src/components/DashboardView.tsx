@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import CircularProgress from './CircularProgress'
 import type { WorkoutTemplate, WorkoutLog, UserProfile } from '../types'
@@ -22,172 +23,120 @@ export default function DashboardView({
   onViewAllTemplates,
 }: DashboardViewProps) {
   
-  // Calculate stats
   const totalWorkouts = workoutLogs.length
-  
-  const getCurrentStreak = () => {
+
+  const currentStreak = useMemo(() => {
     if (workoutLogs.length === 0) return 0
-    
-    const sortedLogs = [...workoutLogs].sort((a, b) => 
+    const sortedLogs = [...workoutLogs].sort((a, b) =>
       new Date(b.date).getTime() - new Date(a.date).getTime()
     )
-    
     let streak = 0
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    
     for (let i = 0; i < 365; i++) {
       const checkDate = new Date(today)
       checkDate.setDate(today.getDate() - i)
-      
       const hasActivity = sortedLogs.some(log => {
         const logDate = new Date(log.date)
         logDate.setHours(0, 0, 0, 0)
         return logDate.getTime() === checkDate.getTime()
       })
-      
       if (hasActivity) {
         streak++
       } else if (i > 0) {
-        // Allow one rest day, but break if 2+ consecutive rest days
         const prevDate = new Date(checkDate)
         prevDate.setDate(checkDate.getDate() - 1)
-        
         const hasPrevActivity = sortedLogs.some(log => {
           const logDate = new Date(log.date)
           logDate.setHours(0, 0, 0, 0)
           return logDate.getTime() === prevDate.getTime()
         })
-        
         if (!hasPrevActivity) break
       } else {
         break
       }
     }
-    
     return streak
-  }
-  
-  const getBestPRs = () => {
+  }, [workoutLogs])
+
+  const bestPRs = useMemo(() => {
     const exercisePRs: Record<string, number> = {}
-    
     workoutLogs.forEach(workout => {
       workout.exercises.forEach(exercise => {
         exercise.sets.forEach(set => {
           const current = exercisePRs[exercise.exerciseName] || 0
-          if (set.weight > current) {
-            exercisePRs[exercise.exerciseName] = set.weight
-          }
+          if (set.weight > current) exercisePRs[exercise.exerciseName] = set.weight
         })
       })
     })
-    
-    return Object.entries(exercisePRs)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-  }
-  
-  const getAvgWorkoutsPerWeek = () => {
-    if (workoutLogs.length === 0) return 0
-    
+    return Object.entries(exercisePRs).sort((a, b) => b[1] - a[1]).slice(0, 3)
+  }, [workoutLogs])
+
+  const avgPerWeek = useMemo(() => {
+    if (workoutLogs.length === 0) return '0'
     const oldestWorkout = new Date(workoutLogs[workoutLogs.length - 1].date)
-    const now = new Date()
-    const weeksDiff = Math.max(1, Math.floor((now.getTime() - oldestWorkout.getTime()) / (7 * 24 * 60 * 60 * 1000)))
-    
+    const weeksDiff = Math.max(
+      1,
+      Math.floor((Date.now() - oldestWorkout.getTime()) / (7 * 24 * 60 * 60 * 1000))
+    )
     return (workoutLogs.length / weeksDiff).toFixed(1)
-  }
-  
-  // Chart data: Workout frequency (last 8 weeks)
-  const getFrequencyData = () => {
-    const data = []
-    
-    for (let i = 7; i >= 0; i--) {
+  }, [workoutLogs])
+
+  const frequencyData = useMemo(() => {
+    return Array.from({ length: 8 }, (_, i) => {
+      const offset = 7 - i
       const weekStart = new Date()
-      weekStart.setDate(weekStart.getDate() - (i * 7 + 7))
+      weekStart.setDate(weekStart.getDate() - (offset * 7 + 7))
       weekStart.setHours(0, 0, 0, 0)
-      
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 7)
-      
       const count = workoutLogs.filter(w => {
-        const workoutDate = new Date(w.date)
-        return workoutDate >= weekStart && workoutDate < weekEnd
+        const d = new Date(w.date)
+        return d >= weekStart && d < weekEnd
       }).length
-      
-      data.push({
-        week: i === 0 ? 'This' : `-${i}`,
-        workouts: count
-      })
-    }
-    
-    return data
-  }
-  
-  // Chart data: Volume trend (last 8 weeks)
-  const getVolumeData = () => {
-    const data = []
-    
-    for (let i = 7; i >= 0; i--) {
+      return { week: offset === 0 ? 'This' : `-${offset}`, workouts: count }
+    })
+  }, [workoutLogs])
+
+  const volumeData = useMemo(() => {
+    return Array.from({ length: 8 }, (_, i) => {
+      const offset = 7 - i
       const weekStart = new Date()
-      weekStart.setDate(weekStart.getDate() - (i * 7 + 7))
+      weekStart.setDate(weekStart.getDate() - (offset * 7 + 7))
       weekStart.setHours(0, 0, 0, 0)
-      
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 7)
-      
       const weekWorkouts = workoutLogs.filter(w => {
-        const workoutDate = new Date(w.date)
-        return workoutDate >= weekStart && workoutDate < weekEnd
+        const d = new Date(w.date)
+        return d >= weekStart && d < weekEnd
       })
-      
-      const totalVolume = weekWorkouts.reduce((sum, workout) => {
-        return sum + workout.exercises.reduce((exSum, exercise) => {
-          return exSum + exercise.sets.reduce((setSum, set) => {
-            return setSum + (set.weight * set.reps)
-          }, 0)
-        }, 0)
-      }, 0)
-      
-      data.push({
-        week: i === 0 ? 'This' : `-${i}`,
-        volume: Math.round(totalVolume / 1000) // Convert to tons
-      })
-    }
-    
-    return data
-  }
-  
-  // Heatmap data: Last 12 weeks
-  const getHeatmapData = () => {
-    const data = []
+      const totalVolume = weekWorkouts.reduce(
+        (sum, wo) =>
+          sum +
+          wo.exercises.reduce(
+            (es, ex) => es + ex.sets.reduce((ss, s) => ss + s.weight * s.reps, 0),
+            0
+          ),
+        0
+      )
+      return { week: offset === 0 ? 'This' : `-${offset}`, volume: Math.round(totalVolume / 1000) }
+    })
+  }, [workoutLogs])
+
+  const heatmapData = useMemo(() => {
     const today = new Date()
-    
-    for (let i = 83; i >= 0; i--) {
+    return Array.from({ length: 84 }, (_, i) => {
       const date = new Date(today)
-      date.setDate(today.getDate() - i)
+      date.setDate(today.getDate() - (83 - i))
       date.setHours(0, 0, 0, 0)
-      
       const hasActivity = workoutLogs.some(log => {
         const logDate = new Date(log.date)
         logDate.setHours(0, 0, 0, 0)
         return logDate.getTime() === date.getTime()
       })
-      
-      data.push({
-        date: date.toISOString().split('T')[0],
-        count: hasActivity ? 1 : 0
-      })
-    }
-    
-    return data
-  }
-  
-  const currentStreak = getCurrentStreak()
-  const bestPRs = getBestPRs()
-  const avgPerWeek = getAvgWorkoutsPerWeek()
-  const frequencyData = getFrequencyData()
-  const volumeData = getVolumeData()
-  const heatmapData = getHeatmapData()
+      return { date: date.toISOString().split('T')[0], count: hasActivity ? 1 : 0 }
+    })
+  }, [workoutLogs])
   
   return (
     <div className="dashboard-view">
@@ -306,17 +255,19 @@ export default function DashboardView({
           <p className="chart-subtitle">Last 8 weeks</p>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={frequencyData}>
-              <XAxis dataKey="week" stroke="#9ca3af" fontSize={12} />
-              <YAxis stroke="#9ca3af" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  background: '#1f2937', 
-                  border: 'none', 
+              <XAxis dataKey="week" stroke="#555555" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#555555" fontSize={12} tickLine={false} axisLine={false} width={24} />
+              <Tooltip
+                contentStyle={{
+                  background: '#1a1a1a',
+                  border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: '8px',
-                  color: 'white'
-                }} 
+                  color: '#ffffff',
+                  fontSize: '13px'
+                }}
+                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
               />
-              <Bar dataKey="workouts" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="workouts" fill="#f5c518" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -327,22 +278,25 @@ export default function DashboardView({
           <p className="chart-subtitle">Total volume (tons) per week</p>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={volumeData}>
-              <XAxis dataKey="week" stroke="#9ca3af" fontSize={12} />
-              <YAxis stroke="#9ca3af" fontSize={12} />
-              <Tooltip 
-                contentStyle={{ 
-                  background: '#1f2937', 
-                  border: 'none', 
+              <XAxis dataKey="week" stroke="#555555" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#555555" fontSize={12} tickLine={false} axisLine={false} width={24} />
+              <Tooltip
+                contentStyle={{
+                  background: '#1a1a1a',
+                  border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: '8px',
-                  color: 'white'
-                }} 
+                  color: '#ffffff',
+                  fontSize: '13px'
+                }}
+                cursor={{ stroke: 'rgba(255,255,255,0.08)' }}
               />
-              <Area 
-                type="monotone" 
-                dataKey="volume" 
-                stroke="#10b981" 
-                fill="#10b981" 
-                fillOpacity={0.3}
+              <Area
+                type="monotone"
+                dataKey="volume"
+                stroke="#22c55e"
+                fill="#22c55e"
+                fillOpacity={0.15}
+                strokeWidth={2}
               />
             </AreaChart>
           </ResponsiveContainer>

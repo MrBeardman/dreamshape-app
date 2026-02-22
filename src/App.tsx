@@ -13,11 +13,14 @@ import TemplatesView from './components/TemplatesView'
 import WorkoutsView from './components/WorkoutsView'
 import CreateTemplateView from './components/CreateTemplateView'
 import FinishWorkoutModal from './components/FinishWorkoutModal'
+import ConfirmDialog from './components/ConfirmDialog'
 import DashboardView from './components/DashboardView'
 import BottomNav from './components/BottomNav'
 import SidebarNav from './components/SidebarNav'
 import LibraryView from './components/LibraryView'
 import ProfileView from './components/ProfileView'
+import { useConfirm } from './hooks/useConfirm'
+import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 
 const STORAGE_KEY = 'dreamshape_templates'
 const WORKOUTS_KEY = 'dreamshape_workouts'
@@ -93,16 +96,18 @@ function App() {
   const [showFinishModal, setShowFinishModal] = useState(false)
   const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>([])
 
-  // Timer states
-  const [elapsedTime, setElapsedTime] = useState(0)
-  const [restTimer, setRestTimer] = useState<number | null>(null)
-  const [restDuration, setRestDuration] = useState(120)
-  const [activeRestTimer, setActiveRestTimer] = useState<{
-    exerciseIndex: number
-    afterSetIndex: number
-    timeRemaining: number
-  } | null>(null)
+  const {
+    elapsedTime,
+    restTimer,
+    setRestTimer,
+    restDuration,
+    setRestDuration,
+    activeRestTimer,
+    setActiveRestTimer,
+  } = useWorkoutTimer(activeWorkout?.startTime ?? null)
 
+
+  const { confirm: showConfirm, confirmDialogProps } = useConfirm()
 
   // ============================================
   // FUNCTIONS - MUST BE BEFORE useEffect
@@ -174,7 +179,7 @@ function App() {
   }
 
   const handleSignOut = async () => {
-    if (confirm('Sign out?')) {
+    if (await showConfirm({ title: 'Sign out?', confirmLabel: 'Sign Out' })) {
       await supabase.auth.signOut()
       setSyncService(null)
       setLastSyncTime(null)
@@ -250,63 +255,7 @@ function App() {
     localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile))
   }, [userProfile])
 
-  // Workout timer - updates every second
-  useEffect(() => {
-    if (!activeWorkout) {
-      setElapsedTime(0)
-      return
-    }
-
-    const interval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - activeWorkout.startTime) / 1000)
-      setElapsedTime(elapsed)
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [activeWorkout])
-
-  // Rest timer countdown
-  useEffect(() => {
-    if (restTimer === null || restTimer <= 0) {
-      if (restTimer === 0) {
-        if (navigator.vibrate) {
-          navigator.vibrate([200, 100, 200])
-        }
-        setRestTimer(null)
-      }
-      return
-    }
-
-    const interval = setInterval(() => {
-      setRestTimer(prev => prev !== null ? prev - 1 : null)
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [restTimer])
-
-  // Inline rest timer countdown
-  useEffect(() => {
-    if (!activeRestTimer || activeRestTimer.timeRemaining <= 0) {
-      if (activeRestTimer?.timeRemaining === 0) {
-        if (navigator.vibrate) {
-          navigator.vibrate([200, 100, 200])
-        }
-      }
-      return
-    }
-
-    const interval = setInterval(() => {
-      setActiveRestTimer(prev => {
-        if (!prev || prev.timeRemaining <= 0) return null
-        return {
-          ...prev,
-          timeRemaining: prev.timeRemaining - 1
-        }
-      })
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [activeRestTimer])
+  // Timer logic is managed by useWorkoutTimer hook
 
   // Get the last workout for a specific template and exercise
   const getLastWorkoutData = (templateName: string, exerciseName: string) => {
@@ -343,7 +292,7 @@ function App() {
   }
 
   const deleteTemplate = async (id: string) => {
-    if (confirm('Delete this template?')) {
+    if (await showConfirm({ title: 'Delete Template?', message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) {
       setTemplates(templates.filter(t => t.id !== id))
 
       // Sync to Supabase
@@ -369,11 +318,12 @@ function App() {
         return {
           exerciseId: ex.id,
           exerciseName: ex.name,
-          sets: lastData.sets.map((set, idx) => ({
-            id: (idx + 1).toString(),
+          sets: lastData.sets.map(set => ({
+            id: crypto.randomUUID(),
             weight: set.weight,
             reps: set.reps,
-            completed: false
+            completed: false,
+            type: set.type,
           }))
         }
       } else {
@@ -381,7 +331,7 @@ function App() {
           exerciseId: ex.id,
           exerciseName: ex.name,
           sets: [
-            { id: '1', weight: 0, reps: 0, completed: false }
+            { id: crypto.randomUUID(), weight: 0, reps: 0, completed: false }
           ]
         }
       }
@@ -408,72 +358,73 @@ function App() {
 
   const updateSet = (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => {
     if (!activeWorkout) return
-
-    const updatedExercises = [...activeWorkout.exercises]
-    updatedExercises[exerciseIndex].sets[setIndex][field] = value
-
     setActiveWorkout({
       ...activeWorkout,
-      exercises: updatedExercises
+      exercises: activeWorkout.exercises.map((ex, ei) =>
+        ei !== exerciseIndex ? ex : {
+          ...ex,
+          sets: ex.sets.map((s, si) => si !== setIndex ? s : { ...s, [field]: value })
+        }
+      )
     })
   }
 
   const toggleSetCompleted = (exerciseIndex: number, setIndex: number) => {
     if (!activeWorkout) return
 
-    const updatedExercises = [...activeWorkout.exercises]
-    const isCompleting = !updatedExercises[exerciseIndex].sets[setIndex].completed
-
-    updatedExercises[exerciseIndex].sets[setIndex].completed = isCompleting
+    const exercise = activeWorkout.exercises[exerciseIndex]
+    const isCompleting = !exercise.sets[setIndex].completed
 
     setActiveWorkout({
       ...activeWorkout,
-      exercises: updatedExercises
+      exercises: activeWorkout.exercises.map((ex, ei) =>
+        ei !== exerciseIndex ? ex : {
+          ...ex,
+          sets: ex.sets.map((s, si) => si !== setIndex ? s : { ...s, completed: isCompleting })
+        }
+      )
     })
 
     if (isCompleting) {
-      // Get rest duration for this exercise (or use global default)
-      const exerciseRestDuration = updatedExercises[exerciseIndex].restDuration || restDuration
-
-      // Start inline rest timer below this set
       setActiveRestTimer({
         exerciseIndex,
         afterSetIndex: setIndex,
-        timeRemaining: exerciseRestDuration
+        timeRemaining: exercise.restDuration || restDuration
       })
     }
   }
 
   const addSet = (exerciseIndex: number) => {
     if (!activeWorkout) return
-
-    const updatedExercises = [...activeWorkout.exercises]
-    const lastSet = updatedExercises[exerciseIndex].sets[updatedExercises[exerciseIndex].sets.length - 1]
-
-    updatedExercises[exerciseIndex].sets.push({
-      id: Date.now().toString(),
-      weight: lastSet?.weight || 0,
-      reps: lastSet?.reps || 0,
-      completed: false
-    })
-
     setActiveWorkout({
       ...activeWorkout,
-      exercises: updatedExercises
+      exercises: activeWorkout.exercises.map((ex, ei) => {
+        if (ei !== exerciseIndex) return ex
+        const lastSet = ex.sets[ex.sets.length - 1]
+        return {
+          ...ex,
+          sets: [
+            ...ex.sets,
+            { id: crypto.randomUUID(), weight: lastSet?.weight || 0, reps: lastSet?.reps || 0, completed: false }
+          ]
+        }
+      })
     })
   }
 
   const removeSet = (exerciseIndex: number, setIndex: number) => {
     if (!activeWorkout) return
-
-    const updatedExercises = [...activeWorkout.exercises]
-    if (updatedExercises[exerciseIndex].sets.length > 1) {
-      updatedExercises[exerciseIndex].sets.splice(setIndex, 1)
-      setActiveWorkout({
-        ...activeWorkout,
-        exercises: updatedExercises
-      })
-    }
+    const exercise = activeWorkout.exercises[exerciseIndex]
+    if (exercise.sets.length <= 1) return
+    setActiveWorkout({
+      ...activeWorkout,
+      exercises: activeWorkout.exercises.map((ex, ei) =>
+        ei !== exerciseIndex ? ex : {
+          ...ex,
+          sets: ex.sets.filter((_, si) => si !== setIndex)
+        }
+      )
+    })
   }
 
   const addExerciseToWorkout = (exerciseName: string, _muscleGroup: string, _equipment: string) => {
@@ -486,13 +437,14 @@ function App() {
       exerciseId: crypto.randomUUID(),
       exerciseName,
       sets: lastData && lastData.sets.length > 0
-        ? lastData.sets.map((set, idx) => ({
-          id: (idx + 1).toString(),
+        ? lastData.sets.map(set => ({
+          id: crypto.randomUUID(),
           weight: set.weight,
           reps: set.reps,
-          completed: false
+          completed: false,
+          type: set.type,
         }))
-        : [{ id: '1', weight: 0, reps: 0, completed: false }]
+        : [{ id: crypto.randomUUID(), weight: 0, reps: 0, completed: false }]
     }
 
     setActiveWorkout({
@@ -501,16 +453,20 @@ function App() {
     })
   }
 
-  const removeExerciseFromWorkout = (exerciseIndex: number) => {
+  const removeExerciseFromWorkout = async (exerciseIndex: number) => {
     if (!activeWorkout) return
 
     const exercise = activeWorkout.exercises[exerciseIndex]
     const completedSets = exercise.sets.filter(s => s.completed).length
 
     if (completedSets > 0) {
-      if (!confirm(`You've completed ${completedSets} set(s). Remove "${exercise.exerciseName}" anyway?`)) {
-        return
-      }
+      const ok = await showConfirm({
+        title: `Remove ${exercise.exerciseName}?`,
+        message: `You've completed ${completedSets} set${completedSets > 1 ? 's' : ''}. Progress will be lost.`,
+        confirmLabel: 'Remove',
+        danger: true,
+      })
+      if (!ok) return
     }
 
     const updatedExercises = activeWorkout.exercises.filter((_, idx) => idx !== exerciseIndex)
@@ -625,26 +581,40 @@ function App() {
     }
   }
 
-
+  // Resolves an ExerciseLog back into a full Exercise, preserving equipment/muscleGroup
+  // by looking up the original template first, then the exercise database.
+  const resolveExerciseFromLog = (ex: ExerciseLog, originalTemplateId?: string | null): Exercise => {
+    if (originalTemplateId) {
+      const originalTemplate = templates.find(t => t.id === originalTemplateId)
+      const fromTemplate = originalTemplate?.exercises.find(
+        e => e.id === ex.exerciseId || e.name === ex.exerciseName
+      )
+      if (fromTemplate) return { ...fromTemplate, name: ex.exerciseName }
+    }
+    const fromDb = exerciseDatabase.find(e => e.name === ex.exerciseName)
+    return {
+      id: ex.exerciseId,
+      name: ex.exerciseName,
+      equipment: fromDb?.equipment ?? 'Barbell',
+      muscleGroup: fromDb?.muscleGroup ?? 'Other',
+    }
+  }
 
   const handleUpdateTemplate = async () => {
     if (!activeWorkout || !activeWorkout.originalTemplateId) return
 
-    const updatedExercises: Exercise[] = activeWorkout.exercises.map(ex => ({
-      id: ex.exerciseId,
-      name: ex.exerciseName,
-      equipment: 'Barbell', // Keep original or default
-      muscleGroup: 'Other' // Keep original or default
-    }))
-
-    const updatedTemplate = templates.find(t => t.id === activeWorkout.originalTemplateId)
-    if (!updatedTemplate) {
+    const originalTemplate = templates.find(t => t.id === activeWorkout.originalTemplateId)
+    if (!originalTemplate) {
       console.error('Template not found for update')
       await saveWorkoutLog()
       return
     }
 
-    const newTemplate = { ...updatedTemplate, exercises: updatedExercises }
+    const updatedExercises: Exercise[] = activeWorkout.exercises.map(ex =>
+      resolveExerciseFromLog(ex, activeWorkout.originalTemplateId)
+    )
+
+    const newTemplate = { ...originalTemplate, exercises: updatedExercises }
     const updatedTemplates = templates.map(t =>
       t.id === activeWorkout.originalTemplateId ? newTemplate : t
     )
@@ -676,8 +646,12 @@ function App() {
     // Check if template with same name already exists
     const existingTemplate = templates.find(t => t.name.toLowerCase() === name.toLowerCase())
     if (existingTemplate) {
-      if (!confirm(`A template named "${name}" already exists. Create anyway?`)) {
-        // Still save the workout, just don't create the duplicate template
+      const ok = await showConfirm({
+        title: 'Template Already Exists',
+        message: `"${name}" already exists. Create a duplicate anyway?`,
+        confirmLabel: 'Create Anyway',
+      })
+      if (!ok) {
         await saveWorkoutLog()
         return
       }
@@ -754,14 +728,19 @@ function App() {
     setOriginalTemplateExercises([])
   }
 
-  const cancelWorkout = () => {
-    if (confirm('Cancel this workout? All progress will be lost.')) {
+  const cancelWorkout = async () => {
+    if (await showConfirm({
+      title: 'Cancel Workout?',
+      message: 'All progress will be lost.',
+      confirmLabel: 'Cancel Workout',
+      danger: true,
+    })) {
       setActiveWorkout(null)
     }
   }
 
   const deleteWorkout = async (id: string) => {
-    if (confirm('Delete this workout?')) {
+    if (await showConfirm({ title: 'Delete Workout?', message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) {
       setWorkoutLogs(workoutLogs.filter(w => w.id !== id))
       if (selectedWorkout?.id === id) {
         setSelectedWorkout(null)
@@ -850,7 +829,7 @@ function App() {
   }
 
   const deleteExerciseFromDatabase = async (exerciseName: string) => {
-    if (confirm(`Delete "${exerciseName}" from database?`)) {
+    if (await showConfirm({ title: `Delete "${exerciseName}"?`, message: 'It will be removed from your exercise library.', confirmLabel: 'Delete', danger: true })) {
       setExerciseDatabase(exerciseDatabase.filter(ex => ex.name !== exerciseName))
 
       // Sync to Supabase
@@ -869,174 +848,179 @@ function App() {
   }
 
   return (
-  <div className="app">
-    {/* Loading Screen */}
-    {authLoading ? (
-      <div className="loading-screen">
-        <h1 className="loading-logo">💪 DreamShape</h1>
-        <p className="loading-text">Loading...</p>
-      </div>
-    ) : !user ? (
-      /* Auth Screen */
-      <AuthView onAuthSuccess={() => { }} />
-    ) : (
-      <>
-        {/* Desktop Sidebar Navigation - only show when not in workout/detail/create */}
-        {!activeWorkout && !selectedWorkout && !isCreating && (
-          <SidebarNav 
-            currentView={currentView}
-            onNavigate={setCurrentView}
-            userName={userProfile.name}
-            userProfile={userProfile}
-          />
-        )}
-
-        {/* Main Content Wrapper */}
-        <div className="desktop-main">
-          <div className="desktop-content">
-            {/* Sync Indicator */}
-            {user && (
-              <SyncIndicator isSyncing={isSyncing} lastSyncTime={lastSyncTime} />
-            )}
-
-            {activeWorkout ? (
-              <>
-                <WorkoutView
-                  activeWorkout={activeWorkout}
-                  elapsedTime={elapsedTime}
-                  restTimer={restTimer}
-                  restDuration={restDuration}
-                  activeRestTimer={activeRestTimer}
-                  workoutLogs={workoutLogs}
-                  exerciseDatabase={exerciseDatabase}
-                  onCancel={cancelWorkout}
-                  onFinish={finishWorkout}
-                  onUpdateSet={updateSet}
-                  onToggleSetCompleted={toggleSetCompleted}
-                  onAddSet={addSet}
-                  onRemoveSet={removeSet}
-                  onSetRestDuration={setRestDuration}
-                  onSetExerciseRestDuration={setExerciseRestDuration}
-                  onSkipRest={() => setRestTimer(null)}
-                  onSkipInlineRest={() => setActiveRestTimer(null)}
-                  onAddExercise={addExerciseToWorkout}
-                  onRemoveExercise={removeExerciseFromWorkout}
-                  onReorderExercises={reorderWorkoutExercises}
-                  onSetWorkoutNotes={setWorkoutNotes}
-                  onSetExerciseNotes={setExerciseNotes}
-                  onToggleSetType={toggleSetType}
-                />
-                {showFinishModal && (
-                  <FinishWorkoutModal
-                    originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
-                    originalTemplateId={activeWorkout.originalTemplateId}
-                    hasChanges={getWorkoutChanges().hasChanges}
-                    changedExercises={{
-                      added: getWorkoutChanges().added,
-                      removed: getWorkoutChanges().removed
-                    }}
-                    currentExercises={activeWorkout.exercises.map(ex => ({
-                      id: ex.exerciseId,
-                      name: ex.exerciseName,
-                      equipment: 'Barbell',
-                      muscleGroup: 'Other'
-                    }))}
-                    onUpdateTemplate={handleUpdateTemplate}
-                    onSaveAsNewTemplate={handleSaveAsNewTemplate}
-                    onJustFinish={handleJustFinish}
-                    onCancel={() => setShowFinishModal(false)}
-                  />
-                )}
-              </>
-            ) : selectedWorkout ? (
-              <WorkoutDetailView
-                workout={selectedWorkout}
-                onBack={() => setSelectedWorkout(null)}
-                onDelete={deleteWorkout}
-              />
-            ) : !isCreating ? (
-              <>
-                {currentView === 'dashboard' && (
-                  <DashboardView
-                    templates={templates}
-                    workoutLogs={workoutLogs}
-                    userProfile={userProfile}
-                    onStartWorkout={startWorkout}
-                    onStartEmptyWorkout={startEmptyWorkout}
-                    onEditProfile={() => setCurrentView('profile')}
-                    onViewAllTemplates={() => setCurrentView('library')}
-                  />
-                )}
-
-                {currentView === 'progress' && (
-                  <WorkoutsView
-                    workoutLogs={workoutLogs}
-                    onStartWorkout={startEmptyWorkout}
-                    onSelectWorkout={setSelectedWorkout}
-                  />
-                )}
-
-                {currentView === 'start' && (
-                  <TemplatesView
-                    templates={templates}
-                    onCreateTemplate={() => {
-                      setSelectedTemplate(null)
-                      setIsCreating(true)
-                    }}
-                    onEditTemplate={editTemplate}
-                    onDeleteTemplate={deleteTemplate}
-                    onStartWorkout={startWorkout}
-                  />
-                )}
-
-                {currentView === 'library' && (
-                  <LibraryView
-                    templates={templates}
-                    exerciseDatabase={exerciseDatabase}
-                    onCreateTemplate={() => {
-                      setSelectedTemplate(null)
-                      setIsCreating(true)
-                    }}
-                    onEditTemplate={editTemplate}
-                    onDeleteTemplate={deleteTemplate}
-                    onStartWorkout={startWorkout}
-                    onAddExercise={addExerciseToDatabase}
-                    onDeleteExercise={deleteExerciseFromDatabase}
-                  />
-                )}
-
-                {currentView === 'profile' && (
-                  <ProfileView
-                    userProfile={userProfile}
-                    workoutLogs={workoutLogs}
-                    onUpdateProfile={handleUpdateProfile}
-                    onSignOut={handleSignOut}
-                  />
-                )}
-
-                {/* Bottom Navigation - Mobile Only */}
-                <BottomNav
-                  currentView={currentView}
-                  onNavigate={setCurrentView}
-                />
-              </>
-            ) : (
-              <CreateTemplateView
-                exerciseDatabase={exerciseDatabase}
-                templateToEdit={selectedTemplate}
-                onSave={saveTemplate}
-                onCancel={() => {
-                  setIsCreating(false)
-                  setSelectedTemplate(null)
-                }}
-                onAddToDatabase={addExerciseToDatabase}
-              />
-            )}
-          </div>
+    <>
+    <div className="app">
+      {/* Loading Screen */}
+      {authLoading ? (
+        <div className="loading-screen">
+          <h1 className="loading-logo">💪 DreamShape</h1>
+          <p className="loading-text">Loading...</p>
         </div>
-      </>
-    )}
-  </div>
-)
+      ) : !user ? (
+        /* Auth Screen */
+        <AuthView onAuthSuccess={() => { }} />
+      ) : (
+        <>
+          {/* Desktop Sidebar Navigation - only show when not in workout/detail/create */}
+          {!activeWorkout && !selectedWorkout && !isCreating && (
+            <SidebarNav
+              currentView={currentView}
+              onNavigate={setCurrentView}
+              userName={userProfile.name}
+              userProfile={userProfile}
+            />
+          )}
+
+          {/* Main Content Wrapper */}
+          <div className="desktop-main">
+            <div className="desktop-content">
+              {/* Sync Indicator */}
+              {user && (
+                <SyncIndicator isSyncing={isSyncing} lastSyncTime={lastSyncTime} />
+              )}
+
+              {activeWorkout ? (
+                <>
+                  <WorkoutView
+                    activeWorkout={activeWorkout}
+                    elapsedTime={elapsedTime}
+                    restTimer={restTimer}
+                    restDuration={restDuration}
+                    activeRestTimer={activeRestTimer}
+                    workoutLogs={workoutLogs}
+                    exerciseDatabase={exerciseDatabase}
+                    onCancel={cancelWorkout}
+                    onFinish={finishWorkout}
+                    onUpdateSet={updateSet}
+                    onToggleSetCompleted={toggleSetCompleted}
+                    onAddSet={addSet}
+                    onRemoveSet={removeSet}
+                    onSetRestDuration={setRestDuration}
+                    onSetExerciseRestDuration={setExerciseRestDuration}
+                    onSkipRest={() => setRestTimer(null)}
+                    onSkipInlineRest={() => setActiveRestTimer(null)}
+                    onAddExercise={addExerciseToWorkout}
+                    onRemoveExercise={removeExerciseFromWorkout}
+                    onReorderExercises={reorderWorkoutExercises}
+                    onSetWorkoutNotes={setWorkoutNotes}
+                    onSetExerciseNotes={setExerciseNotes}
+                    onToggleSetType={toggleSetType}
+                  />
+                  {showFinishModal && (() => {
+                    const workoutChanges = getWorkoutChanges()
+                    return (
+                      <FinishWorkoutModal
+                        originalTemplateName={activeWorkout.originalTemplateId ? templates.find(t => t.id === activeWorkout.originalTemplateId)?.name || null : null}
+                        originalTemplateId={activeWorkout.originalTemplateId}
+                        hasChanges={workoutChanges.hasChanges}
+                        changedExercises={{
+                          added: workoutChanges.added,
+                          removed: workoutChanges.removed
+                        }}
+                        currentExercises={activeWorkout.exercises.map(ex =>
+                          resolveExerciseFromLog(ex, activeWorkout.originalTemplateId)
+                        )}
+                        exerciseLogs={activeWorkout.exercises}
+                        duration={Math.floor((Date.now() - activeWorkout.startTime) / 1000)}
+                        onUpdateTemplate={handleUpdateTemplate}
+                        onSaveAsNewTemplate={handleSaveAsNewTemplate}
+                        onJustFinish={handleJustFinish}
+                        onCancel={() => setShowFinishModal(false)}
+                      />
+                    )
+                  })()}
+                </>
+              ) : selectedWorkout ? (
+                <WorkoutDetailView
+                  workout={selectedWorkout}
+                  onBack={() => setSelectedWorkout(null)}
+                  onDelete={deleteWorkout}
+                />
+              ) : !isCreating ? (
+                <>
+                  {currentView === 'dashboard' && (
+                    <DashboardView
+                      templates={templates}
+                      workoutLogs={workoutLogs}
+                      userProfile={userProfile}
+                      onStartWorkout={startWorkout}
+                      onStartEmptyWorkout={startEmptyWorkout}
+                      onEditProfile={() => setCurrentView('profile')}
+                      onViewAllTemplates={() => setCurrentView('library')}
+                    />
+                  )}
+
+                  {currentView === 'progress' && (
+                    <WorkoutsView
+                      workoutLogs={workoutLogs}
+                      onStartWorkout={startEmptyWorkout}
+                      onSelectWorkout={setSelectedWorkout}
+                    />
+                  )}
+
+                  {currentView === 'start' && (
+                    <TemplatesView
+                      templates={templates}
+                      onCreateTemplate={() => {
+                        setSelectedTemplate(null)
+                        setIsCreating(true)
+                      }}
+                      onEditTemplate={editTemplate}
+                      onDeleteTemplate={deleteTemplate}
+                      onStartWorkout={startWorkout}
+                    />
+                  )}
+
+                  {currentView === 'library' && (
+                    <LibraryView
+                      templates={templates}
+                      exerciseDatabase={exerciseDatabase}
+                      onCreateTemplate={() => {
+                        setSelectedTemplate(null)
+                        setIsCreating(true)
+                      }}
+                      onEditTemplate={editTemplate}
+                      onDeleteTemplate={deleteTemplate}
+                      onStartWorkout={startWorkout}
+                      onAddExercise={addExerciseToDatabase}
+                      onDeleteExercise={deleteExerciseFromDatabase}
+                    />
+                  )}
+
+                  {currentView === 'profile' && (
+                    <ProfileView
+                      userProfile={userProfile}
+                      workoutLogs={workoutLogs}
+                      onUpdateProfile={handleUpdateProfile}
+                      onSignOut={handleSignOut}
+                    />
+                  )}
+
+                  {/* Bottom Navigation - Mobile Only */}
+                  <BottomNav
+                    currentView={currentView}
+                    onNavigate={setCurrentView}
+                  />
+                </>
+              ) : (
+                <CreateTemplateView
+                  exerciseDatabase={exerciseDatabase}
+                  templateToEdit={selectedTemplate}
+                  onSave={saveTemplate}
+                  onCancel={() => {
+                    setIsCreating(false)
+                    setSelectedTemplate(null)
+                  }}
+                  onAddToDatabase={addExerciseToDatabase}
+                />
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+    {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
+    </>
+  )
 }
 export default App

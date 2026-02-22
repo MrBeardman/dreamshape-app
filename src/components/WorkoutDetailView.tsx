@@ -77,14 +77,22 @@ export default function WorkoutDetailView({ workout, onBack, onDelete }: Workout
               <span className="check-col">✓</span>
             </div>
 
-            {exerciseLog.sets.map((set, setIndex) => (
-              <div key={set.id} className="set-row-readonly">
-                <span className="set-number">{setIndex + 1}</span>
-                <span className="set-value">{set.weight} kg</span>
-                <span className="set-value">{set.reps} reps</span>
-                <span className="set-check">{set.completed ? '✓' : '-'}</span>
-              </div>
-            ))}
+            {exerciseLog.sets.map((set, setIndex) => {
+              const setType = set.type || 'working'
+              const workingNumber = exerciseLog.sets
+                .slice(0, setIndex + 1)
+                .filter(s => (s.type || 'working') === 'working').length
+              return (
+                <div key={set.id} className={`set-row-readonly ${setType === 'warmup' ? 'warmup' : ''}`}>
+                  <span className={`set-number ${setType === 'warmup' ? 'warmup-badge' : ''}`}>
+                    {setType === 'warmup' ? 'W' : workingNumber}
+                  </span>
+                  <span className="set-value">{set.weight} kg</span>
+                  <span className="set-value">{set.reps} reps</span>
+                  <span className="set-check">{set.completed ? '✓' : '–'}</span>
+                </div>
+              )
+            })}
           </div>
         ))}
       </div>

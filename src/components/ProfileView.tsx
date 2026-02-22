@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import CircularProgress from './CircularProgress'
+import ConfirmDialog from './ConfirmDialog'
+import { useConfirm } from '../hooks/useConfirm'
 import type { UserProfile, WorkoutLog } from '../types'
 
 interface ProfileViewProps {
@@ -17,6 +19,7 @@ export default function ProfileView({
 }: ProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(userProfile.name)
+  const { confirm: showConfirm, confirmDialogProps } = useConfirm()
 
   const handleSave = () => {
     onUpdateProfile({ ...userProfile, name })
@@ -56,7 +59,7 @@ export default function ProfileView({
 
   const getConsistencyScore = () => {
     if (workoutLogs.length === 0) return 0
-    
+
     const last30Days = workoutLogs.filter(w => {
       const workoutDate = new Date(w.date)
       const thirtyDaysAgo = new Date()
@@ -94,6 +97,7 @@ export default function ProfileView({
   const volumeProgress = getVolumeProgress()
 
   return (
+    <>
     <div className="profile-view">
       {/* Header */}
       <div className="profile-header">
@@ -101,15 +105,15 @@ export default function ProfileView({
       </div>
 
       {/* User Info Card */}
-      <div 
-        className="profile-user-card" 
+      <div
+        className="profile-user-card"
         onClick={() => !isEditing && setIsEditing(true)}
         style={{ cursor: isEditing ? 'default' : 'pointer' }}
       >
         <div className="profile-avatar-large">
           {userProfile.name.charAt(0).toUpperCase()}
         </div>
-        
+
         {isEditing ? (
           <div className="profile-edit-form" onClick={(e) => e.stopPropagation()}>
             <input
@@ -166,11 +170,11 @@ export default function ProfileView({
       {/* Progress Widgets */}
       <div className="profile-section">
         <h3 className="section-title">Goals</h3>
-        
+
         <div className="progress-widgets">
           <div className="widget-card">
-            <CircularProgress 
-              value={weeklyProgress} 
+            <CircularProgress
+              value={weeklyProgress}
               max={100}
               size={80}
               strokeWidth={6}
@@ -182,8 +186,8 @@ export default function ProfileView({
           </div>
 
           <div className="widget-card">
-            <CircularProgress 
-              value={consistencyScore} 
+            <CircularProgress
+              value={consistencyScore}
               max={100}
               size={80}
               strokeWidth={6}
@@ -195,8 +199,8 @@ export default function ProfileView({
           </div>
 
           <div className="widget-card">
-            <CircularProgress 
-              value={volumeProgress} 
+            <CircularProgress
+              value={volumeProgress}
               max={100}
               size={80}
               strokeWidth={6}
@@ -212,7 +216,7 @@ export default function ProfileView({
       {/* Stats Grid */}
       <div className="profile-section">
         <h3 className="section-title">Lifetime Stats</h3>
-        
+
         <div className="stats-list">
           <div className="stat-item">
             <div className="stat-item-label">Total Workouts</div>
@@ -239,12 +243,12 @@ export default function ProfileView({
       {/* Actions */}
       <div className="profile-section">
         <h3 className="section-title">Data & Settings</h3>
-        
+
         <div className="action-list">
-          <button 
+          <button
             className="action-item"
-            onClick={() => {
-              if (confirm('Export all your workout data?')) {
+            onClick={async () => {
+              if (await showConfirm({ title: 'Export Data', message: 'Your workouts and profile will be downloaded as a JSON file.', confirmLabel: 'Export' })) {
                 const data = {
                   workouts: workoutLogs,
                   profile: userProfile,
@@ -256,6 +260,7 @@ export default function ProfileView({
                 a.href = url
                 a.download = `dreamshape-backup-${new Date().toISOString().split('T')[0]}.json`
                 a.click()
+                URL.revokeObjectURL(url)
               }
             }}
           >
@@ -270,5 +275,7 @@ export default function ProfileView({
         </div>
       </div>
     </div>
+    {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
+    </>
   )
 }

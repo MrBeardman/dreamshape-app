@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import type { WorkoutTemplate } from '../types'
+import { DEFAULT_EXERCISES } from '../data/defaultExercises'
+
+const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
+const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
 
 interface LibraryViewProps {
   templates: WorkoutTemplate[]
-  exerciseDatabase: Array<{name: string, muscleGroup: string, equipment: string}>
+  exerciseDatabase: Array<{ name: string; muscleGroup: string; equipment: string }>
   onCreateTemplate: () => void
   onEditTemplate: (template: WorkoutTemplate) => void
   onDeleteTemplate: (id: string) => void
   onStartWorkout: (template: WorkoutTemplate) => void
-  onAddExercise: (exercise: { name: string, muscleGroup: string, equipment: string }) => void
+  onAddExercise: (exercise: { name: string; muscleGroup: string; equipment: string }) => void
   onDeleteExercise: (exerciseName: string) => void
 }
 
@@ -19,6 +23,8 @@ export default function LibraryView({
   onEditTemplate,
   onDeleteTemplate,
   onStartWorkout,
+  onAddExercise,
+  onDeleteExercise,
 }: LibraryViewProps) {
   const [activeTab, setActiveTab] = useState<'templates' | 'exercises'>('templates')
   const [searchQuery, setSearchQuery] = useState('')
@@ -29,12 +35,39 @@ export default function LibraryView({
     ex.muscleGroup.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Group exercises by muscle group
+  // Group exercises by muscle group (filtered)
   const groupedExercises = filteredExercises.reduce((acc, ex) => {
     if (!acc[ex.muscleGroup]) acc[ex.muscleGroup] = []
     acc[ex.muscleGroup].push(ex)
     return acc
   }, {} as Record<string, typeof exerciseDatabase>)
+
+  // Add exercise form state
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [newExName, setNewExName] = useState('')
+  const [newExMuscle, setNewExMuscle] = useState('Other')
+  const [newExEquip, setNewExEquip] = useState('Barbell')
+  const [addError, setAddError] = useState('')
+
+  const defaultNames = new Set(DEFAULT_EXERCISES.map(e => e.name))
+
+  const handleAddExercise = () => {
+    const trimmed = newExName.trim()
+    if (!trimmed) {
+      setAddError('Exercise name is required.')
+      return
+    }
+    if (exerciseDatabase.some(e => e.name.toLowerCase() === trimmed.toLowerCase())) {
+      setAddError('An exercise with this name already exists.')
+      return
+    }
+    onAddExercise({ name: trimmed, muscleGroup: newExMuscle, equipment: newExEquip })
+    setNewExName('')
+    setNewExMuscle('Other')
+    setNewExEquip('Barbell')
+    setAddError('')
+    setShowAddForm(false)
+  }
 
   return (
     <div className="library-view">
@@ -148,6 +181,49 @@ export default function LibraryView({
         ) : (
           /* EXERCISES TAB */
           <div className="exercises-section">
+            {/* Add exercise button / form */}
+            {showAddForm ? (
+              <div className="add-exercise-form">
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Exercise name"
+                  value={newExName}
+                  onChange={e => { setNewExName(e.target.value); setAddError('') }}
+                  autoFocus
+                />
+                <div className="add-exercise-selects">
+                  <select
+                    className="input select-input"
+                    value={newExMuscle}
+                    onChange={e => setNewExMuscle(e.target.value)}
+                  >
+                    {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <select
+                    className="input select-input"
+                    value={newExEquip}
+                    onChange={e => setNewExEquip(e.target.value)}
+                  >
+                    {EQUIPMENT_OPTIONS.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                  </select>
+                </div>
+                {addError && <p className="add-exercise-error">{addError}</p>}
+                <div className="add-exercise-actions">
+                  <button className="btn btn-secondary" onClick={() => { setShowAddForm(false); setAddError('') }}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-primary" onClick={handleAddExercise}>
+                    Add Exercise
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button className="btn-header-outline" onClick={() => setShowAddForm(true)}>
+                + Add Custom Exercise
+              </button>
+            )}
+
             {/* Search */}
             <div className="search-box">
               <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -186,16 +262,31 @@ export default function LibraryView({
                       <h3 className="exercise-group-title">{group}</h3>
                       <span className="exercise-group-count">{exercises.length}</span>
                     </div>
-                    
+
                     <div className="exercise-list">
-                      {exercises.map((ex, idx) => (
-                        <div key={idx} className="exercise-item">
-                          <div className="exercise-item-main">
-                            <div className="exercise-item-name">{ex.name}</div>
-                            <div className="exercise-item-equipment">{ex.equipment}</div>
+                      {exercises.map((ex, idx) => {
+                        const isCustom = !defaultNames.has(ex.name)
+                        return (
+                          <div key={idx} className={`exercise-item ${isCustom ? 'custom' : ''}`}>
+                            <div className="exercise-item-main">
+                              <div className="exercise-item-name">{ex.name}</div>
+                              <div className="exercise-item-equipment">
+                                {ex.equipment}
+                                {isCustom && <span className="custom-badge">Custom</span>}
+                              </div>
+                            </div>
+                            {isCustom && (
+                              <button
+                                className="btn-exercise-delete"
+                                onClick={() => onDeleteExercise(ex.name)}
+                                title="Delete exercise"
+                              >
+                                ×
+                              </button>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 ))}
