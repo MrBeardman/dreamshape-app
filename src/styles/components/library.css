@@ -440,6 +440,97 @@
   border-left: 1px solid var(--border);
 }
 
+/* ===== EXERCISE MANAGEMENT ===== */
+.btn-header-outline {
+  padding: 0.5rem 1.25rem;
+  background: transparent;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-md);
+  color: var(--primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.btn-header-outline:hover {
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.add-exercise-form {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.add-exercise-selects {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.select-input {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.add-exercise-error {
+  font-size: var(--text-sm);
+  color: var(--error);
+  margin: 0;
+}
+
+.add-exercise-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.custom-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  background: rgba(251, 191, 36, 0.15);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--primary);
+  white-space: nowrap;
+}
+
+.btn-exercise-delete {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-full);
+  color: var(--error);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-exercise-delete:hover {
+  background: var(--error);
+  border-color: var(--error);
+  color: #fff;
+}
+
+.exercise-item.custom {
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.03);
+}
+
 /* ===== RESPONSIVE ===== */
 @media (min-width: 768px) {
   .library-view {
