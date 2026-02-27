@@ -14,6 +14,7 @@ interface LibraryViewProps {
   onStartWorkout: (template: WorkoutTemplate) => void
   onAddExercise: (exercise: { name: string; muscleGroup: string; equipment: string }) => void
   onDeleteExercise: (exerciseName: string) => void
+  onViewExerciseHistory: (exerciseName: string) => void
 }
 
 export default function LibraryView({
@@ -25,6 +26,7 @@ export default function LibraryView({
   onStartWorkout,
   onAddExercise,
   onDeleteExercise,
+  onViewExerciseHistory,
 }: LibraryViewProps) {
   const [activeTab, setActiveTab] = useState<'templates' | 'exercises'>('templates')
   const [searchQuery, setSearchQuery] = useState('')
@@ -275,15 +277,24 @@ export default function LibraryView({
                                 {isCustom && <span className="custom-badge">Custom</span>}
                               </div>
                             </div>
-                            {isCustom && (
+                            <div className="exercise-item-actions">
                               <button
-                                className="btn-exercise-delete"
-                                onClick={() => onDeleteExercise(ex.name)}
-                                title="Delete exercise"
+                                className="btn-exercise-history"
+                                onClick={() => onViewExerciseHistory(ex.name)}
+                                title="View progress"
                               >
-                                ×
+                                📈
                               </button>
-                            )}
+                              {isCustom && (
+                                <button
+                                  className="btn-exercise-delete"
+                                  onClick={() => onDeleteExercise(ex.name)}
+                                  title="Delete exercise"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )
                       })}

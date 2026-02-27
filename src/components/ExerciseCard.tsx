@@ -20,6 +20,7 @@ interface ExerciseCardProps {
   onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
   onToggleSetType: (exerciseIndex: number, setIndex: number) => void
   formatRestTime: (seconds: number) => string
+  onViewExerciseHistory?: (exerciseName: string) => void
 }
 
 export default function ExerciseCard({
@@ -39,10 +40,12 @@ export default function ExerciseCard({
   onSetExerciseNotes,
   onToggleSetType,
   formatRestTime,
+  onViewExerciseHistory,
 }: ExerciseCardProps) {
   const [showNotesMenu, setShowNotesMenu] = useState(false)
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [notesText, setNotesText] = useState(exercise.notes || '')
+  const [prFlashSetId, setPrFlashSetId] = useState<string | null>(null)
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: exercise.exerciseId })
@@ -57,6 +60,15 @@ export default function ExerciseCard({
     onSetExerciseNotes(exerciseIndex, notesText)
     setIsEditingNotes(false)
     setShowNotesMenu(false)
+  }
+
+  const handleToggleSet = (setIndex: number) => {
+    const set = exercise.sets[setIndex]
+    if (!set.completed && set.weight > 0 && pr > 0 && set.weight > pr) {
+      setPrFlashSetId(set.id)
+      setTimeout(() => setPrFlashSetId(null), 2500)
+    }
+    onToggleSetCompleted(exerciseIndex, setIndex)
   }
 
   return (
@@ -103,6 +115,14 @@ export default function ExerciseCard({
                 >
                   {exercise.notes ? '✏️ Edit note' : '📝 Add note'}
                 </button>
+                {onViewExerciseHistory && (
+                  <button
+                    className="menu-item"
+                    onClick={(e) => { e.stopPropagation(); onViewExerciseHistory(exercise.exerciseName); setShowNotesMenu(false) }}
+                  >
+                    📈 View Progress
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -172,7 +192,7 @@ export default function ExerciseCard({
           .filter(s => (s.type || 'working') === 'working').length
 
         return (
-          <div key={set.id}>
+          <div key={set.id} style={{ position: 'relative' }}>
             <div className={`set-row ${set.completed ? 'completed' : ''}`}>
               <button
                 className={`set-number-badge ${setType}`}
@@ -204,7 +224,7 @@ export default function ExerciseCard({
 
               <button
                 className={`check-btn ${set.completed ? 'completed' : ''}`}
-                onClick={(e) => { e.stopPropagation(); onToggleSetCompleted(exerciseIndex, setIndex) }}
+                onClick={(e) => { e.stopPropagation(); handleToggleSet(setIndex) }}
               >
                 {set.completed ? '✓' : ''}
               </button>
@@ -218,6 +238,10 @@ export default function ExerciseCard({
                 </button>
               )}
             </div>
+
+            {prFlashSetId === set.id && (
+              <div className="pr-flash">🏆 New PR!</div>
+            )}
 
             {/* Inline Rest Timer */}
             {activeRestTimer &&

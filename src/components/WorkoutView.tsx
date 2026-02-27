@@ -44,6 +44,8 @@ interface WorkoutViewProps {
   onSetWorkoutNotes: (notes: string) => void
   onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
   onToggleSetType: (exerciseIndex: number, setIndex: number) => void
+  onCreateAndAddExercise: (name: string, muscleGroup: string, equipment: string) => void
+  onViewExerciseHistory?: (exerciseName: string) => void
 }
 
 export default function WorkoutView({
@@ -68,11 +70,19 @@ export default function WorkoutView({
   onSetWorkoutNotes,
   onSetExerciseNotes,
   onToggleSetType,
+  onCreateAndAddExercise,
+  onViewExerciseHistory,
 }: WorkoutViewProps) {
   const [exerciseInput, setExerciseInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showWorkoutNotes, setShowWorkoutNotes] = useState(false)
   const [workoutNotesText, setWorkoutNotesText] = useState(activeWorkout.notes || '')
+  const [showCreateForm, setShowCreateForm] = useState(false)
+  const [newExMuscle, setNewExMuscle] = useState('Other')
+  const [newExEquip, setNewExEquip] = useState('Barbell')
+
+  const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
+  const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -281,6 +291,7 @@ export default function WorkoutView({
                 onSetExerciseNotes={onSetExerciseNotes}
                 onToggleSetType={onToggleSetType}
                 formatRestTime={formatRestTime}
+                onViewExerciseHistory={onViewExerciseHistory}
               />
             ))}
           </SortableContext>
@@ -321,6 +332,60 @@ export default function WorkoutView({
                       ))}
                     </div>
                   ))}
+                  {exerciseInput.trim() && !exerciseDatabase.some(ex => ex.name.toLowerCase() === exerciseInput.trim().toLowerCase()) && (
+                    <div className="suggestion-create-section">
+                      {!showCreateForm ? (
+                        <div
+                          className="suggestion-item suggestion-create"
+                          onClick={() => setShowCreateForm(true)}
+                        >
+                          <span className="suggestion-name">+ Create "{exerciseInput.trim()}"</span>
+                          <span className="suggestion-meta">Add to library & workout</span>
+                        </div>
+                      ) : (
+                        <div className="create-exercise-inline" onClick={e => e.stopPropagation()}>
+                          <div className="create-exercise-name">"{exerciseInput.trim()}"</div>
+                          <div className="create-exercise-selects">
+                            <select
+                              className="rest-select"
+                              value={newExMuscle}
+                              onChange={e => setNewExMuscle(e.target.value)}
+                            >
+                              {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                            </select>
+                            <select
+                              className="rest-select"
+                              value={newExEquip}
+                              onChange={e => setNewExEquip(e.target.value)}
+                            >
+                              {EQUIPMENT_OPTIONS.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                            </select>
+                          </div>
+                          <div className="create-exercise-actions">
+                            <button
+                              className="btn-notes-cancel"
+                              onClick={() => { setShowCreateForm(false); setNewExMuscle('Other'); setNewExEquip('Barbell') }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              className="btn-notes-save"
+                              onClick={() => {
+                                onCreateAndAddExercise(exerciseInput.trim(), newExMuscle, newExEquip)
+                                setExerciseInput('')
+                                setShowSuggestions(false)
+                                setShowCreateForm(false)
+                                setNewExMuscle('Other')
+                                setNewExEquip('Barbell')
+                              }}
+                            >
+                              Add to Workout
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

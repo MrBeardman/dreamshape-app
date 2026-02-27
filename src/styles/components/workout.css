@@ -1117,3 +1117,63 @@
   .workout-notes-display,
   .rest-settings-bar { margin-left: 20px; margin-right: 20px; }
 }
+
+/* ===== PR FLASH ===== */
+.pr-flash {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--primary, #f5c518);
+  color: #000;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  animation: prFlash 2.5s ease forwards;
+}
+
+@keyframes prFlash {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  15%  { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+  30%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
+}
+
+/* ===== CREATE EXERCISE INLINE ===== */
+.suggestion-create-section {
+  border-top: 1px solid rgba(255,255,255,0.08);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.suggestion-create .suggestion-name { color: var(--primary); }
+
+.create-exercise-inline {
+  padding: 10px 12px;
+}
+
+.create-exercise-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.create-exercise-selects {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.create-exercise-selects .rest-select { flex: 1; }
+
+.create-exercise-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}

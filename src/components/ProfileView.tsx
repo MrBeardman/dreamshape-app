@@ -57,23 +57,94 @@ export default function ProfileView({
     return Math.min((thisWeekWorkouts / goal) * 100, 100)
   }
 
-  const getConsistencyScore = () => {
-    if (workoutLogs.length === 0) return 0
+  const getRecentPRs = () => {
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    const last30Days = workoutLogs.filter(w => {
-      const workoutDate = new Date(w.date)
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-      return workoutDate >= thirtyDaysAgo
-    }).length
+    const historicalMax: Record<string, number> = {}
+    const recentMax: Record<string, number> = {}
+    const recentDate: Record<string, string> = {}
 
-    return Math.min((last30Days / 12) * 100, 100) // 12 workouts in 30 days = 100%
+    workoutLogs.forEach(workout => {
+      const workoutDate = new Date(workout.date)
+      const isRecent = workoutDate >= thirtyDaysAgo
+      workout.exercises.forEach(exercise => {
+        exercise.sets.forEach(set => {
+          if (set.weight > 0) {
+            if (isRecent) {
+              if ((recentMax[exercise.exerciseName] ?? 0) < set.weight) {
+                recentMax[exercise.exerciseName] = set.weight
+                recentDate[exercise.exerciseName] = workout.date
+              }
+            } else {
+              historicalMax[exercise.exerciseName] = Math.max(historicalMax[exercise.exerciseName] ?? 0, set.weight)
+            }
+          }
+        })
+      })
+    })
+
+    return Object.entries(recentMax)
+      .filter(([name, weight]) => weight > (historicalMax[name] ?? 0))
+      .map(([name, weight]) => ({
+        name,
+        weight,
+        delta: weight - (historicalMax[name] ?? 0),
+        isNew: !historicalMax[name],
+        date: recentDate[name],
+      }))
+      .sort((a, b) => b.delta - a.delta)
+      .slice(0, 5)
   }
 
-  const getVolumeProgress = () => {
-    const monthlyGoal = 50000 // 50 tons
-    const currentVolume = getTotalVolume()
-    return Math.min((currentVolume / monthlyGoal) * 100, 100)
+  const getStrengthTrend = () => {
+    const now = new Date()
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+    const exerciseCounts: Record<string, number> = {}
+    workoutLogs.forEach(w => w.exercises.forEach(e => {
+      exerciseCounts[e.exerciseName] = (exerciseCounts[e.exerciseName] ?? 0) + 1
+    }))
+
+    const top3 = Object.entries(exerciseCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name]) => name)
+
+    return top3.map(name => {
+      const thisMonthMax = workoutLogs
+        .filter(w => new Date(w.date) >= thisMonthStart)
+        .flatMap(w => w.exercises.filter(e => e.exerciseName === name))
+        .flatMap(e => e.sets)
+        .reduce((max, s) => Math.max(max, s.weight), 0)
+
+      const lastMonthMax = workoutLogs
+        .filter(w => { const d = new Date(w.date); return d >= lastMonthStart && d < thisMonthStart })
+        .flatMap(w => w.exercises.filter(e => e.exerciseName === name))
+        .flatMap(e => e.sets)
+        .reduce((max, s) => Math.max(max, s.weight), 0)
+
+      return { name, thisMonth: thisMonthMax, lastMonth: lastMonthMax }
+    }).filter(t => t.thisMonth > 0 || t.lastMonth > 0)
+  }
+
+  const getVolumeWeekDelta = () => {
+    const now = new Date()
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() - 7)
+    weekStart.setHours(0, 0, 0, 0)
+    const prevWeekStart = new Date(weekStart)
+    prevWeekStart.setDate(weekStart.getDate() - 7)
+
+    const calcVol = (logs: typeof workoutLogs) =>
+      logs.reduce((sum, w) =>
+        sum + w.exercises.reduce((es, e) =>
+          es + e.sets.reduce((ss, s) => ss + s.weight * s.reps, 0), 0), 0)
+
+    const thisWeek = calcVol(workoutLogs.filter(w => new Date(w.date) >= weekStart))
+    const lastWeek = calcVol(workoutLogs.filter(w => { const d = new Date(w.date); return d >= prevWeekStart && d < weekStart }))
+    return { thisWeek, lastWeek }
   }
 
   const getMostFrequentExercise = () => {
@@ -93,8 +164,9 @@ export default function ProfileView({
   const totalHours = getTotalDuration()
   const favoriteExercise = getMostFrequentExercise()
   const weeklyProgress = getWeeklyGoalProgress()
-  const consistencyScore = getConsistencyScore()
-  const volumeProgress = getVolumeProgress()
+  const recentPRs = getRecentPRs()
+  const strengthTrend = getStrengthTrend()
+  const volumeDelta = getVolumeWeekDelta()
 
   return (
     <>
@@ -167,50 +239,86 @@ export default function ProfileView({
         )}
       </div>
 
-      {/* Progress Widgets */}
+      {/* Goals */}
       <div className="profile-section">
         <h3 className="section-title">Goals</h3>
 
-        <div className="progress-widgets">
-          <div className="widget-card">
+        {/* Weekly goal + volume delta */}
+        <div className="goals-top-row">
+          <div className="widget-card goals-weekly-card">
             <CircularProgress
               value={weeklyProgress}
               max={100}
-              size={80}
+              size={72}
               strokeWidth={6}
               color="#fbbf24"
-              label="Weekly Goal"
+              label="This Week"
               subtitle={`${Math.round(weeklyProgress / 25)} / 4 workouts`}
               displayMode="percentage"
             />
           </div>
-
-          <div className="widget-card">
-            <CircularProgress
-              value={consistencyScore}
-              max={100}
-              size={80}
-              strokeWidth={6}
-              color="#10b981"
-              label="Consistency"
-              subtitle="Last 30 days"
-              displayMode="percentage"
-            />
-          </div>
-
-          <div className="widget-card">
-            <CircularProgress
-              value={volumeProgress}
-              max={100}
-              size={80}
-              strokeWidth={6}
-              color="#3b82f6"
-              label="Volume"
-              subtitle={`${(totalVolume / 1000).toFixed(1)}t total`}
-              displayMode="percentage"
-            />
+          <div className="goals-volume-card">
+            <div className="goals-volume-label">Volume this week</div>
+            <div className="goals-volume-value">{(volumeDelta.thisWeek / 1000).toFixed(1)}t</div>
+            {volumeDelta.lastWeek > 0 && (
+              <div className={`goals-volume-delta ${volumeDelta.thisWeek >= volumeDelta.lastWeek ? 'positive' : 'negative'}`}>
+                {volumeDelta.thisWeek >= volumeDelta.lastWeek ? '↑' : '↓'}
+                {Math.abs(Math.round(((volumeDelta.thisWeek - volumeDelta.lastWeek) / volumeDelta.lastWeek) * 100))}% vs last week
+              </div>
+            )}
+            {volumeDelta.lastWeek === 0 && volumeDelta.thisWeek > 0 && (
+              <div className="goals-volume-delta positive">First data this week</div>
+            )}
           </div>
         </div>
+
+        {/* Recent PRs */}
+        {recentPRs.length > 0 && (
+          <div className="goals-card">
+            <div className="goals-card-title">Recent PRs <span className="goals-card-subtitle">last 30 days</span></div>
+            {recentPRs.map(pr => (
+              <div key={pr.name} className="goals-pr-row">
+                <span className="goals-pr-name">{pr.name}</span>
+                <span className="goals-pr-value">
+                  {pr.weight} kg
+                  {pr.isNew
+                    ? <span className="goals-pr-badge new">New</span>
+                    : <span className="goals-pr-badge">+{pr.delta} kg</span>
+                  }
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Strength trend */}
+        {strengthTrend.length > 0 && (
+          <div className="goals-card">
+            <div className="goals-card-title">Strength Trend <span className="goals-card-subtitle">this vs last month</span></div>
+            {strengthTrend.map(t => {
+              const delta = t.thisMonth - t.lastMonth
+              const pct = t.lastMonth > 0 ? Math.round((delta / t.lastMonth) * 100) : null
+              return (
+                <div key={t.name} className="goals-trend-row">
+                  <span className="goals-trend-name">{t.name}</span>
+                  <div className="goals-trend-right">
+                    {t.lastMonth > 0 && <span className="goals-trend-prev">{t.lastMonth} kg →</span>}
+                    <span className="goals-trend-curr">{t.thisMonth > 0 ? `${t.thisMonth} kg` : '—'}</span>
+                    {pct !== null && delta !== 0 && (
+                      <span className={`goals-trend-pct ${delta > 0 ? 'positive' : 'negative'}`}>
+                        {delta > 0 ? '+' : ''}{pct}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {recentPRs.length === 0 && strengthTrend.length === 0 && (
+          <p className="goals-empty">Complete more workouts to see your progress here.</p>
+        )}
       </div>
 
       {/* Stats Grid */}

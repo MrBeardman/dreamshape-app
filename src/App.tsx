@@ -19,6 +19,7 @@ import BottomNav from './components/BottomNav'
 import SidebarNav from './components/SidebarNav'
 import LibraryView from './components/LibraryView'
 import ProfileView from './components/ProfileView'
+import ExerciseProgressSheet from './components/ExerciseProgressSheet'
 import { useConfirm } from './hooks/useConfirm'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 import { requestNotificationPermission, scheduleRestNotification, cancelRestNotification } from './lib/notifications'
@@ -101,6 +102,7 @@ function App() {
     try { return JSON.parse(saved) } catch { return null }
   })
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [exerciseHistoryTarget, setExerciseHistoryTarget] = useState<string | null>(null)
   const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>(() => {
     const saved = localStorage.getItem(ORIGINAL_EXERCISES_KEY)
     if (!saved) return []
@@ -481,6 +483,11 @@ function App() {
       ...activeWorkout,
       exercises: [...activeWorkout.exercises, newExercise]
     })
+  }
+
+  const createAndAddExerciseToWorkout = async (name: string, muscleGroup: string, equipment: string) => {
+    await addExerciseToDatabase({ name, muscleGroup, equipment })
+    addExerciseToWorkout(name, muscleGroup, equipment)
   }
 
   const removeExerciseFromWorkout = async (exerciseIndex: number) => {
@@ -933,6 +940,8 @@ function App() {
                     onSetWorkoutNotes={setWorkoutNotes}
                     onSetExerciseNotes={setExerciseNotes}
                     onToggleSetType={toggleSetType}
+                    onCreateAndAddExercise={createAndAddExerciseToWorkout}
+                    onViewExerciseHistory={setExerciseHistoryTarget}
                   />
                   {showFinishModal && (() => {
                     const workoutChanges = getWorkoutChanges()
@@ -1012,6 +1021,7 @@ function App() {
                       onStartWorkout={startWorkout}
                       onAddExercise={addExerciseToDatabase}
                       onDeleteExercise={deleteExerciseFromDatabase}
+                      onViewExerciseHistory={setExerciseHistoryTarget}
                     />
                   )}
 
@@ -1048,6 +1058,13 @@ function App() {
       )}
     </div>
     {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
+    {exerciseHistoryTarget && (
+      <ExerciseProgressSheet
+        exerciseName={exerciseHistoryTarget}
+        workoutLogs={workoutLogs}
+        onClose={() => setExerciseHistoryTarget(null)}
+      />
+    )}
     </>
   )
 }

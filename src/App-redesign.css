@@ -17,6 +17,7 @@
 @import './styles/components/workouts.css';
 @import './styles/components/library.css';
 @import './styles/components/workout.css';
+@import './styles/components/progress-sheet.css';
 
 /* View Styles */
 @import './styles/views/templates.css';
