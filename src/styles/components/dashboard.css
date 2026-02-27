@@ -300,21 +300,46 @@
 .heatmap-grid {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 3px;
+  gap: 4px;
   margin-bottom: 8px;
 }
 
 .heatmap-day {
   aspect-ratio: 1;
   background: var(--bg-hover);
-  border-radius: 2px;
+  border-radius: 3px;
+  transition: opacity 0.1s;
 }
 
 .heatmap-day.active { background: var(--primary); cursor: pointer; }
+.heatmap-day.active:hover { opacity: 0.85; }
+
+/* Today marker — white ring regardless of workout state */
+.heatmap-day.today {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7);
+}
+.heatmap-day.today.active {
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
 .heatmap-day.active.selected {
   background: var(--primary);
   outline: 2px solid #ffffff;
   outline-offset: 1px;
+}
+
+/* Override profile.css calendar axis styles for the dashboard calendar */
+.dashboard-view .calendar-y-axis {
+  justify-content: space-between;
+  gap: 4px;
+  padding-bottom: 0;  /* don't shift down into x-axis area */
+}
+
+.dashboard-view .calendar-y-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  line-height: 1;
 }
 
 /* ===== CALENDAR DAY DETAIL ===== */

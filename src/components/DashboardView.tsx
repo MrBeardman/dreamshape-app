@@ -106,9 +106,11 @@ export default function DashboardView({
     })
   }, [workoutLogs])
 
-  // Enriched calendar data — each day knows its workout (if any)
+  // Enriched calendar data — each day knows its workout (if any) and whether it's today
   const calendarData = useMemo(() => {
     const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayTime = today.getTime()
     return Array.from({ length: 84 }, (_, i) => {
       const date = new Date(today)
       date.setDate(today.getDate() - (83 - i))
@@ -119,7 +121,7 @@ export default function DashboardView({
         logDate.setHours(0, 0, 0, 0)
         return logDate.getTime() === date.getTime()
       }) ?? null
-      return { date: dateStr, workout }
+      return { date: dateStr, workout, isToday: date.getTime() === todayTime }
     })
   }, [workoutLogs])
   
@@ -241,13 +243,9 @@ export default function DashboardView({
 
           <div className="calendar-wrapper">
             <div className="calendar-y-axis">
-              <div className="calendar-y-label">Mon</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Wed</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Fri</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Sun</div>
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                <div key={d} className="calendar-y-label">{d}</div>
+              ))}
             </div>
 
             <div className="calendar-main">
@@ -255,7 +253,12 @@ export default function DashboardView({
                 {calendarData.map((day) => (
                   <div
                     key={day.date}
-                    className={`heatmap-day ${day.workout ? 'active' : ''} ${selectedDate === day.date ? 'selected' : ''}`}
+                    className={[
+                      'heatmap-day',
+                      day.workout ? 'active' : '',
+                      day.isToday ? 'today' : '',
+                      selectedDate === day.date ? 'selected' : '',
+                    ].filter(Boolean).join(' ')}
                     title={day.date}
                     onClick={() => {
                       if (day.workout) {
