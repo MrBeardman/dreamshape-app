@@ -92,6 +92,7 @@ export class SyncService {
         ? {
             name: profileData.name,
             memberSince: profileData.member_since,
+            role: profileData.role ?? undefined,
           }
         : null
 
@@ -162,6 +163,7 @@ export class SyncService {
         .from('profiles')
         .update({
           name: profile.name,
+          role: profile.role ?? null,
         })
         .eq('id', this.userId)
 
@@ -226,13 +228,15 @@ export class SyncService {
 
   async deleteTemplate(templateId: string): Promise<void> {
     try {
-      await supabase
+      const { error } = await supabase
         .from('templates')
         .delete()
         .eq('id', templateId)
         .eq('user_id', this.userId)
+      if (error) throw error
     } catch (error) {
       console.error('Failed to delete template:', error)
+      throw error
     }
   }
 
@@ -268,13 +272,15 @@ export class SyncService {
 
   async deleteWorkout(workoutId: string): Promise<void> {
     try {
-      await supabase
+      const { error } = await supabase
         .from('workouts')
         .delete()
         .eq('id', workoutId)
         .eq('user_id', this.userId)
+      if (error) throw error
     } catch (error) {
       console.error('Failed to delete workout:', error)
+      throw error
     }
   }
 

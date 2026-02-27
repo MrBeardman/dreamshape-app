@@ -291,9 +291,9 @@ function App() {
 
   const deleteTemplate = async (id: string) => {
     if (await showConfirm({ title: 'Delete Template?', message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) {
+      const previous = templates
       setTemplates(templates.filter(t => t.id !== id))
 
-      // Sync to Supabase
       if (syncService) {
         setIsSyncing(true)
         try {
@@ -301,6 +301,7 @@ function App() {
           setLastSyncTime(new Date())
         } catch (error) {
           console.error('Failed to delete template:', error)
+          setTemplates(previous) // rollback on sync failure
         } finally {
           setIsSyncing(false)
         }
@@ -738,12 +739,12 @@ function App() {
 
   const deleteWorkout = async (id: string) => {
     if (await showConfirm({ title: 'Delete Workout?', message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true })) {
+      const previous = workoutLogs
       setWorkoutLogs(workoutLogs.filter(w => w.id !== id))
       if (selectedWorkout?.id === id) {
         setSelectedWorkout(null)
       }
 
-      // Sync to Supabase
       if (syncService) {
         setIsSyncing(true)
         try {
@@ -751,6 +752,7 @@ function App() {
           setLastSyncTime(new Date())
         } catch (error) {
           console.error('Failed to delete workout:', error)
+          setWorkoutLogs(previous) // rollback on sync failure
         } finally {
           setIsSyncing(false)
         }

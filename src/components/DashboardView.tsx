@@ -27,8 +27,13 @@ export default function DashboardView({
 
   const currentStreak = useMemo(() => {
     if (workoutLogs.length === 0) return 0
-    const sortedLogs = [...workoutLogs].sort((a, b) =>
-      new Date(b.date).getTime() - new Date(a.date).getTime()
+    // Build a Set of workout date strings for O(1) lookup instead of O(n) .some()
+    const workoutDates = new Set(
+      workoutLogs.map(log => {
+        const d = new Date(log.date)
+        d.setHours(0, 0, 0, 0)
+        return d.toDateString()
+      })
     )
     let streak = 0
     const today = new Date()
@@ -36,22 +41,13 @@ export default function DashboardView({
     for (let i = 0; i < 365; i++) {
       const checkDate = new Date(today)
       checkDate.setDate(today.getDate() - i)
-      const hasActivity = sortedLogs.some(log => {
-        const logDate = new Date(log.date)
-        logDate.setHours(0, 0, 0, 0)
-        return logDate.getTime() === checkDate.getTime()
-      })
-      if (hasActivity) {
+      if (workoutDates.has(checkDate.toDateString())) {
         streak++
       } else if (i > 0) {
+        // Allow 1-day rest gap: check if the day before also has no workout
         const prevDate = new Date(checkDate)
         prevDate.setDate(checkDate.getDate() - 1)
-        const hasPrevActivity = sortedLogs.some(log => {
-          const logDate = new Date(log.date)
-          logDate.setHours(0, 0, 0, 0)
-          return logDate.getTime() === prevDate.getTime()
-        })
-        if (!hasPrevActivity) break
+        if (!workoutDates.has(prevDate.toDateString())) break
       } else {
         break
       }
