@@ -79,8 +79,58 @@ export default function DashboardView({
   }, [workoutLogs])
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month')
 
   const volumeData = useMemo(() => {
+    const calcVolume = (workouts: typeof workoutLogs) =>
+      workouts.reduce(
+        (sum, wo) => sum + wo.exercises.reduce(
+          (es, ex) => es + ex.sets.reduce((ss, s) => ss + s.weight * s.reps, 0), 0
+        ), 0
+      )
+
+    if (chartPeriod === 'week') {
+      // 7 days — daily totals
+      return Array.from({ length: 7 }, (_, i) => {
+        const day = new Date()
+        day.setDate(day.getDate() - (6 - i))
+        day.setHours(0, 0, 0, 0)
+        const nextDay = new Date(day)
+        nextDay.setDate(day.getDate() + 1)
+        const dayWorkouts = workoutLogs.filter(w => {
+          const d = new Date(w.date)
+          return d >= day && d < nextDay
+        })
+        return {
+          week: day.toLocaleDateString('en-US', { weekday: 'short' }),
+          volume: Math.round(calcVolume(dayWorkouts) / 1000),
+        }
+      })
+    }
+
+    if (chartPeriod === 'year') {
+      // 12 months — monthly totals
+      return Array.from({ length: 12 }, (_, i) => {
+        const monthStart = new Date()
+        monthStart.setDate(1)
+        monthStart.setMonth(monthStart.getMonth() - (11 - i))
+        monthStart.setHours(0, 0, 0, 0)
+        const monthEnd = new Date(monthStart)
+        monthEnd.setMonth(monthStart.getMonth() + 1)
+        const monthWorkouts = workoutLogs.filter(w => {
+          const d = new Date(w.date)
+          return d >= monthStart && d < monthEnd
+        })
+        const isJan = monthStart.getMonth() === 0
+        const yr = monthStart.getFullYear().toString().slice(2)
+        const label = isJan
+          ? `Jan '${yr}`
+          : monthStart.toLocaleDateString('en-US', { month: 'short' })
+        return { week: label, volume: Math.round(calcVolume(monthWorkouts) / 1000) }
+      })
+    }
+
+    // month (default) — 8 weeks, "Feb W2" labels
     return Array.from({ length: 8 }, (_, i) => {
       const offset = 7 - i
       const weekStart = new Date()
@@ -92,19 +142,16 @@ export default function DashboardView({
         const d = new Date(w.date)
         return d >= weekStart && d < weekEnd
       })
-      const totalVolume = weekWorkouts.reduce(
-        (sum, wo) =>
-          sum +
-          wo.exercises.reduce(
-            (es, ex) => es + ex.sets.reduce((ss, s) => ss + s.weight * s.reps, 0),
-            0
-          ),
-        0
-      )
-      const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      return { week: label, volume: Math.round(totalVolume / 1000) }
+      const monthName = weekStart.toLocaleDateString('en-US', { month: 'short' })
+      const weekNum = Math.ceil(weekStart.getDate() / 7)
+      return {
+        week: `${monthName} W${weekNum}`,
+        volume: Math.round(calcVolume(weekWorkouts) / 1000),
+      }
     })
-  }, [workoutLogs])
+  }, [workoutLogs, chartPeriod])
+
+  const [calPeriod, setCalPeriod] = useState<'week' | 'month' | 'year'>('month')
 
   // Enriched calendar data — each day knows its workout (if any) and whether it's today
   const calendarData = useMemo(() => {
@@ -123,6 +170,34 @@ export default function DashboardView({
       }) ?? null
       return { date: dateStr, workout, isToday: date.getTime() === todayTime }
     })
+  }, [workoutLogs])
+
+  // Month calendar — current month days, padded to Mon-based week rows
+  const monthCalendarData = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayTime = today.getTime()
+    const year = today.getFullYear()
+    const month = today.getMonth()
+    const firstDay = new Date(year, month, 1)
+    let startDow = firstDay.getDay() - 1 // Mon=0 ... Sun=6
+    if (startDow < 0) startDow = 6
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    type Cell = { date: string; dayNum: number; workout: WorkoutLog | null; isToday: boolean } | null
+    const cells: Cell[] = []
+    for (let i = 0; i < startDow; i++) cells.push(null)
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d)
+      date.setHours(0, 0, 0, 0)
+      const dateStr = date.toISOString().split('T')[0]
+      const workout = workoutLogs.find(log => {
+        const logDate = new Date(log.date)
+        logDate.setHours(0, 0, 0, 0)
+        return logDate.getTime() === date.getTime()
+      }) ?? null
+      cells.push({ date: dateStr, dayNum: d, workout, isToday: date.getTime() === todayTime })
+    }
+    return cells
   }, [workoutLogs])
   
   return (
@@ -236,58 +311,140 @@ export default function DashboardView({
       <div className="charts-section">
         <h3 className="section-title">Progress</h3>
 
-        {/* Workout Calendar — replaces Frequency chart + old Heatmap */}
+        {/* Workout Calendar */}
         <div className="chart-card">
-          <h4 className="chart-title">Workout Calendar</h4>
-          <p className="chart-subtitle">Last 12 weeks — tap a day to see details</p>
-
-          <div className="calendar-wrapper">
-            <div className="calendar-y-axis">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-                <div key={d} className="calendar-y-label">{d}</div>
-              ))}
+          <div className="chart-header-row">
+            <div>
+              <h4 className="chart-title">Workout Calendar</h4>
+              <p className="chart-subtitle">
+                {calPeriod === 'week' && 'This week — tap a workout to see details'}
+                {calPeriod === 'month' && `${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
+                {calPeriod === 'year' && 'Last 12 weeks — tap a workout to see details'}
+              </p>
             </div>
-
-            <div className="calendar-main">
-              <div className="heatmap-grid">
-                {calendarData.map((day) => (
-                  <div
-                    key={day.date}
-                    className={[
-                      'heatmap-day',
-                      day.workout ? 'active' : '',
-                      day.isToday ? 'today' : '',
-                      selectedDate === day.date ? 'selected' : '',
-                    ].filter(Boolean).join(' ')}
-                    title={day.date}
-                    onClick={() => {
-                      if (day.workout) {
-                        setSelectedDate(selectedDate === day.date ? null : day.date)
-                      }
-                    }}
-                  />
-                ))}
-              </div>
-
-              <div className="calendar-x-axis">
-                {Array.from({ length: 12 }, (_, i) => {
-                  const date = new Date()
-                  date.setDate(date.getDate() - (11 - i) * 7)
-                  return (
-                    <div key={i} className="calendar-x-label">
-                      {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
-                    </div>
-                  )
-                })}
-              </div>
+            <div className="chart-period-toggle">
+              {(['week', 'month', 'year'] as const).map(p => (
+                <button
+                  key={p}
+                  className={`period-btn${calPeriod === p ? ' active' : ''}`}
+                  onClick={() => { setCalPeriod(p); setSelectedDate(null) }}
+                >
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Selected day detail */}
+          {/* Year view — 12-week heatmap */}
+          {calPeriod === 'year' && (
+            <div className="calendar-wrapper">
+              <div className="calendar-y-axis">
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                  <div key={d} className="calendar-y-label">{d}</div>
+                ))}
+              </div>
+              <div className="calendar-main">
+                <div className="heatmap-grid">
+                  {calendarData.map((day) => (
+                    <div
+                      key={day.date}
+                      className={[
+                        'heatmap-day',
+                        day.workout ? 'active' : '',
+                        day.isToday ? 'today' : '',
+                        selectedDate === day.date ? 'selected' : '',
+                      ].filter(Boolean).join(' ')}
+                      title={day.date}
+                      onClick={() => {
+                        if (day.workout) setSelectedDate(selectedDate === day.date ? null : day.date)
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="calendar-x-axis">
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const date = new Date()
+                    date.setDate(date.getDate() - (11 - i) * 7)
+                    return (
+                      <div key={i} className="calendar-x-label">
+                        {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Week view — 7 large day cells */}
+          {calPeriod === 'week' && (
+            <div className="week-cal-row">
+              {calendarData.slice(-7).map((day) => {
+                const d = new Date(day.date + 'T12:00:00')
+                const isSelected = selectedDate === day.date
+                return (
+                  <div
+                    key={day.date}
+                    className={[
+                      'week-cal-cell',
+                      day.workout ? 'active' : '',
+                      day.isToday ? 'today' : '',
+                      isSelected ? 'selected' : '',
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => {
+                      if (day.workout) setSelectedDate(isSelected ? null : day.date)
+                    }}
+                  >
+                    <span className="week-cal-day">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                    <span className="week-cal-num">{d.getDate()}</span>
+                    {day.workout && <span className="week-cal-dot" />}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Month view — standard Mon-based calendar grid */}
+          {calPeriod === 'month' && (
+            <div>
+              <div className="month-cal-header">
+                {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+                  <span key={d}>{d}</span>
+                ))}
+              </div>
+              <div className="month-cal-grid">
+                {monthCalendarData.map((cell, i) =>
+                  cell ? (
+                    <div
+                      key={cell.date}
+                      className={[
+                        'month-cal-cell',
+                        cell.workout ? 'active' : '',
+                        cell.isToday ? 'today' : '',
+                        selectedDate === cell.date ? 'selected' : '',
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => {
+                        if (cell.workout) setSelectedDate(selectedDate === cell.date ? null : cell.date)
+                      }}
+                    >
+                      {cell.dayNum}
+                    </div>
+                  ) : (
+                    <div key={`pad-${i}`} className="month-cal-cell empty" />
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Day detail — shared across all views */}
           {selectedDate && (() => {
-            const day = calendarData.find(d => d.date === selectedDate)
-            if (!day?.workout) return null
-            const w = day.workout
+            const w = workoutLogs.find(log => {
+              const logDate = new Date(log.date)
+              logDate.setHours(0, 0, 0, 0)
+              return logDate.toISOString().split('T')[0] === selectedDate
+            })
+            if (!w) return null
             const totalVolume = w.exercises.reduce(
               (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0
             )
@@ -323,12 +480,44 @@ export default function DashboardView({
 
         {/* Volume Trend */}
         <div className="chart-card">
-          <h4 className="chart-title">Volume Trend</h4>
-          <p className="chart-subtitle">Total volume (tons) per week</p>
+          <div className="chart-header-row">
+            <div>
+              <h4 className="chart-title">Volume Trend</h4>
+              <p className="chart-subtitle">
+                {chartPeriod === 'week' && 'Daily volume — this week (tons)'}
+                {chartPeriod === 'month' && 'Weekly totals — last 8 weeks (tons)'}
+                {chartPeriod === 'year' && 'Monthly totals — last 12 months (tons)'}
+              </p>
+            </div>
+            <div className="chart-period-toggle">
+              {(['week', 'month', 'year'] as const).map(p => (
+                <button
+                  key={p}
+                  className={`period-btn${chartPeriod === p ? ' active' : ''}`}
+                  onClick={() => setChartPeriod(p)}
+                >
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={volumeData}>
-              <XAxis dataKey="week" stroke="#555555" fontSize={11} tickLine={false} axisLine={false} />
-              <YAxis stroke="#555555" fontSize={12} tickLine={false} axisLine={false} width={24} />
+            <AreaChart
+              data={volumeData}
+              margin={{ bottom: chartPeriod === 'month' ? 24 : 0, left: 0, right: 4 }}
+            >
+              <XAxis
+                dataKey="week"
+                stroke="#555555"
+                fontSize={10}
+                tickLine={false}
+                axisLine={false}
+                interval={0}
+                angle={chartPeriod === 'month' ? -40 : 0}
+                textAnchor={chartPeriod === 'month' ? 'end' : 'middle'}
+                height={chartPeriod === 'month' ? 48 : 20}
+              />
+              <YAxis stroke="#555555" fontSize={11} tickLine={false} axisLine={false} width={28} />
               <Tooltip
                 contentStyle={{
                   background: '#1a1a1a',
