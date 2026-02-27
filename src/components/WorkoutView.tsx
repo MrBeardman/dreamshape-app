@@ -135,6 +135,16 @@ export default function WorkoutView({
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  const getLastWorkoutSets = (exerciseName: string) => {
+    for (const workout of workoutLogs) {
+      const exercise = workout.exercises.find(e => e.exerciseName === exerciseName)
+      if (exercise && exercise.sets.length > 0) {
+        return exercise.sets.map(s => ({ weight: s.weight, reps: s.reps }))
+      }
+    }
+    return undefined
+  }
+
   const getPersonalRecord = (exerciseName: string): number => {
     let maxWeight = 0
     
@@ -258,6 +268,7 @@ export default function WorkoutView({
                 exercise={exerciseLog}
                 exerciseIndex={exerciseIndex}
                 pr={getPersonalRecord(exerciseLog.exerciseName)}
+                lastWorkoutSets={getLastWorkoutSets(exerciseLog.exerciseName)}
                 exerciseRestDuration={exerciseLog.restDuration || restDuration}
                 activeRestTimer={activeRestTimer}
                 onUpdateSet={onUpdateSet}

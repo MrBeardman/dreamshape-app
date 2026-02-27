@@ -7,6 +7,7 @@ interface ExerciseCardProps {
   exercise: ExerciseLog
   exerciseIndex: number
   pr: number
+  lastWorkoutSets?: Array<{ weight: number; reps: number }>
   exerciseRestDuration: number
   activeRestTimer: { exerciseIndex: number; afterSetIndex: number; timeRemaining: number } | null
   onUpdateSet: (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => void
@@ -25,6 +26,7 @@ export default function ExerciseCard({
   exercise,
   exerciseIndex,
   pr,
+  lastWorkoutSets,
   exerciseRestDuration,
   activeRestTimer,
   onUpdateSet,
@@ -149,6 +151,12 @@ export default function ExerciseCard({
         </div>
       )}
 
+      {lastWorkoutSets && lastWorkoutSets.length > 0 && (
+        <div className="last-session-hint">
+          Last: {lastWorkoutSets.map(s => `${s.weight}×${s.reps}`).join('  ·  ')}
+        </div>
+      )}
+
       <div className="sets-header">
         <span className="set-col">Set</span>
         <span className="kg-col">kg</span>
@@ -181,7 +189,7 @@ export default function ExerciseCard({
                 value={set.weight || ''}
                 onChange={(e) => { e.stopPropagation(); onUpdateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value)) }}
                 onClick={(e) => e.stopPropagation()}
-                placeholder="0"
+                placeholder={lastWorkoutSets?.[setIndex]?.weight ? String(lastWorkoutSets[setIndex].weight) : '0'}
               />
 
               <input
@@ -191,7 +199,7 @@ export default function ExerciseCard({
                 value={set.reps || ''}
                 onChange={(e) => { e.stopPropagation(); onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value)) }}
                 onClick={(e) => e.stopPropagation()}
-                placeholder="0"
+                placeholder={lastWorkoutSets?.[setIndex]?.reps ? String(lastWorkoutSets[setIndex].reps) : '0'}
               />
 
               <button

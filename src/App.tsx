@@ -21,6 +21,7 @@ import LibraryView from './components/LibraryView'
 import ProfileView from './components/ProfileView'
 import { useConfirm } from './hooks/useConfirm'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
+import { requestNotificationPermission, scheduleRestNotification, cancelRestNotification } from './lib/notifications'
 
 const STORAGE_KEY = 'dreamshape_templates'
 const WORKOUTS_KEY = 'dreamshape_workouts'
@@ -369,6 +370,7 @@ function App() {
       exercises: exerciseLogs,
       startTime: Date.now()
     })
+    void requestNotificationPermission()
   }
 
   const startEmptyWorkout = () => {
@@ -379,6 +381,7 @@ function App() {
       exercises: [],
       startTime: Date.now()
     })
+    void requestNotificationPermission()
   }
 
   const updateSet = (exerciseIndex: number, setIndex: number, field: 'weight' | 'reps', value: number) => {
@@ -411,11 +414,13 @@ function App() {
     })
 
     if (isCompleting) {
+      const restTime = exercise.restDuration || restDuration
       setActiveRestTimer({
         exerciseIndex,
         afterSetIndex: setIndex,
-        timeRemaining: exercise.restDuration || restDuration
+        timeRemaining: restTime
       })
+      void scheduleRestNotification(restTime, exercise.exerciseName)
     }
   }
 
@@ -921,7 +926,7 @@ function App() {
                     onRemoveSet={removeSet}
                     onSetRestDuration={setRestDuration}
                     onSetExerciseRestDuration={setExerciseRestDuration}
-                    onSkipInlineRest={() => setActiveRestTimer(null)}
+                    onSkipInlineRest={() => { setActiveRestTimer(null); void cancelRestNotification() }}
                     onAddExercise={addExerciseToWorkout}
                     onRemoveExercise={removeExerciseFromWorkout}
                     onReorderExercises={reorderWorkoutExercises}

@@ -478,6 +478,17 @@
   color: var(--error);
 }
 
+/* ===== LAST SESSION HINT ===== */
+.last-session-hint {
+  font-size: 11px;
+  color: var(--text-tertiary, #666);
+  margin: 0 0 8px 0;
+  padding: 4px 8px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+}
+
 /* ===== EXERCISE NOTES ===== */
 .exercise-notes-edit {
   margin-bottom: 12px;

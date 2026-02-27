@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { useMemo, useState } from 'react'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import CircularProgress from './CircularProgress'
 import type { WorkoutTemplate, WorkoutLog, UserProfile } from '../types'
 
@@ -78,21 +78,7 @@ export default function DashboardView({
     return (workoutLogs.length / weeksDiff).toFixed(1)
   }, [workoutLogs])
 
-  const frequencyData = useMemo(() => {
-    return Array.from({ length: 8 }, (_, i) => {
-      const offset = 7 - i
-      const weekStart = new Date()
-      weekStart.setDate(weekStart.getDate() - (offset * 7 + 7))
-      weekStart.setHours(0, 0, 0, 0)
-      const weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekStart.getDate() + 7)
-      const count = workoutLogs.filter(w => {
-        const d = new Date(w.date)
-        return d >= weekStart && d < weekEnd
-      }).length
-      return { week: offset === 0 ? 'This' : `-${offset}`, workouts: count }
-    })
-  }, [workoutLogs])
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const volumeData = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => {
@@ -115,22 +101,25 @@ export default function DashboardView({
           ),
         0
       )
-      return { week: offset === 0 ? 'This' : `-${offset}`, volume: Math.round(totalVolume / 1000) }
+      const label = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      return { week: label, volume: Math.round(totalVolume / 1000) }
     })
   }, [workoutLogs])
 
-  const heatmapData = useMemo(() => {
+  // Enriched calendar data — each day knows its workout (if any)
+  const calendarData = useMemo(() => {
     const today = new Date()
     return Array.from({ length: 84 }, (_, i) => {
       const date = new Date(today)
       date.setDate(today.getDate() - (83 - i))
       date.setHours(0, 0, 0, 0)
-      const hasActivity = workoutLogs.some(log => {
+      const dateStr = date.toISOString().split('T')[0]
+      const workout = workoutLogs.find(log => {
         const logDate = new Date(log.date)
         logDate.setHours(0, 0, 0, 0)
         return logDate.getTime() === date.getTime()
-      })
-      return { date: date.toISOString().split('T')[0], count: hasActivity ? 1 : 0 }
+      }) ?? null
+      return { date: dateStr, workout }
     })
   }, [workoutLogs])
   
@@ -244,28 +233,89 @@ export default function DashboardView({
       {/* Charts Section */}
       <div className="charts-section">
         <h3 className="section-title">Progress</h3>
-        
-        {/* Workout Frequency */}
+
+        {/* Workout Calendar — replaces Frequency chart + old Heatmap */}
         <div className="chart-card">
-          <h4 className="chart-title">Workout Frequency</h4>
-          <p className="chart-subtitle">Last 8 weeks</p>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={frequencyData}>
-              <XAxis dataKey="week" stroke="#555555" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#555555" fontSize={12} tickLine={false} axisLine={false} width={24} />
-              <Tooltip
-                contentStyle={{
-                  background: '#1a1a1a',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '13px'
-                }}
-                cursor={{ fill: 'rgba(255,255,255,0.04)' }}
-              />
-              <Bar dataKey="workouts" fill="#f5c518" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h4 className="chart-title">Workout Calendar</h4>
+          <p className="chart-subtitle">Last 12 weeks — tap a day to see details</p>
+
+          <div className="calendar-wrapper">
+            <div className="calendar-y-axis">
+              <div className="calendar-y-label">Mon</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Wed</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Fri</div>
+              <div className="calendar-y-label"></div>
+              <div className="calendar-y-label">Sun</div>
+            </div>
+
+            <div className="calendar-main">
+              <div className="heatmap-grid">
+                {calendarData.map((day) => (
+                  <div
+                    key={day.date}
+                    className={`heatmap-day ${day.workout ? 'active' : ''} ${selectedDate === day.date ? 'selected' : ''}`}
+                    title={day.date}
+                    onClick={() => {
+                      if (day.workout) {
+                        setSelectedDate(selectedDate === day.date ? null : day.date)
+                      }
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div className="calendar-x-axis">
+                {Array.from({ length: 12 }, (_, i) => {
+                  const date = new Date()
+                  date.setDate(date.getDate() - (11 - i) * 7)
+                  return (
+                    <div key={i} className="calendar-x-label">
+                      {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Selected day detail */}
+          {selectedDate && (() => {
+            const day = calendarData.find(d => d.date === selectedDate)
+            if (!day?.workout) return null
+            const w = day.workout
+            const totalVolume = w.exercises.reduce(
+              (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0
+            )
+            const dur = Math.floor(w.duration / 60)
+            return (
+              <div className="calendar-day-detail">
+                <div className="day-detail-header">
+                  <span className="day-detail-date">
+                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
+                      weekday: 'short', month: 'short', day: 'numeric'
+                    })}
+                  </span>
+                  <button className="day-detail-close" onClick={() => setSelectedDate(null)}>×</button>
+                </div>
+                <div className="day-detail-name">{w.templateName}</div>
+                <div className="day-detail-meta">
+                  <span>{dur} min</span>
+                  <span>{(totalVolume / 1000).toFixed(1)}t volume</span>
+                  <span>{w.exercises.length} exercises</span>
+                </div>
+                <div className="day-detail-exercises">
+                  {w.exercises.slice(0, 5).map(ex => (
+                    <span key={ex.exerciseId} className="day-detail-exercise-tag">{ex.exerciseName}</span>
+                  ))}
+                  {w.exercises.length > 5 && (
+                    <span className="day-detail-exercise-tag muted">+{w.exercises.length - 5} more</span>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         {/* Volume Trend */}
@@ -274,7 +324,7 @@ export default function DashboardView({
           <p className="chart-subtitle">Total volume (tons) per week</p>
           <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={volumeData}>
-              <XAxis dataKey="week" stroke="#555555" fontSize={12} tickLine={false} axisLine={false} />
+              <XAxis dataKey="week" stroke="#555555" fontSize={11} tickLine={false} axisLine={false} />
               <YAxis stroke="#555555" fontSize={12} tickLine={false} axisLine={false} width={24} />
               <Tooltip
                 contentStyle={{
@@ -296,66 +346,6 @@ export default function DashboardView({
               />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
-
-        {/* Consistency Heatmap */}
-        <div className="chart-card">
-          <h4 className="chart-title">Consistency Calendar</h4>
-          <p className="chart-subtitle">Last 12 weeks</p>
-          
-          <div className="calendar-wrapper">
-            {/* Y-axis (days of week) */}
-            <div className="calendar-y-axis">
-              <div className="calendar-y-label">Mon</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Wed</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Fri</div>
-              <div className="calendar-y-label"></div>
-              <div className="calendar-y-label">Sun</div>
-            </div>
-
-            <div className="calendar-main">
-              {/* Grid */}
-              <div className="heatmap-grid">
-                {heatmapData.map((day, idx) => (
-                  <div
-                    key={idx}
-                    className={`heatmap-day ${day.count > 0 ? 'active' : ''}`}
-                    title={day.date}
-                  />
-                ))}
-              </div>
-
-              {/* X-axis (months) */}
-              <div className="calendar-x-axis">
-                {(() => {
-                  const labels = []
-                  const today = new Date()
-                  
-                  for (let i = 0; i < 12; i++) {
-                    const date = new Date(today)
-                    date.setDate(today.getDate() - (11 - i) * 7)
-                    
-                    labels.push(
-                      <div key={i} className="calendar-x-label">
-                        {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
-                      </div>
-                    )
-                  }
-                  
-                  return labels
-                })()}
-              </div>
-            </div>
-          </div>
-
-          <div className="heatmap-legend">
-            <span>Less</span>
-            <div className="heatmap-day"></div>
-            <div className="heatmap-day active"></div>
-            <span>More</span>
-          </div>
         </div>
       </div>
     </div>

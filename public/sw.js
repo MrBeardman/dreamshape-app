@@ -60,6 +60,72 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// ============================================
+// REST TIMER NOTIFICATIONS
+// ============================================
+let restTimerTimeoutId = null
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SCHEDULE_NOTIFICATION') {
+    const { delay, title, body } = event.data
+
+    // Clear any previously scheduled notification
+    if (restTimerTimeoutId !== null) clearTimeout(restTimerTimeoutId)
+
+    // event.waitUntil keeps the SW alive for the duration of the promise
+    event.waitUntil(
+      new Promise((resolve) => {
+        restTimerTimeoutId = setTimeout(() => {
+          restTimerTimeoutId = null
+          self.registration.showNotification(title, {
+            body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: 'rest-timer',
+            vibrate: [200, 100, 200],
+          }).then(resolve).catch(resolve)
+        }, delay * 1000)
+      })
+    )
+  }
+
+  if (event.data?.type === 'CANCEL_NOTIFICATION') {
+    if (restTimerTimeoutId !== null) {
+      clearTimeout(restTimerTimeoutId)
+      restTimerTimeoutId = null
+    }
+    event.waitUntil(
+      self.registration.getNotifications({ tag: 'rest-timer' })
+        .then(notifications => notifications.forEach(n => n.close()))
+    )
+  }
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      if (clientList.length > 0) {
+        return clientList[0].focus()
+      }
+      return clients.openWindow('/')
+    })
+  )
+})
+
+// Handle server-sent push (future upgrade — see FEATURES.md #4)
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() ?? {}
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'DreamShape', {
+      body: data.body || 'Rest complete!',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'rest-timer',
+    })
+  )
+})
+
 // Activate and clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
