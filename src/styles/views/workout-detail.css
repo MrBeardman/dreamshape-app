@@ -32,7 +32,8 @@
   letter-spacing: -0.2px;
 }
 
-.btn-back {
+/* Back button — scoped to detail view to not conflict with active workout header */
+.workout-detail-view .btn-back {
   padding: 0 14px;
   height: 34px;
   background: var(--bg-tertiary);
@@ -50,47 +51,17 @@
   white-space: nowrap;
 }
 
-.btn-back:hover {
+.workout-detail-view .btn-back:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-/* ===== META CARD ===== */
-.workout-info-card {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.workout-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-}
-
-.workout-date {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-}
-
-.workout-time,
-.workout-duration {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-}
-
-/* DELETE BUTTON */
-.btn-delete {
+/* Delete button */
+.btn-remove {
   width: 32px;
   height: 32px;
   padding: 0;
-  background: var(--error-bg);
+  background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.25);
   border-radius: var(--radius-sm);
   color: var(--error);
@@ -104,14 +75,14 @@
   flex-shrink: 0;
 }
 
-.btn-delete:hover {
+.btn-remove:hover {
   background: var(--error);
   border-color: var(--error);
   color: #fff;
 }
 
-/* ===== WORKOUT SUMMARY META ===== */
-.workout-meta-grid {
+/* ===== META CARDS (Date, Time, Duration) ===== */
+.workout-meta {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
@@ -121,7 +92,7 @@
 .meta-item {
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   padding: 12px 8px;
   display: flex;
   flex-direction: column;
@@ -142,88 +113,68 @@
   color: var(--text-primary);
   font-weight: var(--font-bold);
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
-/* ===== EXERCISES ===== */
-.exercises-section {
+/* ===== EXERCISES LIST ===== */
+.workout-detail-view .workout-exercises {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
-.exercise-card {
+.workout-detail-view .workout-exercise {
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px;
 }
 
-.exercise-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
-
-.exercise-title {
+.workout-detail-view .exercise-title {
   font-size: var(--text-base);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  margin: 0;
+  margin: 0 0 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
   letter-spacing: -0.2px;
 }
 
-/* ===== SETS TABLE (readonly) ===== */
-.sets-table { width: 100%; }
-
-.sets-table-header {
+/* ===== SETS GRID (readonly, 4 columns) ===== */
+.workout-detail-view .sets-header {
   display: grid;
   grid-template-columns: 3rem 1fr 1fr 3rem;
   gap: 8px;
-  padding: 8px 10px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 6px 4px;
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-
-.sets-table-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.set-row {
-  display: grid;
-  grid-template-columns: 3rem 1fr 1fr 3rem;
-  gap: 8px;
-  align-items: center;
-  padding: 10px 10px;
   border-bottom: 1px solid var(--border);
-  transition: background-color var(--transition-fast);
+  margin-bottom: 4px;
 }
 
-.set-row:last-child { border-bottom: none; }
-.set-row:hover { background: var(--bg-hover); }
+.workout-detail-view .set-col,
+.workout-detail-view .kg-col,
+.workout-detail-view .reps-col,
+.workout-detail-view .check-col {
+  text-align: center;
+}
 
-/* Readonly sets (WorkoutDetailView) */
 .set-row-readonly {
   display: grid;
   grid-template-columns: 3rem 1fr 1fr 3rem;
   gap: 8px;
   align-items: center;
-  padding: 10px 0;
+  padding: 10px 4px;
   border-bottom: 1px solid var(--border);
 }
 
 .set-row-readonly:last-child { border-bottom: none; }
 
 .set-row-readonly.warmup {
-  background: rgba(245, 197, 24, 0.05);
+  background: rgba(245, 197, 24, 0.04);
   border-radius: var(--radius-sm);
   padding: 8px;
 }
@@ -236,8 +187,7 @@
 }
 
 .set-number.warmup-badge {
-  color: var(--primary);
-  font-weight: var(--font-extrabold);
+  color: #5b9af8;
 }
 
 .set-value {
@@ -255,9 +205,17 @@
   font-weight: var(--font-bold);
 }
 
-.set-col,
-.kg-col,
-.reps-col,
-.check-col {
-  text-align: center;
+/* ===== RESPONSIVE ===== */
+@media (min-width: 768px) {
+  .workout-detail-view {
+    padding: 2rem 2rem 6rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .workout-detail-view {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 2rem 2rem;
+  }
 }

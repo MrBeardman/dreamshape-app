@@ -15,7 +15,7 @@
   margin-bottom: 24px;
 }
 
-.profile-section {
+.dashboard-header .profile-section {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -186,7 +186,7 @@
 /* ===== QUICK ACTION ===== */
 .quick-actions { margin-bottom: 24px; }
 
-.btn-action-primary {
+.quick-actions .btn-action-primary {
   width: 100%;
   height: 50px;
   background: var(--primary);
@@ -204,7 +204,7 @@
   letter-spacing: 0.2px;
 }
 
-.btn-action-primary:hover { background: var(--primary-hover); }
+.quick-actions .btn-action-primary:hover { background: var(--primary-hover); }
 
 /* ===== TEMPLATES SCROLL ===== */
 .templates-section { margin-bottom: 24px; }
@@ -253,7 +253,7 @@
   margin-bottom: 12px;
 }
 
-.btn-start-template {
+.template-card-mini .btn-start-template {
   width: 100%;
   height: 30px;
   background: rgba(245, 197, 24, 0.1);
@@ -265,9 +265,10 @@
   cursor: pointer;
   letter-spacing: 0.3px;
   transition: all var(--transition-base);
+  padding: 0;
 }
 
-.btn-start-template:hover {
+.template-card-mini .btn-start-template:hover {
   background: rgba(245, 197, 24, 0.18);
 }
 
