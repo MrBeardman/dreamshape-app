@@ -5,8 +5,8 @@
 
 .profile-view {
   padding: 0 16px;
-  padding-top: 20px;
-  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 20px);
+  padding-top: var(--view-padding-top);
+  padding-bottom: var(--view-padding-bottom);
   background: var(--bg-primary);
   min-height: 100dvh;
 }

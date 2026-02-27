@@ -98,8 +98,6 @@ function App() {
 
   const {
     elapsedTime,
-    restTimer,
-    setRestTimer,
     restDuration,
     setRestDuration,
     activeRestTimer,
@@ -484,12 +482,11 @@ function App() {
   const setExerciseRestDuration = (exerciseIndex: number, duration: number) => {
     if (!activeWorkout) return
 
-    const updatedExercises = [...activeWorkout.exercises]
-    updatedExercises[exerciseIndex].restDuration = duration
-
     setActiveWorkout({
       ...activeWorkout,
-      exercises: updatedExercises
+      exercises: activeWorkout.exercises.map((ex, idx) =>
+        idx !== exerciseIndex ? ex : { ...ex, restDuration: duration }
+      )
     })
   }
 
@@ -884,7 +881,6 @@ function App() {
                   <WorkoutView
                     activeWorkout={activeWorkout}
                     elapsedTime={elapsedTime}
-                    restTimer={restTimer}
                     restDuration={restDuration}
                     activeRestTimer={activeRestTimer}
                     workoutLogs={workoutLogs}
@@ -897,7 +893,6 @@ function App() {
                     onRemoveSet={removeSet}
                     onSetRestDuration={setRestDuration}
                     onSetExerciseRestDuration={setExerciseRestDuration}
-                    onSkipRest={() => setRestTimer(null)}
                     onSkipInlineRest={() => setActiveRestTimer(null)}
                     onAddExercise={addExerciseToWorkout}
                     onRemoveExercise={removeExerciseFromWorkout}

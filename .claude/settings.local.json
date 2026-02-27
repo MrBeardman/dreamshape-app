@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"C:\\\\Users\\\\honza\\\\Downloads\\\\dreamshape\" && npx tsc --noEmit 2>&1)",
+      "Bash(cd C:\\\\Users\\\\honza\\\\Downloads\\\\dreamshape:*)",
+      "Bash(cd \"C:\\\\Users\\\\honza\\\\Downloads\\\\dreamshape\" && git push origin main 2>&1)",
+      "Bash(cd:*)",
+      "Bash(cd /c/Users/honza/Downloads/dreamshape && git filter-repo --path README.md --invert-paths --force 2>&1)",
+      "Bash(cd /c/Users/honza/Downloads/dreamshape && git push origin main --force-with-lease 2>&1)",
+      "Bash(cd /c/Users/honza/Downloads/dreamshape && git push origin main --force 2>&1)",
+      "Bash(cd /c/Users/honza/Downloads/dreamshape && npm run build 2>&1)",
+      "Bash(npx claude-code-templates@latest:*)",
+      "Bash(npm run:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(grep:*)",
+      "Bash(npx tsc:*)"
+    ]
+  }
+}

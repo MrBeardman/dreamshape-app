@@ -25,7 +25,6 @@ interface ExerciseDbEntry {
 interface WorkoutViewProps {
   activeWorkout: ActiveWorkout
   elapsedTime: number
-  restTimer: number | null
   restDuration: number
   activeRestTimer: { exerciseIndex: number; afterSetIndex: number; timeRemaining: number } | null
   workoutLogs: WorkoutLog[]
@@ -38,7 +37,6 @@ interface WorkoutViewProps {
   onRemoveSet: (exerciseIndex: number, setIndex: number) => void
   onSetRestDuration: (duration: number) => void
   onSetExerciseRestDuration: (exerciseIndex: number, duration: number) => void
-  onSkipRest: () => void
   onSkipInlineRest: () => void
   onAddExercise: (name: string, muscleGroup: string, equipment: string) => void
   onRemoveExercise: (exerciseIndex: number) => void
@@ -51,7 +49,6 @@ interface WorkoutViewProps {
 export default function WorkoutView({
   activeWorkout,
   elapsedTime,
-  restTimer,
   restDuration,
   activeRestTimer,
   workoutLogs,
@@ -64,7 +61,6 @@ export default function WorkoutView({
   onRemoveSet,
   onSetRestDuration,
   onSetExerciseRestDuration,
-  onSkipRest,
   onSkipInlineRest,
   onAddExercise,
   onRemoveExercise,
@@ -239,21 +235,6 @@ export default function WorkoutView({
         </select>
       </div>
 
-      {/* Rest Timer Overlay */}
-      {restTimer !== null && restTimer > 0 && (
-        <div className="rest-timer-overlay">
-          <div className="rest-timer-content">
-            <span className="rest-label">Rest Time</span>
-            <span className="rest-time">{formatRestTime(restTimer)}</span>
-            <button 
-              className="skip-rest-btn"
-              onClick={onSkipRest}
-            >
-              Skip Rest
-            </button>
-          </div>
-        </div>
-      )}
 
       <DndContext
         sensors={sensors}

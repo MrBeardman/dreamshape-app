@@ -5,7 +5,7 @@
 .edit-template-view,
 .create-view {
   padding: 0 16px;
-  padding-top: 20px;
+  padding-top: var(--view-padding-top);
   padding-bottom: 80px;
   background: var(--bg-primary);
   min-height: 100dvh;
