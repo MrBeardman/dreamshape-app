@@ -15,8 +15,8 @@
 
 .desktop-content {
   width: 100%;
-  min-height: 100vh;
-  background: var(--bg-secondary);
+  min-height: 100dvh;
+  background: var(--bg-primary);
 }
 
 /* Desktop Layout Container */

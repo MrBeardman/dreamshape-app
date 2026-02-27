@@ -4,11 +4,11 @@
    ========================================== */
 
 .auth-view {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   padding: 2rem 1rem;
 }
 

@@ -154,6 +154,7 @@ export default function ExerciseCard({
         <span className="kg-col">kg</span>
         <span className="reps-col">Reps</span>
         <span className="check-col">✓</span>
+        <span></span>{/* spacer — aligns with remove-set-btn column */}
       </div>
 
       {exercise.sets.map((set, setIndex) => {
