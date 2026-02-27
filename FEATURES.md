@@ -1,139 +1,109 @@
 # DreamShape — Implementation Roadmap
 
-Ordered by priority. Items marked ✅ are done.
+Ordered by priority. Items marked ✅ are shipped.
 
 ---
 
-## #1 — Workout Session Persistence *(~1h)*
-**Why first**: Actively loses user data when iPhone locks mid-workout. All other improvements are pointless if the workout disappears.
-
-- Lazy-init `activeWorkout` and `originalTemplateExercises` from localStorage
-- `useEffect` to write both to localStorage on every state change
-- Clear both keys when workout finishes or is cancelled
-- Optional: "Resume [Push Day] from 23 min ago?" prompt on reopen
+## ✅ #1 — Workout Session Persistence
+- Lazy-init `activeWorkout` + `originalTemplateExercises` from localStorage
+- `useEffect` persists both on every change; cleared on finish/cancel
 - **Files**: `App.tsx`
 
 ---
 
-## #2 — Rest Timer Persistence *(~30min)*
-**Why second**: Same problem — timer state lives only in memory. Also persist the default rest duration setting.
-
-- Store `endsAt = Date.now() + timeRemaining * 1000` (not `timeRemaining` — stale by the time app reopens)
-- On restore: `timeRemaining = Math.round((endsAt - Date.now()) / 1000)` — naturally handles however long the app was closed
-- Lazy-init `activeRestTimer` and `restDuration` from localStorage
-- `useEffect` to sync both on change, `removeItem` when timer is null or finished
+## ✅ #2 — Rest Timer Persistence
+- Stores `endsAt = Date.now() + timeRemaining * 1000` (not raw `timeRemaining`)
+- On restore: `Math.round((endsAt - Date.now()) / 1000)` — accurate after any gap
+- `restDuration` also persisted to `dreamshape_rest_duration`
 - **Files**: `src/hooks/useWorkoutTimer.ts`
 
 ---
 
-## #3 — Lock Screen "Now Playing" Card *(~3h)* ⛔ SKIPPED
-> **Conflict with music apps**: iOS has one "Now Playing" slot. Playing silent audio to claim the MediaSession widget would override Spotify/Apple Music on the lock screen and kill the playback controls. Since music during workouts is essentially universal, this is a bad trade-off. The only real fix is a native iOS app (Live Activities). Skipping until then.
-
-~~## #3 — Lock Screen "Now Playing" Card *(~3h)*~~
-**Why third**: At the gym, your phone is in your pocket or on a rack. You want to glance at the lock screen and see current exercise + weight without unlocking. The media controls let you complete a set or skip rest without opening the app.
-
-**How it works**: Playing a near-silent audio loop keeps the iOS "Now Playing" widget alive on the lock screen. `MediaSession` API controls what it displays and remaps the playback buttons.
-
-**Lock screen shows**:
-```
-🏋️ DreamShape
-┌─────────────────────────────────┐
-│  Bench Press — Set 3            │
-│  100 kg × 8 reps                │
-│  Push Day                       │
-│  [⏮ back]  [⏸ complete]  [⏭ skip rest] │
-└─────────────────────────────────┘
-```
-
-- Add `public/silence.mp3` — tiny near-silent loop (~1KB)
-- New hook `src/hooks/useMediaSession.ts` — manages audio element + MediaSession metadata
-- Update metadata whenever active exercise or set changes
-- Remap controls: pause/play → complete current set, next → skip rest
-- Stop audio + clear session on workout finish
-- **Files**: `src/hooks/useMediaSession.ts` (new), `App.tsx`, `public/silence.mp3` (new)
+## ⛔ #3 — Lock Screen "Now Playing" Card — SKIPPED
+> iOS has one "Now Playing" slot. Claiming it with silent audio would override Spotify/Apple Music during workouts. Native Live Activities (ActivityKit) is the real fix — not available to PWAs.
 
 ---
 
-## #4 — Rest Timer Push Notification *(~3h with OneSignal, ~7h DIY)*
-**Why fourth**: When screen is locked, JS is suspended — the rest timer cannot fire a notification itself. Needs a server to push it. Reliable "ding" when rest is over even with phone locked.
-
-- Register for push notifications on first workout start
-- When rest timer starts → call backend with `{ delay, message, pushSubscription }`
-- Backend sleeps N seconds → sends Web Push notification to iOS
-- Notification has action buttons: "Complete Set" / "Skip Rest" → app handles via SW message
-- **Option A (recommended)**: OneSignal free tier — 2–3h, no VAPID key management
-- **Option B**: Supabase Edge Function + VAPID keys — 6–7h, fully self-hosted
-- **Files**: `public/sw.js`, `App.tsx`, `src/hooks/useWorkoutTimer.ts`, `src/hooks/usePushNotifications.ts` (new)
-
-> **iOS note**: Live Activities / Dynamic Island and lock screen widgets are native-only (ActivityKit/WidgetKit). Not available to any web app. The MediaSession card above is the closest equivalent available to PWAs.
+## ✅ #4 — Rest Timer Push Notification
+- `src/lib/notifications.ts` — `requestNotificationPermission`, `scheduleRestNotification`, `cancelRestNotification`
+- `public/sw.js` — handles `SCHEDULE_NOTIFICATION` / `CANCEL_NOTIFICATION` messages via `setTimeout` + `event.waitUntil`
+- Works when app is backgrounded; for fully locked screen, server-side push (OneSignal / Supabase Edge Function) is the upgrade path
+- **Files**: `src/lib/notifications.ts` (new), `public/sw.js`, `App.tsx`
 
 ---
 
-## #5 — Set Pre-fill Suggestions *(~1–2h)*
-Show a hint below weight/reps inputs when the current value is 0 and historical data exists: *"Last session: 80 kg × 8"*
-
-- `getLastExerciseData` already exists in App.tsx
-- Pass `lastWorkoutSets` prop through `WorkoutView` → `ExerciseCard`
-- Display ghost suggestion below the input row when `set.weight === 0`
-- **Files**: `ExerciseCard.tsx`, `WorkoutView.tsx`, `App.tsx`
+## ✅ #5 — Set Pre-fill Suggestions
+- `getLastWorkoutSets(exerciseName)` helper in `WorkoutView.tsx` scans `workoutLogs`
+- Passed as `lastWorkoutSets` prop into `ExerciseCard`
+- Weight/reps inputs show last-session values as `placeholder`
+- Hint line above sets: `Last: 80×8 · 80×8 · 85×6`
+- **Files**: `ExerciseCard.tsx`, `WorkoutView.tsx`
 
 ---
 
-## #6 — Dashboard Graphs Redesign *(~4h)*
-The current charts have two problems: confusing X-axis labels (`-7`, `-6`, ..., `This`), and the frequency bar chart + heatmap are redundant. Replace with one better view.
-
-**6a. Fix volume trend X-axis** — show real dates: `"Jan 20"`, `"Jan 27"`, etc. One-line change in `DashboardView.tsx`.
-
-**6b. Clickable weekly calendar** — replace the frequency BarChart + heatmap with a 12-week grid of day squares. Active days are highlighted. Tapping a day shows a bottom sheet: workout name, duration, volume. Removes two charts, adds one better one.
-
-- Enrich `heatmapData` to include `{ date, workoutId, workoutName, duration }` per day
-- Add `selectedDay` state, bottom sheet component
-- Remove `frequencyData` useMemo and BarChart
+## ✅ #6 — Dashboard Calendar + Charts Redesign
+- Replaced redundant BarChart + old heatmap with one 12-week clickable calendar
+- Calendar cells show a today-ring; tapping an active day shows workout detail card
+- All 7 day labels (Mon–Sun) on Y-axis
+- Volume Trend X-axis fixed to real dates
 - **Files**: `DashboardView.tsx`, `src/styles/components/dashboard.css`
 
 ---
 
-## #7 — Exercise History / Progressive Overload Chart *(~5h)*
-Tap an info button on any exercise (in the library or during a workout) to see a chart of your progress over time: max weight per session, total volume per session.
-
-- New helper `src/lib/exerciseStats.ts` — `getExerciseHistory(workoutLogs, exerciseName)`
-- New component `src/components/ExerciseProgressSheet.tsx` — bottom sheet with Recharts LineChart
-- Shows: best PR badge, toggleable max weight / total volume lines, recent sessions table
-- Trigger: `ⓘ` button on library exercise rows + three-dot menu on ExerciseCard
-- **Files**: `src/lib/exerciseStats.ts` (new), `src/components/ExerciseProgressSheet.tsx` (new), `LibraryView.tsx`, `ExerciseCard.tsx`, `App.tsx`
+## ✅ #7 — Exercise History / Progressive Overload Chart
+- `src/lib/exerciseStats.ts` — `getExerciseHistory(workoutLogs, exerciseName)`
+- `src/components/ExerciseProgressSheet.tsx` — bottom sheet, Recharts LineChart, max weight / volume toggle, last 8 sessions list
+- Accessible from: 📈 in LibraryView, ⋮ menu in ExerciseCard during workout
+- **Files**: `src/lib/exerciseStats.ts` (new), `src/components/ExerciseProgressSheet.tsx` (new), `LibraryView.tsx`, `ExerciseCard.tsx`, `App.tsx`, `src/styles/components/progress-sheet.css` (new)
 
 ---
 
-## #8 — Profile Goals Redesign *(~4h)*
-Replace the three abstract % wheels (Consistency, Weekly Goal, Volume) with data that's actually motivating: recent PRs, strength trends, volume vs last week.
-
-- Keep weekly goal wheel (useful), shrink and add PR list next to it
-- `getRecentPRs()` — scan last 30 days for any set exceeding previous lifetime max
-- `getStrengthTrend()` — for top 3 most frequent exercises, compare max weight this month vs last
-- Volume delta: "This week: 12.4t (+18% vs last week)"
+## ✅ #8 — Profile Goals Redesign
+- Weekly goal wheel + volume delta card (this week vs last week %)
+- `getRecentPRs()` — scans last 30 days for sets exceeding lifetime max before that window
+- `getStrengthTrend()` — top 3 most frequent exercises, this month vs last month max weight
 - **Files**: `ProfileView.tsx`, `src/styles/components/profile.css`
 
 ---
 
-## #9 — Add Custom Exercise While Mid-Workout *(~3h)*
-
-**Option A (build now)**: When the workout's exercise search finds no match, show a `+ Create "[name]"` inline form — pick muscle group + equipment, then it's added to the library AND immediately to the workout. No navigation needed.
-
-**Option B (future)**: Minimized workout overlay — a persistent floating banner at the bottom of the screen showing timer + exercise count. Lets you browse any view (library, history) while the workout runs, then tap to return. Bigger architectural change to App.tsx's view rendering.
-
-- **Files**: `WorkoutView.tsx`, `App.tsx` (Option A only for now)
+## ✅ #9 — Create Exercise Mid-Workout
+- Exercise search shows `+ Create "[name]"` when no library match exists
+- Inline form (muscle group + equipment dropdowns) saves to library AND adds to workout
+- **Files**: `WorkoutView.tsx`, `App.tsx`
 
 ---
 
-## #10 — PR Celebration *(~1h)*
-When you complete a set that beats your personal record, briefly flash "🏆 New PR!" on that set row. `pr` prop already flows into ExerciseCard. Just compare `set.weight > pr` when toggling complete.
-
-- **Files**: `ExerciseCard.tsx`
+## ✅ #10 — PR Flash Celebration
+- When completing a set where `set.weight > pr` (all-time PR), flashes "🏆 New PR!" for 2.5s
+- `prFlashSetId` state + `handleToggleSet` wrapper in ExerciseCard
+- **Files**: `ExerciseCard.tsx`, `src/styles/components/workout.css`
 
 ---
 
-## Bonus Ideas (later)
-- **Muscle group coverage widget** on dashboard — color-coded grid showing which muscles were hit this week (green/yellow/red based on days since last trained)
+## ✅ #11 — Volume Trend: Week / Month / Year Toggle
+- **Week**: 7 daily bars, "Mon" / "Tue" labels
+- **Month**: 8 weekly bars, "Feb W2" style labels (tilted 40° to prevent overlap)
+- **Year**: 12 monthly bars, "Jan '26" marks year boundaries
+- Dynamic subtitle + XAxis config per period
+- **Files**: `DashboardView.tsx`, `src/styles/components/dashboard.css`
+
+---
+
+## ✅ #12 — Workout Calendar: Week / Month / Year Toggle
+- **Week**: 7 large day cells (day name + date number + yellow dot if worked out)
+- **Month**: Standard Mon-based calendar grid for current month, numbered day cells
+- **Year**: Original 12-week heatmap (unchanged)
+- All three views share the same tap-to-expand workout detail card
+- Switching period clears any active selection
+- **Files**: `DashboardView.tsx`, `src/styles/components/dashboard.css`
+
+---
+
+## Bonus Ideas (next up)
+- **Muscle group coverage widget** — color-coded grid on dashboard, green/yellow/red by days since last trained each group
 - **Workout duration estimate** on template cards — "~48 min avg" based on past logs
 - **Swipe to delete** on workout history rows
 - **Body measurement tracking** — weight, body fat %, measurements over time
+- **Minimized workout overlay** — floating banner while browsing other views mid-workout (Option B from #9)
+- **Server-side push notifications** — upgrade #4 so rest timer fires even on fully locked screen (OneSignal free tier recommended)
+- **Resume prompt** — "Resume Push Day from 23 min ago?" on reopen if `activeWorkout` found in localStorage
