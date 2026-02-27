@@ -25,6 +25,8 @@ import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 const STORAGE_KEY = 'dreamshape_templates'
 const WORKOUTS_KEY = 'dreamshape_workouts'
 const EXERCISES_KEY = 'dreamshape_exercises'
+const ACTIVE_WORKOUT_KEY = 'dreamshape_active_workout'
+const ORIGINAL_EXERCISES_KEY = 'dreamshape_original_exercises'
 
 function App() {
   // Load templates from localStorage
@@ -91,10 +93,18 @@ function App() {
   const [currentView, setCurrentView] = useState<'dashboard' | 'progress' | 'start' | 'library' | 'profile'>('dashboard')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
 
-  // Workout logging state
-  const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(null)
+  // Workout logging state — lazy-initialized from localStorage so iOS app kills don't lose the session
+  const [activeWorkout, setActiveWorkout] = useState<ActiveWorkout | null>(() => {
+    const saved = localStorage.getItem(ACTIVE_WORKOUT_KEY)
+    if (!saved) return null
+    try { return JSON.parse(saved) } catch { return null }
+  })
   const [showFinishModal, setShowFinishModal] = useState(false)
-  const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>([])
+  const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>(() => {
+    const saved = localStorage.getItem(ORIGINAL_EXERCISES_KEY)
+    if (!saved) return []
+    try { return JSON.parse(saved) } catch { return [] }
+  })
 
   const {
     elapsedTime,
@@ -104,6 +114,22 @@ function App() {
     setActiveRestTimer,
   } = useWorkoutTimer(activeWorkout?.startTime ?? null)
 
+  // Persist active workout — survives iOS killing the PWA when screen locks
+  useEffect(() => {
+    if (activeWorkout) {
+      localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(activeWorkout))
+    } else {
+      localStorage.removeItem(ACTIVE_WORKOUT_KEY)
+    }
+  }, [activeWorkout])
+
+  useEffect(() => {
+    if (originalTemplateExercises.length > 0) {
+      localStorage.setItem(ORIGINAL_EXERCISES_KEY, JSON.stringify(originalTemplateExercises))
+    } else {
+      localStorage.removeItem(ORIGINAL_EXERCISES_KEY)
+    }
+  }, [originalTemplateExercises])
 
   const { confirm: showConfirm, confirmDialogProps } = useConfirm()
 
