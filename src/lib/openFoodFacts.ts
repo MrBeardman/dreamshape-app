@@ -171,7 +171,6 @@ export async function searchFoods(query: string): Promise<OFFProduct[]> {
       `?search_terms=${encodeURIComponent(query)}` +
       `&page_size=25` +
       `&fields=product_name,brands,nutriments,code,${EXTRA_FIELDS}` +
-      `&sort_by=unique_scans_n` +
       locale
     console.log('[OFF] search:', url)
     const resp = await fetch(url, { signal: controller.signal })
