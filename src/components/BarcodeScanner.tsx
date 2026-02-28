@@ -19,7 +19,7 @@ export default function BarcodeScanner({ onDetect, onClose }: BarcodeScannerProp
         const controls = await reader.decodeFromVideoDevice(
           undefined,
           videoRef.current!,
-          (result, err) => {
+          (result: { getText(): string } | null, err: { name: string } | null) => {
             if (result && !detectedRef.current) {
               detectedRef.current = true
               controls.stop()
