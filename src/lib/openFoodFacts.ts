@@ -120,7 +120,10 @@ const EXTRA_FIELDS = 'serving_size,serving_quantity,product_quantity'
 
 export async function lookupBarcode(barcode: string): Promise<OFFProduct | null> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 8000)
+  const timeout = setTimeout(() => {
+    console.warn('[OFF] request timed out after 15s')
+    controller.abort()
+  }, 15000)
   try {
     const locale = getLocaleParams()
     const url = `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,brands,nutriments,code,${EXTRA_FIELDS}${locale}`
@@ -148,7 +151,7 @@ export async function lookupBarcode(barcode: string): Promise<OFFProduct | null>
       p.product_quantity,
     )
   } catch (err) {
-    console.error('[OFF] barcode error:', err)
+    if ((err as Error)?.name !== 'AbortError') console.error('[OFF] barcode error:', err)
     return null
   } finally {
     clearTimeout(timeout)
@@ -157,7 +160,10 @@ export async function lookupBarcode(barcode: string): Promise<OFFProduct | null>
 
 export async function searchFoods(query: string): Promise<OFFProduct[]> {
   const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), 8000)
+  const timeout = setTimeout(() => {
+    console.warn('[OFF] request timed out after 15s')
+    controller.abort()
+  }, 15000)
   try {
     const locale = getLocaleParams()
     const url =
@@ -194,7 +200,7 @@ export async function searchFoods(query: string): Promise<OFFProduct[]> {
     console.log('[OFF] filtered products:', mapped.length)
     return mapped
   } catch (err) {
-    console.error('[OFF] search error:', err)
+    if ((err as Error)?.name !== 'AbortError') console.error('[OFF] search error:', err)
     return []
   } finally {
     clearTimeout(timeout)

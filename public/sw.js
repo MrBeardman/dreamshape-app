@@ -1,5 +1,5 @@
 // DreamShape Service Worker
-const CACHE_NAME = 'dreamshape-v2' // Bumped version to force update;
+const CACHE_NAME = 'dreamshape-v3' // v3: skip cross-origin fetches so external APIs work correctly
 const urlsToCache = [
   '/',
   '/index.html'
@@ -26,8 +26,14 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Fetch strategy: Network first, fall back to cache
+// Fetch strategy: Network first, fall back to cache (same-origin only)
 self.addEventListener('fetch', (event) => {
+  // Skip cross-origin requests entirely — let the browser handle them natively.
+  // This is critical: intercepting external API calls (e.g. Open Food Facts) strips
+  // the page's AbortController signal, causing fetches to hang until the timeout fires.
+  const url = new URL(event.request.url)
+  if (url.origin !== self.location.origin) return
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
