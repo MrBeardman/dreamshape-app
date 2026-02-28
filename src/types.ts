@@ -77,6 +77,7 @@ export interface FoodItem {
   fatPer100g: number
   sugarPer100g: number
   isCustom: boolean
+  unit?: 'g' | 'ml'
   portions?: FoodPortion[]
 }
 

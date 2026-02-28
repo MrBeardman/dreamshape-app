@@ -37,6 +37,25 @@ function calcMacros(food: FoodItem, grams: number) {
 }
 
 function offToFoodItem(p: OFFProduct): FoodItem {
+  const unit = p.unit ?? 'g'
+  const portions: FoodPortion[] = []
+
+  // Full package chip — e.g. "Full can 330ml", "Full package 500g"
+  // Skip if it's basically 100 (the reference amount, uninteresting as a chip)
+  if (p.packageQuantity && p.packageQuantity >= 1 && Math.abs(p.packageQuantity - 100) > 5) {
+    portions.push({ name: 'Full package', grams: p.packageQuantity })
+  }
+
+  // Serving chip — e.g. "1 serving 250ml", "1 slice 30g"
+  if (p.servingQuantity && p.servingQuantity >= 1 && Math.abs(p.servingQuantity - 100) > 5) {
+    // Skip if it's the same as the package (avoid duplicate chips)
+    const sameAsPackage = p.packageQuantity && Math.abs(p.servingQuantity - p.packageQuantity) <= 5
+    if (!sameAsPackage) {
+      const name = p.servingName && p.servingName !== '1 serving' ? p.servingName : '1 serving'
+      portions.push({ name, grams: p.servingQuantity })
+    }
+  }
+
   return {
     id: crypto.randomUUID(),
     name: p.name,
@@ -48,6 +67,8 @@ function offToFoodItem(p: OFFProduct): FoodItem {
     fatPer100g: p.fatPer100g,
     sugarPer100g: p.sugarPer100g,
     isCustom: false,
+    unit,
+    portions: portions.length > 0 ? portions : undefined,
   }
 }
 
@@ -116,7 +137,14 @@ export default function FoodSearchSheet({
 
   const handleSelectFood = (food: FoodItem) => {
     setSelectedFood(food)
-    setGrams('100')
+    // Smart default: first portion chip → liquid default 250 → 100g
+    if (food.portions && food.portions.length > 0) {
+      setGrams(String(food.portions[0].grams))
+    } else if (food.unit === 'ml') {
+      setGrams('250')
+    } else {
+      setGrams('100')
+    }
   }
 
   const handleBarcodeDetect = async (barcode: string) => {
@@ -218,7 +246,7 @@ export default function FoodSearchSheet({
                 <div className="food-selected-brand">{selectedFood.brand}</div>
               )}
               <div className="food-per100g">
-                Per 100g: {selectedFood.caloriesPer100g} kcal · P {selectedFood.proteinPer100g}g · C {selectedFood.carbsPer100g}g · F {selectedFood.fatPer100g}g
+                Per 100{selectedFood.unit === 'ml' ? 'ml' : 'g'}: {selectedFood.caloriesPer100g} kcal · P {selectedFood.proteinPer100g}g · C {selectedFood.carbsPer100g}g · F {selectedFood.fatPer100g}g
               </div>
             </div>
 
@@ -234,7 +262,7 @@ export default function FoodSearchSheet({
                       onClick={() => setGrams(String(p.grams))}
                     >
                       {p.name}
-                      <span className="portion-chip-grams">{p.grams}g</span>
+                      <span className="portion-chip-grams">{p.grams}{selectedFood.unit === 'ml' ? 'ml' : 'g'}</span>
                     </button>
                   ))}
                 </div>
@@ -252,7 +280,7 @@ export default function FoodSearchSheet({
                   onChange={e => setGrams(e.target.value)}
                   autoFocus
                 />
-                <span style={{ fontSize: 'var(--text-base)', color: 'var(--text-tertiary)', flexShrink: 0 }}>g</span>
+                <span style={{ fontSize: 'var(--text-base)', color: 'var(--text-tertiary)', flexShrink: 0 }}>{selectedFood.unit === 'ml' ? 'ml' : 'g'}</span>
               </div>
             </div>
 
@@ -348,7 +376,7 @@ export default function FoodSearchSheet({
                           <div className="food-result-name">{food.name}</div>
                           {food.brand && <div className="food-result-brand">{food.brand}</div>}
                           <div className="food-result-macros">
-                            {food.caloriesPer100g} kcal · P {food.proteinPer100g}g · C {food.carbsPer100g}g · F {food.fatPer100g}g (per 100g)
+                            {food.caloriesPer100g} kcal · P {food.proteinPer100g}g · C {food.carbsPer100g}g · F {food.fatPer100g}g (per 100{food.unit === 'ml' ? 'ml' : 'g'})
                           </div>
                         </button>
                       ))}
@@ -369,7 +397,7 @@ export default function FoodSearchSheet({
                       <div className="food-result-name">{p.name}</div>
                       {p.brand && <div className="food-result-brand">{p.brand}</div>}
                       <div className="food-result-macros">
-                        {p.caloriesPer100g} kcal · P {p.proteinPer100g}g · C {p.carbsPer100g}g · F {p.fatPer100g}g (per 100g)
+                        {p.caloriesPer100g} kcal · P {p.proteinPer100g}g · C {p.carbsPer100g}g · F {p.fatPer100g}g (per 100{p.unit === 'ml' ? 'ml' : 'g'})
                       </div>
                     </button>
                   ))}
@@ -492,7 +520,7 @@ export default function FoodSearchSheet({
                         <button className="my-food-select" onClick={() => handleSelectFood(food)}>
                           <div className="food-result-name">{food.name}</div>
                           <div className="food-result-macros">
-                            {food.caloriesPer100g} kcal · P {food.proteinPer100g}g · C {food.carbsPer100g}g · F {food.fatPer100g}g (per 100g)
+                            {food.caloriesPer100g} kcal · P {food.proteinPer100g}g · C {food.carbsPer100g}g · F {food.fatPer100g}g (per 100{food.unit === 'ml' ? 'ml' : 'g'})
                           </div>
                           {food.portions && food.portions.length > 0 && (
                             <div className="food-result-portions">
