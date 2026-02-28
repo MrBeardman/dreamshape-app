@@ -1,7 +1,8 @@
-import type { WorkoutTemplate } from '../types'
+import type { WorkoutTemplate, WorkoutLog } from '../types'
 
 interface TemplatesViewProps {
   templates: WorkoutTemplate[]
+  workoutLogs: WorkoutLog[]
   onCreateTemplate: () => void
   onEditTemplate: (template: WorkoutTemplate) => void
   onDeleteTemplate: (id: string) => void
@@ -10,11 +11,17 @@ interface TemplatesViewProps {
 
 export default function TemplatesView({
   templates,
+  workoutLogs,
   onCreateTemplate,
   onEditTemplate,
   onDeleteTemplate,
   onStartWorkout
 }: TemplatesViewProps) {
+  const getAvgDuration = (templateName: string): number | null => {
+    const logs = workoutLogs.filter(w => w.templateName === templateName && w.duration > 60)
+    if (logs.length === 0) return null
+    return Math.round(logs.reduce((sum, w) => sum + w.duration, 0) / logs.length / 60)
+  }
   return (
     <div className="main-view">
       <div className="quick-start">
@@ -35,6 +42,9 @@ export default function TemplatesView({
                 <h3>{template.name}</h3>
                 <p className="exercise-count">
                   {template.exercises.length} exercise{template.exercises.length !== 1 ? 's' : ''}
+                  {getAvgDuration(template.name) !== null && (
+                    <span className="template-avg-duration"> · ~{getAvgDuration(template.name)} min</span>
+                  )}
                 </p>
               </div>
               <button 

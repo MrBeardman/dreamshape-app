@@ -96,6 +96,11 @@
   margin-bottom: 12px;
 }
 
+.template-avg-duration {
+  color: var(--primary);
+  font-weight: var(--font-semibold);
+}
+
 .exercise-preview {
   display: flex;
   flex-wrap: wrap;

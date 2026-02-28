@@ -152,21 +152,50 @@
   margin-bottom: 10px;
 }
 
+/* ===== SWIPEABLE CARD WRAPPER ===== */
+.swipeable-card-wrap {
+  position: relative;
+  margin-bottom: 10px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.swipe-delete-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  background: var(--error);
+  border-radius: var(--radius-lg);
+}
+
+.swipe-delete-btn {
+  width: 80px;
+  height: 100%;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+}
+
 /* ===== WORKOUT CARD ===== */
 .workout-card {
   position: relative;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  margin-bottom: 10px;
   cursor: pointer;
-  transition: border-color var(--transition-base), transform var(--transition-base);
+  transition: border-color var(--transition-base);
   overflow: hidden;
+  /* margin-bottom now on .swipeable-card-wrap */
 }
 
 .workout-card:hover {
   border-color: var(--border-hover);
-  transform: translateY(-1px);
 }
 
 /* Timeline dot */

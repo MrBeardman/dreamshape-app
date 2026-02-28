@@ -290,19 +290,25 @@ export default function DashboardView({
           </div>
           
           <div className="templates-scroll">
-            {templates.map(template => (
-              <div 
-                key={template.id} 
-                className="template-card-mini"
-                onClick={() => onStartWorkout(template)}
-              >
-                <div className="template-card-name">{template.name}</div>
-                <div className="template-card-exercises">
-                  {template.exercises.length} exercises
+            {templates.map(template => {
+              const logs = workoutLogs.filter(w => w.templateName === template.name && w.duration > 60)
+              const avgMin = logs.length > 0
+                ? Math.round(logs.reduce((s, w) => s + w.duration, 0) / logs.length / 60)
+                : null
+              return (
+                <div
+                  key={template.id}
+                  className="template-card-mini"
+                  onClick={() => onStartWorkout(template)}
+                >
+                  <div className="template-card-name">{template.name}</div>
+                  <div className="template-card-exercises">
+                    {template.exercises.length} exercises{avgMin !== null && ` · ~${avgMin} min`}
+                  </div>
+                  <button className="btn-start-template">START →</button>
                 </div>
-                <button className="btn-start-template">START →</button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}

@@ -102,6 +102,7 @@ function App() {
     try { return JSON.parse(saved) } catch { return null }
   })
   const [showFinishModal, setShowFinishModal] = useState(false)
+  const [showResumePrompt, setShowResumePrompt] = useState(false)
   const [exerciseHistoryTarget, setExerciseHistoryTarget] = useState<string | null>(null)
   const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>(() => {
     const saved = localStorage.getItem(ORIGINAL_EXERCISES_KEY)
@@ -281,6 +282,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile))
   }, [userProfile])
+
+  // Show resume prompt once on auth completion if a workout was already in localStorage
+  useEffect(() => {
+    if (!authLoading && user && activeWorkout) {
+      setShowResumePrompt(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading])
 
   // Timer logic is managed by useWorkoutTimer hook
 
@@ -948,7 +957,7 @@ function App() {
                 <SyncIndicator isSyncing={isSyncing} lastSyncTime={lastSyncTime} />
               )}
 
-              {activeWorkout ? (
+              {activeWorkout && !showResumePrompt ? (
                 <>
                   <WorkoutView
                     activeWorkout={activeWorkout}
@@ -1027,12 +1036,14 @@ function App() {
                       workoutLogs={workoutLogs}
                       onStartWorkout={startEmptyWorkout}
                       onSelectWorkout={setSelectedWorkout}
+                      onDeleteWorkout={deleteWorkout}
                     />
                   )}
 
                   {currentView === 'start' && (
                     <TemplatesView
                       templates={templates}
+                      workoutLogs={workoutLogs}
                       onCreateTemplate={() => {
                         setSelectedTemplate(null)
                         setIsCreating(true)
@@ -1092,6 +1103,33 @@ function App() {
         </>
       )}
     </div>
+    {showResumePrompt && activeWorkout && (
+      <div className="confirm-dialog-overlay" style={{ zIndex: 400 }}>
+        <div className="confirm-dialog">
+          <h3 className="confirm-title">Resume workout?</h3>
+          <p className="confirm-message">
+            <strong>{activeWorkout.templateName}</strong> was started{' '}
+            {Math.round((Date.now() - activeWorkout.startTime) / 60000)} min ago.
+          </p>
+          <div className="confirm-actions">
+            <button
+              className="btn btn-secondary"
+              style={{ flex: 1 }}
+              onClick={() => { setActiveWorkout(null); setOriginalTemplateExercises([]); setShowResumePrompt(false) }}
+            >
+              Discard
+            </button>
+            <button
+              className="btn btn-primary"
+              style={{ flex: 1 }}
+              onClick={() => setShowResumePrompt(false)}
+            >
+              Resume
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
     {exerciseHistoryTarget && (
       <ExerciseProgressSheet
