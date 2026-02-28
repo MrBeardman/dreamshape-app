@@ -1,6 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import type { ExerciseLog } from '../types'
 
 interface ExerciseCardProps {
@@ -24,6 +22,10 @@ interface ExerciseCardProps {
   onSwitchExercise?: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
   onCreateAndSwitchExercise?: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
   onViewExerciseHistory?: (exerciseName: string) => void
+  isFirst?: boolean
+  isLast?: boolean
+  onMoveUp?: () => void
+  onMoveDown?: () => void
 }
 
 export default function ExerciseCard({
@@ -47,6 +49,10 @@ export default function ExerciseCard({
   onSwitchExercise,
   onCreateAndSwitchExercise,
   onViewExerciseHistory,
+  isFirst,
+  isLast,
+  onMoveUp,
+  onMoveDown,
 }: ExerciseCardProps) {
   const [showNotesMenu, setShowNotesMenu] = useState(false)
   const [isEditingNotes, setIsEditingNotes] = useState(false)
@@ -119,15 +125,6 @@ export default function ExerciseCard({
     setSwitchNewEquip('Barbell')
   }
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: exercise.exerciseId })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
   const handleSaveNotes = () => {
     onSetExerciseNotes(exerciseIndex, notesText)
     setIsEditingNotes(false)
@@ -144,13 +141,7 @@ export default function ExerciseCard({
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`workout-exercise ${isDragging ? 'dragging' : ''}`}
-    >
+    <div className="workout-exercise">
       <div className="exercise-header">
         <div className="exercise-header-left">
           <select
@@ -193,6 +184,24 @@ export default function ExerciseCard({
                     onClick={(e) => { e.stopPropagation(); setShowSwitchPanel(true); setShowNotesMenu(false) }}
                   >
                     Switch exercise
+                  </button>
+                )}
+                {onMoveUp && (
+                  <button
+                    className="menu-item"
+                    disabled={isFirst}
+                    onClick={(e) => { e.stopPropagation(); if (!isFirst) { onMoveUp(); setShowNotesMenu(false) } }}
+                  >
+                    Move up
+                  </button>
+                )}
+                {onMoveDown && (
+                  <button
+                    className="menu-item"
+                    disabled={isLast}
+                    onClick={(e) => { e.stopPropagation(); if (!isLast) { onMoveDown(); setShowNotesMenu(false) } }}
+                  >
+                    Move down
                   </button>
                 )}
                 {onViewExerciseHistory && (

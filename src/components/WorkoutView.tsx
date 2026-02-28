@@ -1,16 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core'
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
 import type { ActiveWorkout, WorkoutLog } from '../types'
 import ExerciseCard from './ExerciseCard'
 
@@ -95,27 +83,6 @@ export default function WorkoutView({
 
   const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
   const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
-
-  // KeyboardSensor intentionally omitted — it causes space/enter keydown events from
-  // textareas inside cards to bubble up and trigger accidental drag activation.
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
-    })
-  )
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event
-
-    if (over && active.id !== over.id) {
-      const oldIndex = activeWorkout.exercises.findIndex(ex => ex.exerciseId === active.id)
-      const newIndex = activeWorkout.exercises.findIndex(ex => ex.exerciseId === over.id)
-      
-      onReorderExercises(oldIndex, newIndex)
-    }
-  }
 
   const getGroupedSuggestions = () => {
     const searchTerm = exerciseInput.toLowerCase().trim()
@@ -266,48 +233,42 @@ export default function WorkoutView({
       </div>
 
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <div className="workout-exercises">
+      <div className="workout-exercises">
           {activeWorkout.exercises.length === 0 && (
             <div className="empty-workout-state">
               <p>No exercises yet. Add your first exercise below!</p>
             </div>
           )}
 
-          <SortableContext
-            items={activeWorkout.exercises.map(ex => ex.exerciseId)}
-            strategy={verticalListSortingStrategy}
-          >
-            {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => (
-              <ExerciseCard
-                key={exerciseLog.exerciseId}
-                exercise={exerciseLog}
-                exerciseIndex={exerciseIndex}
-                pr={getPersonalRecord(exerciseLog.exerciseName)}
-                lastWorkoutSets={getLastWorkoutSets(exerciseLog.exerciseName)}
-                exerciseRestDuration={exerciseLog.restDuration || restDuration}
-                activeRestTimer={activeRestTimer}
-                exerciseDatabase={exerciseDatabase}
-                onUpdateSet={onUpdateSet}
-                onToggleSetCompleted={onToggleSetCompleted}
-                onAddSet={onAddSet}
-                onRemoveSet={onRemoveSet}
-                onSetExerciseRestDuration={onSetExerciseRestDuration}
-                onSkipInlineRest={onSkipInlineRest}
-                onRemoveExercise={onRemoveExercise}
-                onSetExerciseNotes={onSetExerciseNotes}
-                onToggleSetType={onToggleSetType}
-                formatRestTime={formatRestTime}
-                onSwitchExercise={onSwitchExercise}
-                onCreateAndSwitchExercise={onCreateAndSwitchExercise}
-                onViewExerciseHistory={onViewExerciseHistory}
-              />
-            ))}
-          </SortableContext>
+          {activeWorkout.exercises.map((exerciseLog, exerciseIndex) => (
+            <ExerciseCard
+              key={exerciseLog.exerciseId}
+              exercise={exerciseLog}
+              exerciseIndex={exerciseIndex}
+              pr={getPersonalRecord(exerciseLog.exerciseName)}
+              lastWorkoutSets={getLastWorkoutSets(exerciseLog.exerciseName)}
+              exerciseRestDuration={exerciseLog.restDuration || restDuration}
+              activeRestTimer={activeRestTimer}
+              exerciseDatabase={exerciseDatabase}
+              onUpdateSet={onUpdateSet}
+              onToggleSetCompleted={onToggleSetCompleted}
+              onAddSet={onAddSet}
+              onRemoveSet={onRemoveSet}
+              onSetExerciseRestDuration={onSetExerciseRestDuration}
+              onSkipInlineRest={onSkipInlineRest}
+              onRemoveExercise={onRemoveExercise}
+              onSetExerciseNotes={onSetExerciseNotes}
+              onToggleSetType={onToggleSetType}
+              formatRestTime={formatRestTime}
+              onSwitchExercise={onSwitchExercise}
+              onCreateAndSwitchExercise={onCreateAndSwitchExercise}
+              onViewExerciseHistory={onViewExerciseHistory}
+              isFirst={exerciseIndex === 0}
+              isLast={exerciseIndex === activeWorkout.exercises.length - 1}
+              onMoveUp={() => onReorderExercises(exerciseIndex, exerciseIndex - 1)}
+              onMoveDown={() => onReorderExercises(exerciseIndex, exerciseIndex + 1)}
+            />
+          ))}
 
           {/* Add Exercise Section */}
           <div ref={addExerciseRef} className="add-exercise-workout-section">
@@ -410,7 +371,6 @@ export default function WorkoutView({
             </div>
           </div>
         </div>
-      </DndContext>
 
       <div className="workout-footer">
         <button className="btn-finish-large" onClick={onFinish}>
