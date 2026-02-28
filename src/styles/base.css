@@ -2,10 +2,23 @@
    BASE LAYOUT & COMPONENTS
    ========================================== */
 
+/* ===== GLOBAL SCROLL / ZOOM LOCKS ===== */
+html {
+  overflow-x: hidden;
+  /* Prevent iOS rubber-band horizontal scroll */
+  overscroll-behavior-x: none;
+}
+
+body {
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
+
 /* ===== APP CONTAINER ===== */
 .app {
   min-height: 100dvh;
   background-color: var(--bg-primary);
+  overflow-x: hidden;
 }
 
 /* ===== BUTTONS ===== */

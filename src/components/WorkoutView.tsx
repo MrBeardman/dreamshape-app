@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -10,7 +9,6 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import type { ActiveWorkout, WorkoutLog } from '../types'
@@ -98,14 +96,13 @@ export default function WorkoutView({
   const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
   const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
 
+  // KeyboardSensor intentionally omitted — it causes space/enter keydown events from
+  // textareas inside cards to bubble up and trigger accidental drag activation.
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
       },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
     })
   )
 

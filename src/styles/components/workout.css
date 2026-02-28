@@ -328,6 +328,18 @@
   padding: 16px;
   margin-bottom: 12px;
   transition: border-color var(--transition-base);
+  /* Prevent iOS long-press callout bubble and text-selection during drag */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable text interaction inside form elements */
+.workout-view .workout-exercise input,
+.workout-view .workout-exercise textarea,
+.workout-view .workout-exercise select {
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .workout-view .workout-exercise.dragging {

@@ -311,6 +311,7 @@ export default function ExerciseCard({
             placeholder="Add a note for this exercise..."
             value={notesText}
             onChange={(e) => setNotesText(e.target.value)}
+            onKeyDown={(e) => e.stopPropagation()}
             rows={3}
             autoFocus
           />
