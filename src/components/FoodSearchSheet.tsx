@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { FoodItem, MealEntry } from '../types'
+import type { FoodItem, MealEntry, FoodPortion } from '../types'
 import { searchFoods, lookupBarcode } from '../lib/openFoodFacts'
 import type { OFFProduct } from '../lib/openFoodFacts'
 import BarcodeScanner from './BarcodeScanner'
@@ -67,11 +67,16 @@ export default function FoodSearchSheet({
   const [showCreateForm, setShowCreateForm] = useState(false)
   // Custom food form
   const [customName, setCustomName] = useState('')
+  const [customRefAmount, setCustomRefAmount] = useState('100')
   const [customCal, setCustomCal] = useState('')
   const [customProtein, setCustomProtein] = useState('')
   const [customCarbs, setCustomCarbs] = useState('')
   const [customFat, setCustomFat] = useState('')
   const [customSugar, setCustomSugar] = useState('')
+  // Portions
+  const [customPortions, setCustomPortions] = useState<Array<{ name: string; grams: string }>>([])
+  const [newPortionName, setNewPortionName] = useState('')
+  const [newPortionGrams, setNewPortionGrams] = useState('')
 
   // Debounced search
   useEffect(() => {
@@ -121,21 +126,45 @@ export default function FoodSearchSheet({
     onAdd(entry)
   }
 
+  const handleAddPortion = () => {
+    if (!newPortionName.trim() || !newPortionGrams) return
+    setCustomPortions(prev => [...prev, { name: newPortionName.trim(), grams: newPortionGrams }])
+    setNewPortionName('')
+    setNewPortionGrams('')
+  }
+
   const handleCreateCustomFood = () => {
     if (!customName.trim()) return
+    const refAmount = Number(customRefAmount) || 100
+    const factor = 100 / refAmount
+    const portions: FoodPortion[] = customPortions
+      .filter(p => p.name.trim() && Number(p.grams) > 0)
+      .map(p => ({ name: p.name.trim(), grams: Number(p.grams) }))
     const food: FoodItem = {
       id: crypto.randomUUID(),
       name: customName.trim(),
-      caloriesPer100g: Number(customCal) || 0,
-      proteinPer100g: Number(customProtein) || 0,
-      carbsPer100g: Number(customCarbs) || 0,
-      fatPer100g: Number(customFat) || 0,
-      sugarPer100g: Number(customSugar) || 0,
+      caloriesPer100g: Math.round((Number(customCal) || 0) * factor * 10) / 10,
+      proteinPer100g: Math.round((Number(customProtein) || 0) * factor * 10) / 10,
+      carbsPer100g: Math.round((Number(customCarbs) || 0) * factor * 10) / 10,
+      fatPer100g: Math.round((Number(customFat) || 0) * factor * 10) / 10,
+      sugarPer100g: Math.round((Number(customSugar) || 0) * factor * 10) / 10,
       isCustom: true,
+      portions: portions.length > 0 ? portions : undefined,
     }
     onAddCustomFood(food)
     handleSelectFood(food)
     setShowCreateForm(false)
+    // Reset form
+    setCustomName('')
+    setCustomRefAmount('100')
+    setCustomCal('')
+    setCustomProtein('')
+    setCustomCarbs('')
+    setCustomFat('')
+    setCustomSugar('')
+    setCustomPortions([])
+    setNewPortionName('')
+    setNewPortionGrams('')
   }
 
   if (showScanner) {
@@ -168,6 +197,25 @@ export default function FoodSearchSheet({
                 Per 100g: {selectedFood.caloriesPer100g} kcal · P {selectedFood.proteinPer100g}g · C {selectedFood.carbsPer100g}g · F {selectedFood.fatPer100g}g
               </div>
             </div>
+
+            {/* Portion quick-select chips */}
+            {selectedFood.portions && selectedFood.portions.length > 0 && (
+              <div className="portion-chips-section">
+                <span className="portion-chips-label">Quick portions</span>
+                <div className="portion-chips">
+                  {selectedFood.portions.map(p => (
+                    <button
+                      key={p.name}
+                      className={`portion-chip${parseFloat(grams) === p.grams ? ' active' : ''}`}
+                      onClick={() => setGrams(String(p.grams))}
+                    >
+                      {p.name}
+                      <span className="portion-chip-grams">{p.grams}g</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="food-grams-input-row">
               <label className="food-grams-label">Amount</label>
@@ -299,6 +347,20 @@ export default function FoodSearchSheet({
                       onChange={e => setCustomName(e.target.value)}
                       autoFocus
                     />
+
+                    {/* Reference amount */}
+                    <div className="custom-food-ref-row">
+                      <span className="custom-food-ref-label">Macros are for</span>
+                      <input
+                        className="input custom-food-ref-input"
+                        type="number"
+                        inputMode="decimal"
+                        value={customRefAmount}
+                        onChange={e => setCustomRefAmount(e.target.value)}
+                      />
+                      <span className="custom-food-ref-unit">g</span>
+                    </div>
+
                     <div className="custom-food-macros-grid">
                       {[
                         { label: 'Calories (kcal)', val: customCal, set: setCustomCal },
@@ -320,6 +382,50 @@ export default function FoodSearchSheet({
                         </div>
                       ))}
                     </div>
+
+                    {/* Portions */}
+                    <div className="custom-portions-section">
+                      <span className="custom-portions-label">Portions (optional)</span>
+
+                      {customPortions.length > 0 && (
+                        <div className="custom-portions-list">
+                          {customPortions.map((p, i) => (
+                            <div key={i} className="custom-portion-item">
+                              <span className="custom-portion-text">{p.name} — {p.grams}g</span>
+                              <button
+                                className="custom-portion-delete"
+                                onClick={() => setCustomPortions(prev => prev.filter((_, j) => j !== i))}
+                              >×</button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="custom-portion-add-row">
+                        <input
+                          className="input"
+                          placeholder='e.g. "1 slice"'
+                          value={newPortionName}
+                          onChange={e => setNewPortionName(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddPortion() }}
+                        />
+                        <input
+                          className="input custom-portion-grams-input"
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="g"
+                          value={newPortionGrams}
+                          onChange={e => setNewPortionGrams(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAddPortion() }}
+                        />
+                        <button
+                          className="btn btn-secondary custom-portion-add-btn"
+                          onClick={handleAddPortion}
+                          disabled={!newPortionName.trim() || !newPortionGrams}
+                        >+</button>
+                      </div>
+                    </div>
+
                     <button
                       className="btn btn-primary"
                       onClick={handleCreateCustomFood}
@@ -341,6 +447,11 @@ export default function FoodSearchSheet({
                           <div className="food-result-macros">
                             {food.caloriesPer100g} kcal · P {food.proteinPer100g}g · C {food.carbsPer100g}g · F {food.fatPer100g}g (per 100g)
                           </div>
+                          {food.portions && food.portions.length > 0 && (
+                            <div className="food-result-portions">
+                              {food.portions.map(p => p.name).join(' · ')}
+                            </div>
+                          )}
                         </button>
                         <button className="my-food-delete" onClick={() => onDeleteCustomFood(food.id)}>×</button>
                       </div>

@@ -899,6 +899,169 @@
   padding: 0.5rem 0;
 }
 
+/* ===== CUSTOM FOOD: REFERENCE AMOUNT ===== */
+.custom-food-ref-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.custom-food-ref-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.custom-food-ref-input {
+  width: 72px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.custom-food-ref-unit {
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+}
+
+/* ===== CUSTOM FOOD: PORTIONS BUILDER ===== */
+.custom-portions-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.custom-portions-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.custom-portions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.custom-portion-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+}
+
+.custom-portion-text {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.custom-portion-delete {
+  color: var(--text-tertiary);
+  font-size: 1.1rem;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-base);
+}
+
+.custom-portion-delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.custom-portion-add-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.custom-portion-grams-input {
+  width: 64px;
+  flex-shrink: 0;
+}
+
+.custom-portion-add-btn {
+  flex-shrink: 0;
+  padding: 0 0.875rem !important;
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+}
+
+/* ===== PORTION CHIPS ON GRAMS SCREEN ===== */
+.portion-chips-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.portion-chips-label {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.portion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.portion-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 14px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
+  transition: all var(--transition-base);
+  cursor: pointer;
+}
+
+.portion-chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+.portion-chip.active {
+  background: rgba(245, 197, 24, 0.15);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.portion-chip-grams {
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.portion-chip.active .portion-chip-grams {
+  color: var(--primary);
+  opacity: 0.8;
+}
+
+/* My foods list: portion hint */
+.food-result-portions {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  margin-top: 3px;
+  font-style: italic;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (min-width: 768px) {
   .nutrition-view {

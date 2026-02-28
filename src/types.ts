@@ -61,6 +61,11 @@ export interface NutritionGoals {
   sugar: number
 }
 
+export interface FoodPortion {
+  name: string   // e.g. "1 slice", "1 cup"
+  grams: number  // e.g. 30, 240
+}
+
 export interface FoodItem {
   id: string
   name: string
@@ -72,6 +77,7 @@ export interface FoodItem {
   fatPer100g: number
   sugarPer100g: number
   isCustom: boolean
+  portions?: FoodPortion[]
 }
 
 export interface MealEntry {
