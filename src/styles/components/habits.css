@@ -3,7 +3,7 @@
    ============================================ */
 
 .habits-view {
-  padding: 16px 16px 100px;
+  padding: var(--view-padding-top) 16px 100px;
   max-width: 600px;
   margin: 0 auto;
 }
