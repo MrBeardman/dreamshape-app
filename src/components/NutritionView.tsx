@@ -7,11 +7,13 @@ type Meal = 'breakfast' | 'lunch' | 'dinner' | 'snacks'
 interface NutritionViewProps {
   nutritionLogs: NutritionLog[]
   customFoods: FoodItem[]
+  recentFoods: FoodItem[]
   userProfile: UserProfile
   onAddEntry: (date: string, entry: MealEntry) => void
   onDeleteEntry: (date: string, entryId: string) => void
   onAddCustomFood: (food: FoodItem) => void
   onDeleteCustomFood: (foodId: string) => void
+  onAddRecentFood: (food: FoodItem) => void
 }
 
 const MEALS: Array<{ key: Meal; label: string }> = [
@@ -33,11 +35,13 @@ function formatDateLabel(dateStr: string) {
 export default function NutritionView({
   nutritionLogs,
   customFoods,
+  recentFoods,
   userProfile,
   onAddEntry,
   onDeleteEntry,
   onAddCustomFood,
   onDeleteCustomFood,
+  onAddRecentFood,
 }: NutritionViewProps) {
   const [selectedDate, setSelectedDate] = useState(getToday)
   const [addingToMeal, setAddingToMeal] = useState<Meal | null>(null)
@@ -211,12 +215,14 @@ export default function NutritionView({
         <FoodSearchSheet
           meal={addingToMeal}
           customFoods={customFoods}
+          recentFoods={recentFoods}
           onAdd={(entry) => {
             onAddEntry(selectedDate, entry)
             setAddingToMeal(null)
           }}
           onAddCustomFood={onAddCustomFood}
           onDeleteCustomFood={onDeleteCustomFood}
+          onAddRecentFood={onAddRecentFood}
           onClose={() => setAddingToMeal(null)}
         />
       )}

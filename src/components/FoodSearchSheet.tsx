@@ -10,9 +10,11 @@ type Tab = 'search' | 'my-foods'
 interface FoodSearchSheetProps {
   meal: Meal
   customFoods: FoodItem[]
+  recentFoods: FoodItem[]
   onAdd: (entry: MealEntry) => void
   onAddCustomFood: (food: FoodItem) => void
   onDeleteCustomFood: (foodId: string) => void
+  onAddRecentFood: (food: FoodItem) => void
   onClose: () => void
 }
 
@@ -52,9 +54,11 @@ function offToFoodItem(p: OFFProduct): FoodItem {
 export default function FoodSearchSheet({
   meal,
   customFoods,
+  recentFoods,
   onAdd,
   onAddCustomFood,
   onDeleteCustomFood,
+  onAddRecentFood,
   onClose,
 }: FoodSearchSheetProps) {
   const [tab, setTab] = useState<Tab>('search')
@@ -142,6 +146,7 @@ export default function FoodSearchSheet({
       fat: macros.fat,
       sugar: macros.sugar,
     }
+    onAddRecentFood(selectedFood)
     onAdd(entry)
   }
 
@@ -329,9 +334,32 @@ export default function FoodSearchSheet({
                   {!isSearching && query.trim() && results.length === 0 && (
                     <p className="food-no-results">No results for "{query}"</p>
                   )}
-                  {!query.trim() && (
+
+                  {/* Recents — shown when query is empty */}
+                  {!query.trim() && recentFoods.length > 0 && (
+                    <>
+                      <p className="food-recents-label">Recently used</p>
+                      {recentFoods.map((food) => (
+                        <button
+                          key={food.id}
+                          className="food-result-item"
+                          onClick={() => handleSelectFood(food)}
+                        >
+                          <div className="food-result-name">{food.name}</div>
+                          {food.brand && <div className="food-result-brand">{food.brand}</div>}
+                          <div className="food-result-macros">
+                            {food.caloriesPer100g} kcal · P {food.proteinPer100g}g · C {food.carbsPer100g}g · F {food.fatPer100g}g (per 100g)
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {!query.trim() && recentFoods.length === 0 && (
                     <p className="food-search-hint">Type to search or scan a barcode</p>
                   )}
+
+                  {/* API results */}
                   {results.map((p, i) => (
                     <button
                       key={i}

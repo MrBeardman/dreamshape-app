@@ -513,6 +513,15 @@
   color: var(--text-tertiary);
 }
 
+.food-recents-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding: 8px 0 4px;
+}
+
 /* My Foods */
 .my-foods-content {
   flex: 1;

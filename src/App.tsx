@@ -35,6 +35,7 @@ const CUSTOM_FOODS_KEY = 'dreamshape_custom_foods'
 const HABITS_KEY = 'dreamshape_habits'
 const HABIT_COMPLETIONS_KEY = 'dreamshape_habit_completions'
 const DAILY_TASKS_KEY = 'dreamshape_daily_tasks'
+const RECENT_FOODS_KEY = 'dreamshape_recent_foods'
 
 function App() {
   // Load templates from localStorage
@@ -104,6 +105,11 @@ function App() {
   })
   const [customFoods, setCustomFoods] = useState<FoodItem[]>(() => {
     const saved = localStorage.getItem(CUSTOM_FOODS_KEY)
+    if (saved) { try { return JSON.parse(saved) } catch { return [] } }
+    return []
+  })
+  const [recentFoods, setRecentFoods] = useState<FoodItem[]>(() => {
+    const saved = localStorage.getItem(RECENT_FOODS_KEY)
     if (saved) { try { return JSON.parse(saved) } catch { return [] } }
     return []
   })
@@ -325,6 +331,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(customFoods))
   }, [customFoods])
+
+  useEffect(() => {
+    localStorage.setItem(RECENT_FOODS_KEY, JSON.stringify(recentFoods))
+  }, [recentFoods])
 
   useEffect(() => {
     localStorage.setItem(HABITS_KEY, JSON.stringify(habits))
@@ -993,6 +1003,14 @@ function App() {
     setCustomFoods(prev => prev.filter(f => f.id !== foodId))
   }
 
+  const addRecentFood = (food: FoodItem) => {
+    setRecentFoods(prev => {
+      // Dedupe by name (case-insensitive), bump to front, keep 30 max
+      const filtered = prev.filter(f => f.name.toLowerCase() !== food.name.toLowerCase())
+      return [food, ...filtered].slice(0, 30)
+    })
+  }
+
   // ============================================
   // HABITS & TASKS HANDLERS
   // ============================================
@@ -1190,11 +1208,13 @@ function App() {
                     <NutritionView
                       nutritionLogs={nutritionLogs}
                       customFoods={customFoods}
+                      recentFoods={recentFoods}
                       userProfile={userProfile}
                       onAddEntry={addNutritionEntry}
                       onDeleteEntry={deleteNutritionEntry}
                       onAddCustomFood={addCustomFood}
                       onDeleteCustomFood={deleteCustomFood}
+                      onAddRecentFood={addRecentFood}
                     />
                   )}
 
