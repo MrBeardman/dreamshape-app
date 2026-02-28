@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -80,6 +80,16 @@ export default function WorkoutView({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newExMuscle, setNewExMuscle] = useState('Other')
   const [newExEquip, setNewExEquip] = useState('Barbell')
+  const addExerciseRef = useRef<HTMLDivElement>(null)
+
+  // When the create form expands, scroll it fully into view so keyboard doesn't cover it
+  useEffect(() => {
+    if (showCreateForm) {
+      setTimeout(() => {
+        addExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 50)
+    }
+  }, [showCreateForm])
 
   const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
   const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
@@ -297,7 +307,7 @@ export default function WorkoutView({
           </SortableContext>
 
           {/* Add Exercise Section */}
-          <div className="add-exercise-workout-section">
+          <div ref={addExerciseRef} className="add-exercise-workout-section">
             <h3 className="add-exercise-title">Add Exercise</h3>
             <div className="exercise-input-container">
               <input
@@ -305,7 +315,13 @@ export default function WorkoutView({
                 placeholder="Search exercises..."
                 value={exerciseInput}
                 onChange={(e) => setExerciseInput(e.target.value)}
-                onFocus={() => setShowSuggestions(true)}
+                onFocus={() => {
+                  setShowSuggestions(true)
+                  // After keyboard opens (~350ms), scroll section to top so dropdown fits above keyboard
+                  setTimeout(() => {
+                    addExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }, 350)
+                }}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 className="input"
               />
