@@ -1016,6 +1016,11 @@
   color: var(--error);
 }
 
+.change-item.reorder {
+  background: rgba(245, 197, 24, 0.08);
+  color: var(--primary);
+}
+
 .modal-options {
   display: flex;
   flex-direction: column;

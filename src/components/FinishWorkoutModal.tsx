@@ -8,6 +8,7 @@ interface FinishWorkoutModalProps {
   changedExercises: {
     added: string[]
     removed: string[]
+    isReordered: boolean
   }
   currentExercises: Exercise[]
   exerciseLogs: ExerciseLog[]
@@ -135,6 +136,9 @@ export default function FinishWorkoutModal({
             )}
             {changedExercises.removed.length > 0 && (
               <p className="change-item remove">− {changedExercises.removed.join(', ')}</p>
+            )}
+            {changedExercises.isReordered && (
+              <p className="change-item reorder">Exercise order changed</p>
             )}
           </div>
         )}

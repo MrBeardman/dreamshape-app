@@ -628,7 +628,7 @@ function App() {
   }
 
   const getWorkoutChanges = () => {
-    if (!activeWorkout) return { hasChanges: false, added: [], removed: [] }
+    if (!activeWorkout) return { hasChanges: false, added: [], removed: [], isReordered: false }
 
     const originalNames = originalTemplateExercises.map(e => e.name)
     const currentNames = activeWorkout.exercises.map(e => e.exerciseName)
@@ -636,10 +636,16 @@ function App() {
     const added = currentNames.filter(name => !originalNames.includes(name))
     const removed = originalNames.filter(name => !currentNames.includes(name))
 
+    // Check if common exercises have changed position relative to each other
+    const commonOriginalOrder = originalNames.filter(n => currentNames.includes(n))
+    const commonCurrentOrder = currentNames.filter(n => originalNames.includes(n))
+    const isReordered = commonOriginalOrder.some((name, i) => commonCurrentOrder[i] !== name)
+
     return {
-      hasChanges: added.length > 0 || removed.length > 0,
+      hasChanges: added.length > 0 || removed.length > 0 || isReordered,
       added,
-      removed
+      removed,
+      isReordered
     }
   }
 
@@ -980,7 +986,8 @@ function App() {
                         hasChanges={workoutChanges.hasChanges}
                         changedExercises={{
                           added: workoutChanges.added,
-                          removed: workoutChanges.removed
+                          removed: workoutChanges.removed,
+                          isReordered: workoutChanges.isReordered
                         }}
                         currentExercises={activeWorkout.exercises.map(ex =>
                           resolveExerciseFromLog(ex, activeWorkout.originalTemplateId)
