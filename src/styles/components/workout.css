@@ -75,6 +75,31 @@
   background: var(--primary-hover);
 }
 
+.btn-minimize-workout {
+  width: 32px;
+  height: 32px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-base);
+}
+
+.btn-minimize-workout svg {
+  width: 16px;
+  height: 16px;
+}
+
+.btn-minimize-workout:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
 /* ===== WORKOUT TITLE & NOTES BUTTON ===== */
 .workout-title-section {
   display: flex;

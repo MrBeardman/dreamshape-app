@@ -3,20 +3,30 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import CircularProgress from './CircularProgress'
 import type { WorkoutTemplate, WorkoutLog, UserProfile } from '../types'
 
+interface ExerciseDbEntry {
+  name: string
+  muscleGroup: string
+  equipment: string
+}
+
 interface DashboardViewProps {
   templates: WorkoutTemplate[]
   workoutLogs: WorkoutLog[]
   userProfile: UserProfile
+  exerciseDatabase: ExerciseDbEntry[]
   onStartWorkout: (template: WorkoutTemplate) => void
   onStartEmptyWorkout: () => void
   onEditProfile: () => void
   onViewAllTemplates: () => void
 }
 
+const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'] as const
+
 export default function DashboardView({
   templates,
   workoutLogs,
   userProfile,
+  exerciseDatabase,
   onStartWorkout,
   onStartEmptyWorkout,
   //onEditProfile, - not used currently
@@ -77,6 +87,30 @@ export default function DashboardView({
     )
     return (workoutLogs.length / weeksDiff).toFixed(1)
   }, [workoutLogs])
+
+  const muscleGroupCoverage = useMemo(() => {
+    const exToGroup: Record<string, string> = {}
+    exerciseDatabase.forEach(ex => { exToGroup[ex.name] = ex.muscleGroup })
+
+    const lastTrained: Record<string, number> = {}
+    workoutLogs.forEach(workout => {
+      const t = new Date(workout.date).getTime()
+      workout.exercises.forEach(ex => {
+        const g = exToGroup[ex.exerciseName]
+        if (g && (MUSCLE_GROUPS as readonly string[]).includes(g)) {
+          if (!lastTrained[g] || t > lastTrained[g]) lastTrained[g] = t
+        }
+      })
+    })
+
+    const now = Date.now()
+    return MUSCLE_GROUPS.map(group => {
+      const last = lastTrained[group]
+      const daysSince = last !== undefined ? Math.floor((now - last) / 86400000) : null
+      const status = daysSince === null ? 'never' : daysSince <= 2 ? 'good' : daysSince <= 5 ? 'ok' : 'due'
+      return { group, daysSince, status }
+    })
+  }, [workoutLogs, exerciseDatabase])
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month')
@@ -309,6 +343,24 @@ export default function DashboardView({
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Muscle Group Coverage */}
+      {workoutLogs.length > 0 && (
+        <div className="muscle-coverage-section">
+          <h3 className="section-title">Muscle Coverage</h3>
+          <div className="muscle-coverage-grid">
+            {muscleGroupCoverage.map(({ group, daysSince, status }) => (
+              <div key={group} className={`muscle-tile muscle-tile--${status}`}>
+                <span className="muscle-tile-dot" />
+                <span className="muscle-tile-name">{group}</span>
+                <span className="muscle-tile-days">
+                  {daysSince === null ? 'Never' : daysSince === 0 ? 'Today' : `${daysSince}d ago`}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}

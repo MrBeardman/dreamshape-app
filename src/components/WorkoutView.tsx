@@ -34,6 +34,7 @@ interface WorkoutViewProps {
   onSwitchExercise: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
   onCreateAndSwitchExercise: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
   onViewExerciseHistory?: (exerciseName: string) => void
+  onMinimize: () => void
 }
 
 export default function WorkoutView({
@@ -62,6 +63,7 @@ export default function WorkoutView({
   onSwitchExercise,
   onCreateAndSwitchExercise,
   onViewExerciseHistory,
+  onMinimize,
 }: WorkoutViewProps) {
   const [exerciseInput, setExerciseInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -163,6 +165,11 @@ export default function WorkoutView({
           ✕
         </button>
         <span className="workout-time">{formatElapsedTime(elapsedTime)}</span>
+        <button className="btn-minimize-workout" onClick={onMinimize} title="Minimize">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+            <line x1="3" y1="8" x2="13" y2="8"/>
+          </svg>
+        </button>
         <button className="btn-finish" onClick={onFinish}>
           Finish
         </button>

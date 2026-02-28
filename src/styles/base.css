@@ -266,3 +266,87 @@ body {
   gap: 8px;
   padding-top: 4px;
 }
+
+/* ===== MINIMIZED WORKOUT BAR ===== */
+.workout-minimized-bar {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  z-index: 200;
+  margin: 0 12px;
+  padding: 12px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  animation: slideUpBar 0.22s ease;
+}
+
+@keyframes slideUpBar {
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.minimized-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.minimized-bar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.minimized-bar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.minimized-bar-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.minimized-bar-time {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.minimized-bar-resume {
+  flex-shrink: 0;
+  padding: 0 14px;
+  height: 32px;
+  background: var(--primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #000;
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  cursor: pointer;
+  transition: background var(--transition-base);
+}
+
+.minimized-bar-resume:hover { background: var(--primary-hover); }

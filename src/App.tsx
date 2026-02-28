@@ -103,6 +103,7 @@ function App() {
   })
   const [showFinishModal, setShowFinishModal] = useState(false)
   const [showResumePrompt, setShowResumePrompt] = useState(false)
+  const [workoutMinimized, setWorkoutMinimized] = useState(false)
   const [exerciseHistoryTarget, setExerciseHistoryTarget] = useState<string | null>(null)
   const [originalTemplateExercises, setOriginalTemplateExercises] = useState<Exercise[]>(() => {
     const saved = localStorage.getItem(ORIGINAL_EXERCISES_KEY)
@@ -803,6 +804,7 @@ function App() {
     setActiveWorkout(null)
     setShowFinishModal(false)
     setOriginalTemplateExercises([])
+    setWorkoutMinimized(false)
   }
 
   const cancelWorkout = async () => {
@@ -813,6 +815,7 @@ function App() {
       danger: true,
     })) {
       setActiveWorkout(null)
+      setWorkoutMinimized(false)
     }
   }
 
@@ -957,7 +960,7 @@ function App() {
                 <SyncIndicator isSyncing={isSyncing} lastSyncTime={lastSyncTime} />
               )}
 
-              {activeWorkout && !showResumePrompt ? (
+              {activeWorkout && !showResumePrompt && !workoutMinimized ? (
                 <>
                   <WorkoutView
                     activeWorkout={activeWorkout}
@@ -985,6 +988,7 @@ function App() {
                     onSwitchExercise={switchExerciseInWorkout}
                     onCreateAndSwitchExercise={createAndSwitchExerciseInWorkout}
                     onViewExerciseHistory={setExerciseHistoryTarget}
+                    onMinimize={() => setWorkoutMinimized(true)}
                   />
                   {showFinishModal && (() => {
                     const workoutChanges = getWorkoutChanges()
@@ -1024,6 +1028,7 @@ function App() {
                       templates={templates}
                       workoutLogs={workoutLogs}
                       userProfile={userProfile}
+                      exerciseDatabase={exerciseDatabase}
                       onStartWorkout={startWorkout}
                       onStartEmptyWorkout={startEmptyWorkout}
                       onEditProfile={() => setCurrentView('profile')}
@@ -1103,6 +1108,23 @@ function App() {
         </>
       )}
     </div>
+    {workoutMinimized && activeWorkout && (
+      <div className="workout-minimized-bar" onClick={() => setWorkoutMinimized(false)}>
+        <div className="minimized-bar-left">
+          <span className="minimized-bar-dot" />
+          <div className="minimized-bar-info">
+            <span className="minimized-bar-name">{activeWorkout.templateName}</span>
+            <span className="minimized-bar-time">{Math.floor(elapsedTime / 60)}:{String(elapsedTime % 60).padStart(2, '0')} · In progress</span>
+          </div>
+        </div>
+        <button
+          className="minimized-bar-resume"
+          onClick={(e) => { e.stopPropagation(); setWorkoutMinimized(false) }}
+        >
+          Resume
+        </button>
+      </div>
+    )}
     {showResumePrompt && activeWorkout && (
       <div className="confirm-dialog-overlay" style={{ zIndex: 400 }}>
         <div className="confirm-dialog">
