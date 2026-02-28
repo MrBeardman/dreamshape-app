@@ -207,7 +207,7 @@ export default function WorkoutView({
           className="btn-workout-notes"
           onClick={() => setShowWorkoutNotes(!showWorkoutNotes)}
         >
-          {activeWorkout.notes ? '📝 Edit notes' : '📝 Add notes'}
+          {activeWorkout.notes ? 'Edit notes' : 'Add notes'}
         </button>
       </div>
 
@@ -243,7 +243,6 @@ export default function WorkoutView({
 
       {activeWorkout.notes && !showWorkoutNotes && (
         <div className="workout-notes-display">
-          <span className="notes-icon">📝</span>
           <span className="notes-text">{activeWorkout.notes}</span>
         </div>
       )}

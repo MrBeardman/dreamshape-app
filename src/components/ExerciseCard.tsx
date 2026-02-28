@@ -113,14 +113,14 @@ export default function ExerciseCard({
                   className="menu-item"
                   onClick={(e) => { e.stopPropagation(); setIsEditingNotes(true); setShowNotesMenu(false) }}
                 >
-                  {exercise.notes ? '✏️ Edit note' : '📝 Add note'}
+                  {exercise.notes ? 'Edit note' : 'Add note'}
                 </button>
                 {onViewExerciseHistory && (
                   <button
                     className="menu-item"
                     onClick={(e) => { e.stopPropagation(); onViewExerciseHistory(exercise.exerciseName); setShowNotesMenu(false) }}
                   >
-                    📈 View Progress
+                    View Progress
                   </button>
                 )}
               </div>
@@ -166,7 +166,6 @@ export default function ExerciseCard({
 
       {exercise.notes && !isEditingNotes && (
         <div className="exercise-notes-display" onClick={(e) => e.stopPropagation()}>
-          <span className="notes-icon">📝</span>
           <span className="notes-text">{exercise.notes}</span>
         </div>
       )}

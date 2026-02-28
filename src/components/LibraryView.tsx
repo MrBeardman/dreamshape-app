@@ -283,7 +283,7 @@ export default function LibraryView({
                                 onClick={() => onViewExerciseHistory(ex.name)}
                                 title="View progress"
                               >
-                                📈
+                                History
                               </button>
                               {isCustom && (
                                 <button

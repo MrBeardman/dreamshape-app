@@ -62,16 +62,16 @@ function SortableExerciseItem({
       style={style}
       {...attributes}
       {...listeners}
-      className={`exercise-item ${isDragging ? 'dragging' : ''}`}
+      className={`exercise-list-item ${isDragging ? 'dragging' : ''}`}
     >
-      <span className="exercise-number">{index + 1}</span>
-      <span className="exercise-name">{exercise.name}</span>
-      <button 
+      <span className="exercise-order-badge">{index + 1}</span>
+      <span className="exercise-list-name">{exercise.name}</span>
+      <button
         onClick={(e) => {
           e.stopPropagation()
           onRemove(exercise.id)
         }}
-        className="btn-remove"
+        className="btn-remove-exercise-item"
       >
         ×
       </button>
@@ -218,7 +218,7 @@ export default function CreateTemplateView({
       <div className="exercises-section">
         <h3>Exercises ({exercises.length})</h3>
         
-        <div className="add-exercise">
+        <div className="add-exercise-row">
           <div className="exercise-input-container">
             <input
               type="text"
@@ -256,7 +256,7 @@ export default function CreateTemplateView({
               </div>
             )}
           </div>
-          <button onClick={addExercise} className="btn-add">+</button>
+          <button onClick={addExercise} className="btn-add-exercise">+</button>
         </div>
 
         <DndContext
@@ -288,8 +288,8 @@ export default function CreateTemplateView({
         )}
       </div>
 
-      <button 
-        className="btn-save"
+      <button
+        className="btn-save-template"
         onClick={handleSave}
         disabled={!templateName.trim() || exercises.length === 0}
       >
