@@ -1,119 +1,138 @@
 import { useEffect, useRef } from 'react'
-import {
-  BrowserMultiFormatReader,
-  RGBLuminanceSource,
-  HybridBinarizer,
-  BinaryBitmap,
-  DecodeHintType,
-} from '@zxing/library'
+import { BrowserMultiFormatReader } from '@zxing/browser'
+import { DecodeHintType } from '@zxing/library'
 
 interface BarcodeScannerProps {
   onDetect: (barcode: string) => void
   onClose: () => void
 }
 
-const ROTATIONS = [0, 90, 180, 270] as const
-
-/**
- * Draws the current video frame onto a canvas at the given rotation angle,
- * converts the pixels to a ZXing BinaryBitmap, then attempts to decode a barcode.
- * Returns the barcode string or null.
- */
-function tryDecodeAtAngle(
-  reader: BrowserMultiFormatReader,
-  video: HTMLVideoElement,
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
-  angle: number,
-): string | null {
-  const vw = video.videoWidth
-  const vh = video.videoHeight
-  if (!vw || !vh) return null
-
-  // Swap dimensions for 90°/270° rotations so the rotated image fits the canvas
-  if (angle === 90 || angle === 270) {
-    canvas.width = vh
-    canvas.height = vw
-  } else {
-    canvas.width = vw
-    canvas.height = vh
-  }
-
-  ctx.save()
-  ctx.translate(canvas.width / 2, canvas.height / 2)
-  ctx.rotate((angle * Math.PI) / 180)
-  ctx.drawImage(video, -vw / 2, -vh / 2)
-  ctx.restore()
-
-  try {
-    const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    const luminance = new RGBLuminanceSource(data, canvas.width, canvas.height)
-    const bitmap = new BinaryBitmap(new HybridBinarizer(luminance))
-    const result = reader.decodeBitmap(bitmap)
-    return result ? result.getText() : null
-  } catch {
-    // NotFoundException fires constantly while no barcode is visible — silently ignore
-    return null
-  }
-}
+// Barcode formats relevant to food products
+const FOOD_FORMATS = [
+  'ean_13', 'ean_8', 'upc_a', 'upc_e',
+  'code_128', 'code_39', 'itf', 'data_matrix', 'qr_code',
+]
 
 export default function BarcodeScanner({ onDetect, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const cleanupRef = useRef<() => void>(() => {})
   const detectedRef = useRef(false)
 
   useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hints = new Map<DecodeHintType, any>()
-    hints.set(DecodeHintType.TRY_HARDER, true)
-    const reader = new BrowserMultiFormatReader(hints)
+    let active = true
+    detectedRef.current = false
 
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')!
+    const stopStream = (stream: MediaStream) =>
+      stream.getTracks().forEach(t => t.stop())
 
-    const scanFrame = () => {
-      if (detectedRef.current) return
-      const video = videoRef.current
-      if (!video || video.readyState < 2 || !video.videoWidth) return
-
-      for (const angle of ROTATIONS) {
-        if (detectedRef.current) return
-        const barcode = tryDecodeAtAngle(reader, video, canvas, ctx, angle)
-        if (barcode) {
-          detectedRef.current = true
-          if (intervalRef.current !== null) clearInterval(intervalRef.current)
-          streamRef.current?.getTracks().forEach(t => t.stop())
-          onDetect(barcode)
-          return
+    /**
+     * Fast path: Web BarcodeDetector API (Chrome 83+, Safari 17+, Edge 83+).
+     * Hardware-accelerated, rotation-invariant, sub-second detection.
+     */
+    const startNative = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const BD = (window as any).BarcodeDetector as {
+        new(opts: { formats: string[] }): {
+          detect(v: HTMLVideoElement): Promise<Array<{ rawValue: string }>>
         }
+        getSupportedFormats(): Promise<string[]>
       }
+
+      // Filter to formats the browser actually supports
+      let formats = FOOD_FORMATS
+      try {
+        const supported = await BD.getSupportedFormats()
+        const filtered = FOOD_FORMATS.filter(f => supported.includes(f))
+        if (filtered.length > 0) formats = filtered
+      } catch { /* use full list */ }
+
+      const detector = new BD({ formats })
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+      })
+      if (!active) { stopStream(stream); return }
+
+      const video = videoRef.current!
+      video.srcObject = stream
+      await video.play()
+
+      cleanupRef.current = () => { active = false; stopStream(stream) }
+
+      const scan = async () => {
+        if (!active || detectedRef.current) return
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          try {
+            const results = await detector.detect(video)
+            if (results.length > 0 && active && !detectedRef.current) {
+              detectedRef.current = true
+              active = false
+              stopStream(stream)
+              onDetect(results[0].rawValue)
+              return
+            }
+          } catch { /* NotFoundException = no barcode in frame */ }
+        }
+        if (active) setTimeout(scan, 60) // ~16fps
+      }
+
+      setTimeout(scan, 200) // brief warm-up delay before first attempt
+    }
+
+    /**
+     * Fallback: ZXing browser reader with TRY_HARDER.
+     * Works on all browsers, good reliability on upright/slightly tilted barcodes.
+     */
+    const startZxing = async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hints = new Map<DecodeHintType, any>()
+      hints.set(DecodeHintType.TRY_HARDER, true)
+      // Cast to any — @zxing/browser types don't resolve cleanly with moduleResolution:bundler
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const reader: any = new BrowserMultiFormatReader()
+      reader.setHints(hints)
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let controls: any = null
+      controls = await reader.decodeFromVideoDevice(
+        undefined,
+        videoRef.current!,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (result: any, err: any) => {
+          if (result && !detectedRef.current) {
+            detectedRef.current = true
+            try { controls?.stop() } catch { /* ignore */ }
+            onDetect(result.getText())
+          }
+          if (err && err.name !== 'NotFoundException') {
+            console.warn('[ZXing]', err.name)
+          }
+        }
+      )
+      cleanupRef.current = () => { try { controls?.stop() } catch { /* ignore */ } }
     }
 
     const start = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        })
-        streamRef.current = stream
-        const video = videoRef.current
-        if (video) {
-          video.srcObject = stream
-          await video.play()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if (typeof (window as any).BarcodeDetector !== 'undefined') {
+          console.log('[Scanner] native BarcodeDetector API')
+          await startNative()
+        } else {
+          console.log('[Scanner] ZXing fallback')
+          await startZxing()
         }
-        // ~10fps — plenty for reliable scanning without hammering the CPU
-        intervalRef.current = setInterval(scanFrame, 100)
       } catch (e) {
-        console.error('Failed to start camera:', e)
+        console.error('[Scanner] failed to start:', e)
       }
     }
 
     void start()
 
     return () => {
+      active = false
       detectedRef.current = true
-      if (intervalRef.current !== null) clearInterval(intervalRef.current)
-      streamRef.current?.getTracks().forEach(t => t.stop())
+      cleanupRef.current()
     }
   }, [onDetect])
 
