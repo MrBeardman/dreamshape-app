@@ -463,9 +463,22 @@
   text-align: left;
   cursor: pointer;
   transition: background-color var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.menu-item:hover { background: var(--bg-hover); }
+.menu-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--primary);
+}
+
+.menu-item:disabled .menu-icon { opacity: 0.4; }
+
+.menu-item:hover:not(:disabled) { background: var(--bg-hover); }
+.menu-item:disabled { opacity: 0.35; cursor: default; }
 
 /* Remove exercise button */
 .btn-remove-exercise {

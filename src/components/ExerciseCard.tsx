@@ -176,6 +176,10 @@ export default function ExerciseCard({
                   className="menu-item"
                   onClick={(e) => { e.stopPropagation(); setIsEditingNotes(true); setShowNotesMenu(false) }}
                 >
+                  <svg className="menu-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.5 2L13 4.5L5.5 12H3V9.5L10.5 2Z"/>
+                    <line x1="8.5" y1="4" x2="11" y2="6.5"/>
+                  </svg>
                   {exercise.notes ? 'Edit note' : 'Add note'}
                 </button>
                 {onSwitchExercise && (
@@ -183,6 +187,10 @@ export default function ExerciseCard({
                     className="menu-item"
                     onClick={(e) => { e.stopPropagation(); setShowSwitchPanel(true); setShowNotesMenu(false) }}
                   >
+                    <svg className="menu-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2.5 5h10M10 2.5l2.5 2.5-2.5 2.5"/>
+                      <path d="M12.5 10h-10M5 7.5L2.5 10 5 12.5"/>
+                    </svg>
                     Switch exercise
                   </button>
                 )}
@@ -192,6 +200,10 @@ export default function ExerciseCard({
                     disabled={isFirst}
                     onClick={(e) => { e.stopPropagation(); if (!isFirst) { onMoveUp(); setShowNotesMenu(false) } }}
                   >
+                    <svg className="menu-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7.5 12.5V2.5"/>
+                      <path d="M4 6L7.5 2.5 11 6"/>
+                    </svg>
                     Move up
                   </button>
                 )}
@@ -201,6 +213,10 @@ export default function ExerciseCard({
                     disabled={isLast}
                     onClick={(e) => { e.stopPropagation(); if (!isLast) { onMoveDown(); setShowNotesMenu(false) } }}
                   >
+                    <svg className="menu-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7.5 2.5V12.5"/>
+                      <path d="M4 9L7.5 12.5 11 9"/>
+                    </svg>
                     Move down
                   </button>
                 )}
@@ -209,6 +225,10 @@ export default function ExerciseCard({
                     className="menu-item"
                     onClick={(e) => { e.stopPropagation(); onViewExerciseHistory(exercise.exerciseName); setShowNotesMenu(false) }}
                   >
+                    <svg className="menu-icon" viewBox="0 0 15 15" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="2,11 5.5,7 8.5,9 13,3.5"/>
+                      <line x1="2" y1="13" x2="13" y2="13"/>
+                    </svg>
                     View Progress
                   </button>
                 )}
