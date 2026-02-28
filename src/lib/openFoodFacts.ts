@@ -166,9 +166,15 @@ export async function searchFoods(query: string): Promise<OFFProduct[]> {
   }, 15000)
   try {
     const locale = getLocaleParams()
+    // /cgi/search.pl is the Elasticsearch-powered endpoint that actually filters
+    // by search_terms. The v2 /api/v2/search ignores search_terms without sort_by,
+    // and sort_by=unique_scans_n sorts 4M+ products server-side (takes 30s+).
     const url =
-      `https://world.openfoodfacts.org/api/v2/search` +
+      `https://world.openfoodfacts.org/cgi/search.pl` +
       `?search_terms=${encodeURIComponent(query)}` +
+      `&search_simple=1` +
+      `&action=process` +
+      `&json=1` +
       `&page_size=25` +
       `&fields=product_name,brands,nutriments,code,${EXTRA_FIELDS}` +
       locale
