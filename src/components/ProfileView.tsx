@@ -2,7 +2,7 @@ import { useState } from 'react'
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
-import type { UserProfile, WorkoutLog } from '../types'
+import type { UserProfile, WorkoutLog, NutritionGoals } from '../types'
 
 interface ProfileViewProps {
   userProfile: UserProfile
@@ -19,7 +19,25 @@ export default function ProfileView({
 }: ProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(userProfile.name)
+  const [isEditingGoals, setIsEditingGoals] = useState(false)
+  const [goalCalories, setGoalCalories] = useState(String(userProfile.nutritionGoals?.calories ?? 2000))
+  const [goalProtein, setGoalProtein] = useState(String(userProfile.nutritionGoals?.protein ?? 150))
+  const [goalCarbs, setGoalCarbs] = useState(String(userProfile.nutritionGoals?.carbs ?? 250))
+  const [goalFat, setGoalFat] = useState(String(userProfile.nutritionGoals?.fat ?? 70))
+  const [goalSugar, setGoalSugar] = useState(String(userProfile.nutritionGoals?.sugar ?? 50))
   const { confirm: showConfirm, confirmDialogProps } = useConfirm()
+
+  const handleSaveGoals = () => {
+    const goals: NutritionGoals = {
+      calories: Number(goalCalories) || 2000,
+      protein: Number(goalProtein) || 150,
+      carbs: Number(goalCarbs) || 250,
+      fat: Number(goalFat) || 70,
+      sugar: Number(goalSugar) || 50,
+    }
+    onUpdateProfile({ ...userProfile, nutritionGoals: goals })
+    setIsEditingGoals(false)
+  }
 
   const handleSave = () => {
     onUpdateProfile({ ...userProfile, name })
@@ -318,6 +336,65 @@ export default function ProfileView({
 
         {recentPRs.length === 0 && strengthTrend.length === 0 && (
           <p className="goals-empty">Complete more workouts to see your progress here.</p>
+        )}
+      </div>
+
+      {/* Nutrition Goals */}
+      <div className="profile-section">
+        <div className="section-header-row">
+          <h3 className="section-title">Nutrition Goals</h3>
+          {!isEditingGoals && (
+            <button className="btn-edit-section" onClick={() => setIsEditingGoals(true)}>
+              {userProfile.nutritionGoals ? 'Edit' : 'Set Goals'}
+            </button>
+          )}
+        </div>
+
+        {isEditingGoals ? (
+          <div className="nutrition-goals-form">
+            {[
+              { label: 'Daily Calories', value: goalCalories, setter: setGoalCalories, unit: 'kcal' },
+              { label: 'Protein', value: goalProtein, setter: setGoalProtein, unit: 'g' },
+              { label: 'Carbohydrates', value: goalCarbs, setter: setGoalCarbs, unit: 'g' },
+              { label: 'Fat', value: goalFat, setter: setGoalFat, unit: 'g' },
+              { label: 'Sugar', value: goalSugar, setter: setGoalSugar, unit: 'g' },
+            ].map(({ label, value, setter, unit }) => (
+              <div key={label} className="nutrition-goal-row">
+                <label className="nutrition-goal-label">{label}</label>
+                <div className="nutrition-goal-input-wrap">
+                  <input
+                    type="number"
+                    className="input nutrition-goal-input"
+                    value={value}
+                    onChange={(e) => setter(e.target.value)}
+                    inputMode="numeric"
+                  />
+                  <span className="nutrition-goal-unit">{unit}</span>
+                </div>
+              </div>
+            ))}
+            <div className="nutrition-goals-actions">
+              <button className="btn btn-secondary" onClick={() => setIsEditingGoals(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveGoals}>Save Goals</button>
+            </div>
+          </div>
+        ) : userProfile.nutritionGoals ? (
+          <div className="nutrition-goals-display">
+            {[
+              { label: 'Calories', value: userProfile.nutritionGoals.calories, unit: 'kcal' },
+              { label: 'Protein', value: userProfile.nutritionGoals.protein, unit: 'g' },
+              { label: 'Carbs', value: userProfile.nutritionGoals.carbs, unit: 'g' },
+              { label: 'Fat', value: userProfile.nutritionGoals.fat, unit: 'g' },
+              { label: 'Sugar', value: userProfile.nutritionGoals.sugar, unit: 'g' },
+            ].map(({ label, value, unit }) => (
+              <div key={label} className="stat-item">
+                <div className="stat-item-label">{label}</div>
+                <div className="stat-item-value">{value} {unit}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="goals-empty">Set your daily nutrition targets to track calories and macros.</p>
         )}
       </div>
 

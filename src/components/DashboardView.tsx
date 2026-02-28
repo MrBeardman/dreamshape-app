@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import CircularProgress from './CircularProgress'
-import type { WorkoutTemplate, WorkoutLog, UserProfile } from '../types'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, NutritionLog } from '../types'
 
 interface ExerciseDbEntry {
   name: string
@@ -14,10 +14,12 @@ interface DashboardViewProps {
   workoutLogs: WorkoutLog[]
   userProfile: UserProfile
   exerciseDatabase: ExerciseDbEntry[]
+  nutritionLogs: NutritionLog[]
   onStartWorkout: (template: WorkoutTemplate) => void
   onStartEmptyWorkout: () => void
   onEditProfile: () => void
   onViewAllTemplates: () => void
+  onNavigateToNutrition: () => void
 }
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'] as const
@@ -27,11 +29,27 @@ export default function DashboardView({
   workoutLogs,
   userProfile,
   exerciseDatabase,
+  nutritionLogs,
   onStartWorkout,
   onStartEmptyWorkout,
   //onEditProfile, - not used currently
   onViewAllTemplates,
+  onNavigateToNutrition,
 }: DashboardViewProps) {
+  const todayStr = new Date().toISOString().split('T')[0]
+  const todayNutrition = useMemo(
+    () => nutritionLogs.find(l => l.date === todayStr),
+    [nutritionLogs, todayStr]
+  )
+  const nutritionTotals = useMemo(() => {
+    const entries = todayNutrition?.entries ?? []
+    return {
+      calories: Math.round(entries.reduce((s, e) => s + e.calories, 0)),
+      protein: Math.round(entries.reduce((s, e) => s + e.protein, 0) * 10) / 10,
+      carbs: Math.round(entries.reduce((s, e) => s + e.carbs, 0) * 10) / 10,
+      fat: Math.round(entries.reduce((s, e) => s + e.fat, 0) * 10) / 10,
+    }
+  }, [todayNutrition])
   
   const totalWorkouts = workoutLogs.length
 
@@ -364,6 +382,45 @@ export default function DashboardView({
           </div>
         </div>
       )}
+
+      {/* Nutrition Widget */}
+      <div className="dashboard-nutrition-widget" onClick={onNavigateToNutrition}>
+        <div className="dashboard-nutrition-top">
+          <span className="dashboard-nutrition-label">Today's Nutrition</span>
+          <span className="dashboard-nutrition-arrow">→</span>
+        </div>
+        {userProfile.nutritionGoals ? (
+          <>
+            <div className="dashboard-cal-row">
+              <span className="dashboard-cal-val">{nutritionTotals.calories}</span>
+              <span className="dashboard-cal-unit">kcal</span>
+              <span className="dashboard-cal-goal">/ {userProfile.nutritionGoals.calories}</span>
+            </div>
+            <div className="dashboard-macro-mini-bars">
+              {[
+                { label: 'Protein', val: nutritionTotals.protein, goal: userProfile.nutritionGoals.protein, color: '#4ade80' },
+                { label: 'Carbs', val: nutritionTotals.carbs, goal: userProfile.nutritionGoals.carbs, color: '#60a5fa' },
+                { label: 'Fat', val: nutritionTotals.fat, goal: userProfile.nutritionGoals.fat, color: '#f97316' },
+              ].map(({ label, val, goal, color }) => (
+                <div key={label} className="dashboard-macro-mini-row">
+                  <span className="dashboard-macro-mini-label">{label}</span>
+                  <div className="dashboard-macro-mini-track">
+                    <div
+                      className="dashboard-macro-mini-fill"
+                      style={{ width: `${Math.min(val / goal * 100, 100)}%`, background: color }}
+                    />
+                  </div>
+                  <span className="dashboard-macro-mini-val">{val}g</span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="dashboard-nutrition-no-goals">
+            Set nutrition goals in Profile to track your macros
+          </p>
+        )}
+      </div>
 
       {/* Charts Section */}
       <div className="charts-section">

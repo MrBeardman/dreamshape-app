@@ -50,4 +50,46 @@ export interface UserProfile {
   name: string
   memberSince: string
   role?: 'creator' | 'tester' | 'member' // Creator = app creator, Tester = beta tester, Member = regular
+  nutritionGoals?: NutritionGoals
+}
+
+export interface NutritionGoals {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  sugar: number
+}
+
+export interface FoodItem {
+  id: string
+  name: string
+  brand?: string
+  barcode?: string
+  caloriesPer100g: number
+  proteinPer100g: number
+  carbsPer100g: number
+  fatPer100g: number
+  sugarPer100g: number
+  isCustom: boolean
+}
+
+export interface MealEntry {
+  id: string
+  foodId: string
+  foodName: string
+  brand?: string
+  grams: number
+  meal: 'breakfast' | 'lunch' | 'dinner' | 'snacks'
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  sugar: number
+}
+
+export interface NutritionLog {
+  id: string
+  date: string // 'YYYY-MM-DD'
+  entries: MealEntry[]
 }

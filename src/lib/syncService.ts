@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { WorkoutTemplate, WorkoutLog, UserProfile } from '../types'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, NutritionLog, FoodItem } from '../types'
 
 // ============================================
 // SYNC SERVICE
@@ -312,6 +312,111 @@ export class SyncService {
         .eq('user_id', this.userId)
     } catch (error) {
       console.error('Failed to delete custom exercise:', error)
+    }
+  }
+
+  // ============================================
+  // NUTRITION LOG OPERATIONS
+  // ============================================
+  async upsertNutritionLog(log: NutritionLog): Promise<void> {
+    try {
+      await supabase.from('nutrition_logs').upsert({
+        id: log.id,
+        user_id: this.userId,
+        date: log.date,
+        entries: log.entries,
+      }, { onConflict: 'id' })
+    } catch (error) {
+      console.error('Failed to upsert nutrition log:', error)
+    }
+  }
+
+  async deleteNutritionLog(logId: string): Promise<void> {
+    try {
+      await supabase
+        .from('nutrition_logs')
+        .delete()
+        .eq('id', logId)
+        .eq('user_id', this.userId)
+    } catch (error) {
+      console.error('Failed to delete nutrition log:', error)
+    }
+  }
+
+  async loadNutritionLogs(): Promise<NutritionLog[]> {
+    try {
+      const { data } = await supabase
+        .from('nutrition_logs')
+        .select('*')
+        .eq('user_id', this.userId)
+        .order('date', { ascending: false })
+      return (data || []).map(r => ({
+        id: r.id,
+        date: r.date,
+        entries: r.entries,
+      }))
+    } catch (error) {
+      console.error('Failed to load nutrition logs:', error)
+      return []
+    }
+  }
+
+  // ============================================
+  // CUSTOM FOODS OPERATIONS
+  // ============================================
+  async createCustomFood(food: FoodItem): Promise<void> {
+    try {
+      await supabase.from('custom_foods').insert({
+        id: food.id,
+        user_id: this.userId,
+        name: food.name,
+        brand: food.brand ?? null,
+        barcode: food.barcode ?? null,
+        calories_per100g: food.caloriesPer100g,
+        protein_per100g: food.proteinPer100g,
+        carbs_per100g: food.carbsPer100g,
+        fat_per100g: food.fatPer100g,
+        sugar_per100g: food.sugarPer100g,
+      })
+    } catch (error) {
+      console.error('Failed to create custom food:', error)
+    }
+  }
+
+  async deleteCustomFood(foodId: string): Promise<void> {
+    try {
+      await supabase
+        .from('custom_foods')
+        .delete()
+        .eq('id', foodId)
+        .eq('user_id', this.userId)
+    } catch (error) {
+      console.error('Failed to delete custom food:', error)
+    }
+  }
+
+  async loadCustomFoods(): Promise<FoodItem[]> {
+    try {
+      const { data } = await supabase
+        .from('custom_foods')
+        .select('*')
+        .eq('user_id', this.userId)
+        .order('name')
+      return (data || []).map(r => ({
+        id: r.id,
+        name: r.name,
+        brand: r.brand ?? undefined,
+        barcode: r.barcode ?? undefined,
+        caloriesPer100g: r.calories_per100g,
+        proteinPer100g: r.protein_per100g,
+        carbsPer100g: r.carbs_per100g,
+        fatPer100g: r.fat_per100g,
+        sugarPer100g: r.sugar_per100g,
+        isCustom: true,
+      }))
+    } catch (error) {
+      console.error('Failed to load custom foods:', error)
+      return []
     }
   }
 

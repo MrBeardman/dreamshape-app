@@ -5,7 +5,7 @@ import SyncIndicator from './components/SyncIndicator'
 import AuthView from './components/AuthView'
 import type { User } from '@supabase/supabase-js'
 import './App-redesign.css'
-import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, NutritionLog, FoodItem, MealEntry } from './types'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
@@ -17,8 +17,8 @@ import ConfirmDialog from './components/ConfirmDialog'
 import DashboardView from './components/DashboardView'
 import BottomNav from './components/BottomNav'
 import SidebarNav from './components/SidebarNav'
-import LibraryView from './components/LibraryView'
 import ProfileView from './components/ProfileView'
+import NutritionView from './components/NutritionView'
 import ExerciseProgressSheet from './components/ExerciseProgressSheet'
 import { useConfirm } from './hooks/useConfirm'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
@@ -29,6 +29,8 @@ const WORKOUTS_KEY = 'dreamshape_workouts'
 const EXERCISES_KEY = 'dreamshape_exercises'
 const ACTIVE_WORKOUT_KEY = 'dreamshape_active_workout'
 const ORIGINAL_EXERCISES_KEY = 'dreamshape_original_exercises'
+const NUTRITION_LOGS_KEY = 'dreamshape_nutrition_logs'
+const CUSTOM_FOODS_KEY = 'dreamshape_custom_foods'
 
 function App() {
   // Load templates from localStorage
@@ -90,9 +92,21 @@ function App() {
     }
     return { name: 'Jan', memberSince: new Date().toISOString() }
   })
+  // Nutrition state
+  const [nutritionLogs, setNutritionLogs] = useState<NutritionLog[]>(() => {
+    const saved = localStorage.getItem(NUTRITION_LOGS_KEY)
+    if (saved) { try { return JSON.parse(saved) } catch { return [] } }
+    return []
+  })
+  const [customFoods, setCustomFoods] = useState<FoodItem[]>(() => {
+    const saved = localStorage.getItem(CUSTOM_FOODS_KEY)
+    if (saved) { try { return JSON.parse(saved) } catch { return [] } }
+    return []
+  })
+
   const [isCreating, setIsCreating] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
-  const [currentView, setCurrentView] = useState<'dashboard' | 'progress' | 'start' | 'library' | 'profile'>('dashboard')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'progress' | 'start' | 'nutrition' | 'profile'>('dashboard')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
 
   // Workout logging state — lazy-initialized from localStorage so iOS app kills don't lose the session
@@ -283,6 +297,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile))
   }, [userProfile])
+
+  useEffect(() => {
+    localStorage.setItem(NUTRITION_LOGS_KEY, JSON.stringify(nutritionLogs))
+  }, [nutritionLogs])
+
+  useEffect(() => {
+    localStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(customFoods))
+  }, [customFoods])
 
   // Show resume prompt once on auth completion if a workout was already in localStorage
   useEffect(() => {
@@ -909,23 +931,34 @@ function App() {
     }
   }
 
-  const deleteExerciseFromDatabase = async (exerciseName: string) => {
-    if (await showConfirm({ title: `Delete "${exerciseName}"?`, message: 'It will be removed from your exercise library.', confirmLabel: 'Delete', danger: true })) {
-      setExerciseDatabase(exerciseDatabase.filter(ex => ex.name !== exerciseName))
+  // ============================================
+  // NUTRITION HANDLERS
+  // ============================================
 
-      // Sync to Supabase
-      if (syncService) {
-        setIsSyncing(true)
-        try {
-          await syncService.deleteCustomExercise(exerciseName)
-          setLastSyncTime(new Date())
-        } catch (error) {
-          console.error('Failed to delete exercise:', error)
-        } finally {
-          setIsSyncing(false)
-        }
+  const addNutritionEntry = (date: string, entry: MealEntry) => {
+    setNutritionLogs(prev => {
+      const existing = prev.find(l => l.date === date)
+      if (existing) {
+        return prev.map(l => l.date === date ? { ...l, entries: [...l.entries, entry] } : l)
       }
-    }
+      return [...prev, { id: crypto.randomUUID(), date, entries: [entry] }]
+    })
+  }
+
+  const deleteNutritionEntry = (date: string, entryId: string) => {
+    setNutritionLogs(prev =>
+      prev
+        .map(l => l.date === date ? { ...l, entries: l.entries.filter(e => e.id !== entryId) } : l)
+        .filter(l => l.entries.length > 0)
+    )
+  }
+
+  const addCustomFood = (food: FoodItem) => {
+    setCustomFoods(prev => [...prev, food])
+  }
+
+  const deleteCustomFood = (foodId: string) => {
+    setCustomFoods(prev => prev.filter(f => f.id !== foodId))
   }
 
   return (
@@ -1029,10 +1062,12 @@ function App() {
                       workoutLogs={workoutLogs}
                       userProfile={userProfile}
                       exerciseDatabase={exerciseDatabase}
+                      nutritionLogs={nutritionLogs}
                       onStartWorkout={startWorkout}
                       onStartEmptyWorkout={startEmptyWorkout}
                       onEditProfile={() => setCurrentView('profile')}
-                      onViewAllTemplates={() => setCurrentView('library')}
+                      onViewAllTemplates={() => setCurrentView('start')}
+                      onNavigateToNutrition={() => setCurrentView('nutrition')}
                     />
                   )}
 
@@ -1059,20 +1094,15 @@ function App() {
                     />
                   )}
 
-                  {currentView === 'library' && (
-                    <LibraryView
-                      templates={templates}
-                      exerciseDatabase={exerciseDatabase}
-                      onCreateTemplate={() => {
-                        setSelectedTemplate(null)
-                        setIsCreating(true)
-                      }}
-                      onEditTemplate={editTemplate}
-                      onDeleteTemplate={deleteTemplate}
-                      onStartWorkout={startWorkout}
-                      onAddExercise={addExerciseToDatabase}
-                      onDeleteExercise={deleteExerciseFromDatabase}
-                      onViewExerciseHistory={setExerciseHistoryTarget}
+                  {currentView === 'nutrition' && (
+                    <NutritionView
+                      nutritionLogs={nutritionLogs}
+                      customFoods={customFoods}
+                      userProfile={userProfile}
+                      onAddEntry={addNutritionEntry}
+                      onDeleteEntry={deleteNutritionEntry}
+                      onAddCustomFood={addCustomFood}
+                      onDeleteCustomFood={deleteCustomFood}
                     />
                   )}
 
