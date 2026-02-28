@@ -53,18 +53,12 @@ export default function BarcodeScanner({ onDetect, onClose }: BarcodeScannerProp
 
       <div className="barcode-scanner-body">
         <video ref={videoRef} className="barcode-scanner-video" />
-        <div className="barcode-scanner-frame">
-          <div className="barcode-viewfinder">
-            <div className="barcode-corner tl" />
-            <div className="barcode-corner tr" />
-            <div className="barcode-corner bl" />
-            <div className="barcode-corner br" />
-            <div className="barcode-scan-line" />
-          </div>
+        <div className="barcode-scanner-overlay-ui">
+          <div className="barcode-scan-line-wide" />
         </div>
       </div>
 
-      <p className="barcode-scanner-hint">Point the camera at a product barcode</p>
+      <p className="barcode-scanner-hint">Point anywhere at a barcode — no need to align precisely</p>
     </div>
   )
 }

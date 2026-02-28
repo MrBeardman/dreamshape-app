@@ -753,47 +753,29 @@
   object-fit: cover;
 }
 
-.barcode-scanner-frame {
+/* Full-screen scanning overlay — no restrictive box */
+.barcode-scanner-overlay-ui {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: none;
 }
 
-.barcode-viewfinder {
-  width: 260px;
-  height: 160px;
-  position: relative;
-}
-
-.barcode-corner {
+/* Wide scan line sweeps the full width */
+.barcode-scan-line-wide {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  border-color: var(--primary);
-  border-style: solid;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, var(--primary) 20%, var(--primary) 80%, transparent 100%);
+  box-shadow: 0 0 12px 2px rgba(245, 197, 24, 0.5);
+  animation: scanLineFull 2.5s ease-in-out infinite;
 }
 
-.barcode-corner.tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
-.barcode-corner.tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
-.barcode-corner.bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
-.barcode-corner.br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
-
-.barcode-scan-line {
-  position: absolute;
-  left: 3px;
-  right: 3px;
-  height: 2px;
-  background: var(--primary);
-  box-shadow: 0 0 8px var(--primary);
-  animation: scanLine 2s ease-in-out infinite;
-}
-
-@keyframes scanLine {
-  0%, 100% { top: 6px; opacity: 0.6; }
-  50% { top: calc(100% - 8px); opacity: 1; }
+@keyframes scanLineFull {
+  0%   { top: 15%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 85%; opacity: 0; }
 }
 
 .barcode-scanner-hint {
