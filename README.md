@@ -1,147 +1,138 @@
-# 💪 DreamShape
+# DreamShape
 
-Your personal workout tracking app - Shape your dreams and your physique!
+Personal fitness PWA — workout tracking, nutrition logging, and daily habit tracking.
 
-**Live App:** [dreamshape-app.vercel.app](https://dreamshape-app.vercel.app)
-
-## ✨ Features
-
-### 🏋️ Workout Tracking
-- ✅ Create and edit workout templates
-- ✅ Log workouts with sets, reps, and weight
-- ✅ Auto-fill from previous workout data
-- ✅ Personal record (PR) tracking per exercise
-- ✅ Visual feedback for completed sets (green background)
-- ✅ Warmup sets (W badge) with smart working set renumbering
-- ✅ Add/remove exercises during active workouts
-- ✅ Drag & drop to reorder exercises
-
-### ⏱️ Timers & Rest
-- ✅ Real-time workout timer (elapsed time)
-- ✅ Customizable rest timer with countdown
-- ✅ Inline rest timer per exercise
-- ✅ Vibration alerts on rest completion
-
-### 📚 Exercise Library
-- ✅ 60+ pre-loaded exercises grouped by muscle
-- ✅ Add custom exercises (name, muscle group, equipment)
-- ✅ Delete custom exercises
-- ✅ Search exercises with live filtering
-- ✅ Custom badge on user-added exercises
-
-### 📊 Dashboard & Analytics
-- ✅ Modern dashboard with circular progress stats
-- ✅ Workout frequency chart (last 8 weeks)
-- ✅ Volume trend chart (tons per week)
-- ✅ Consistency heatmap (GitHub-style, 12 weeks)
-- ✅ Best PRs display
-- ✅ Streak tracking (smart 1-day rest allowance)
-
-### 👤 Profile
-- ✅ Weekly goal progress widget
-- ✅ Consistency score (last 30 days)
-- ✅ Volume progress widget
-- ✅ Lifetime stats (workouts, volume, time, favorite exercise)
-- ✅ Role badges (Creator 👑, Tester 🧪)
-- ✅ Data export (JSON backup)
-
-### ☁️ Cloud Sync & Auth
-- ✅ Supabase authentication (email/password)
-- ✅ Cloud sync across devices
-- ✅ Offline mode with localStorage fallback
-- ✅ Real-time sync indicator
-- ✅ Automatic migration from localStorage
-
-### 📱 User Experience
-- ✅ Desktop sidebar + mobile bottom navigation
-- ✅ Responsive design (desktop + mobile optimized)
-- ✅ Smart finish workout flow (summary stats, template change detection)
-- ✅ Native confirm dialogs (no browser popups)
-- ✅ Notes system (workout + exercise-level)
-- ✅ Workout history with detailed logs
-
-## 🛠️ Tech Stack
-
-- **Frontend:** React 19 + TypeScript + Vite 7
-- **Backend:** Supabase (PostgreSQL + Auth + Row-Level Security)
-- **Charts:** Recharts
-- **Drag & Drop:** dnd-kit
-- **Deployment:** Vercel
-- **Storage:** Supabase + localStorage (offline support)
-
-## 🗂️ Project Structure
-
-```
-dreamshape/
-├── src/
-│   ├── components/          # React components
-│   │   ├── AuthView.tsx
-│   │   ├── DashboardView.tsx
-│   │   ├── WorkoutView.tsx
-│   │   ├── ExerciseCard.tsx
-│   │   ├── LibraryView.tsx
-│   │   ├── ProfileView.tsx
-│   │   ├── ConfirmDialog.tsx
-│   │   └── ...
-│   ├── hooks/
-│   │   ├── useWorkoutTimer.ts
-│   │   └── useConfirm.ts
-│   ├── lib/
-│   │   ├── supabase.ts
-│   │   └── syncService.ts
-│   ├── data/
-│   │   └── defaultExercises.ts
-│   ├── types.ts
-│   ├── App.tsx
-│   └── main.tsx
-├── public/
-└── package.json
-```
-
-## 📝 Roadmap
-
-### Completed ✅
-- [x] Core workout tracking (sets, reps, weight)
-- [x] Workout templates & exercise library
-- [x] Timers & rest periods with vibration
-- [x] Dashboard with charts and heatmap
-- [x] Supabase authentication & cloud sync
-- [x] Offline mode with localStorage fallback
-- [x] Notes system (workout & exercise level)
-- [x] Desktop sidebar + mobile bottom navigation
-- [x] User profile with lifetime stats
-- [x] Circular progress widgets (weekly goal, consistency, volume)
-- [x] Warmup set type with smart renumbering
-- [x] Custom exercise add/delete in library
-- [x] Smart finish workout flow with summary stats
-- [x] Native confirm dialogs (no browser alerts)
-- [x] Role-based user badges
-- [x] Data export (JSON backup)
-- [x] Drag & drop exercise reordering
-
-### In Progress 🚧
-- [ ] 1RM calculator and progression tracking
-- [ ] Exercise-specific history charts
-
-### Planned 📋
-- [ ] Google/Apple authentication
-- [ ] Workout programs & periodization
-- [ ] Progressive overload suggestions
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to open issues or submit pull requests.
-
-## 📄 License
-
-MIT License - feel free to use this project for personal or commercial purposes.
-
-## 👨‍💻 Author
-
-**Jan Matyas**
-- GitHub: [@MrBeardman](https://github.com/MrBeardman)
-- App: [dreamshape-app.vercel.app](https://dreamshape-app.vercel.app)
+**Live:** [dreamshape-app.vercel.app](https://dreamshape-app.vercel.app)
 
 ---
 
-Built with ❤️ and 💪 by Jan
+## Features
+
+### Workout Tracking
+- Create and edit workout templates
+- Log workouts with sets, reps, and weight
+- Auto-fill sets from previous workout data
+- PR tracking per exercise with flash celebration
+- Warmup sets (W badge) with smart working-set renumbering
+- Add / remove / reorder exercises during active workouts (drag & drop)
+- Per-exercise and global workout notes
+- Inline rest timer per exercise with push notification support
+- Minimized workout overlay — browse the app mid-workout without losing your session
+- Resume prompt if the app is reopened with an in-progress workout
+
+### Templates & History
+- Template library with estimated duration (avg of past logs)
+- Workout history with detailed per-session logs
+- Swipe to delete history entries
+- Smart finish flow — detects added/removed/reordered exercises, offers to update or save new template
+
+### Analytics (Profile tab)
+- Workout Calendar — week / month / 12-week heatmap views, tap a day for details
+- Volume Trend chart — week / month / year toggle (Recharts area chart)
+- Recent PRs (last 30 days) and Strength Trend (this vs last month)
+- Weekly goal progress ring and volume delta vs last week
+- Lifetime stats: total workouts, volume (tons), hours, favourite exercise
+
+### Nutrition Tracking
+- Daily calorie and macro logging (breakfast / lunch / dinner / snacks)
+- Open Food Facts integration — search by name or scan a barcode
+- Custom food library with named portions (e.g. "1 slice = 30 g")
+- Dashboard widget showing today's calories and macro bars
+- Nutrition goals set in Profile
+
+### Habits & Tasks
+- Daily habit tracker with completion ring
+- Today's task list with active / completed sections
+- Dashboard widget showing habit progress bar and tasks remaining
+
+### Dashboard (Home)
+- Greeting header, stats grid (workouts / streak / avg per week)
+- Muscle group coverage widget — colour-coded by days since last trained
+- Habits & Tasks widget
+- Templates quick-launch carousel
+- Nutrition summary widget
+- Link to full Workout History
+
+### Cloud & Offline
+- Supabase authentication (email / password)
+- Cloud sync across devices — localStorage first, then Supabase
+- Automatic one-time migration of local data on first login
+- Real-time sync indicator
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React 19 + TypeScript |
+| Build | Vite 7 |
+| Backend / Auth / DB | Supabase (Postgres + Auth + RLS) |
+| Charts | Recharts |
+| Drag & Drop | @dnd-kit |
+| Barcode | @zxing/browser |
+| Styling | Modular plain CSS |
+| Deployment | Vercel |
+
+---
+
+## Project Structure
+
+```
+src/
+├── App.tsx                     — Root component, all global state & handlers
+├── App-redesign.css            — Main CSS entry (imports all modules)
+├── types.ts                    — All TypeScript interfaces
+├── data/
+│   └── defaultExercises.ts     — 55 built-in exercises
+├── lib/
+│   ├── supabase.ts             — Supabase client
+│   ├── syncService.ts          — Supabase CRUD class
+│   ├── openFoodFacts.ts        — Food search & barcode lookup (OFF API v2)
+│   ├── exerciseStats.ts        — Progressive overload history helper
+│   └── notifications.ts        — Rest timer push notifications
+├── hooks/
+│   ├── useWorkoutTimer.ts      — Elapsed time + rest timer logic
+│   └── useConfirm.ts           — Async confirm dialog hook
+├── components/
+│   ├── BottomNav.tsx           — Mobile bottom nav (Home/Habits/Start/Nutrition/Profile)
+│   ├── SidebarNav.tsx          — Desktop sidebar nav
+│   ├── DashboardView.tsx       — Home tab
+│   ├── HabitsView.tsx          — Habits & Tasks tab
+│   ├── NutritionView.tsx       — Nutrition tab
+│   ├── ProfileView.tsx         — Profile tab (goals, charts, stats, settings)
+│   ├── WorkoutsView.tsx        — Workout history list
+│   ├── WorkoutView.tsx         — Active workout screen
+│   ├── TemplatesView.tsx       — Templates (Start tab)
+│   ├── CreateTemplateView.tsx  — Create / edit template
+│   ├── FoodSearchSheet.tsx     — Food search bottom sheet
+│   ├── BarcodeScanner.tsx      — Camera barcode scanner
+│   ├── ExerciseProgressSheet.tsx — Progressive overload chart
+│   ├── ExerciseCard.tsx        — Sortable exercise card with sets
+│   ├── FinishWorkoutModal.tsx  — Finish workout flow
+│   ├── ConfirmDialog.tsx       — Bottom-sheet confirm modal
+│   └── CircularProgress.tsx    — SVG circular progress widget
+└── styles/
+    ├── variables.css
+    ├── base.css
+    └── components/
+        ├── dashboard.css
+        ├── habits.css
+        ├── nutrition.css
+        ├── profile.css
+        ├── workout.css
+        └── ...
+```
+
+---
+
+## Environment Variables
+
+```
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+```
+
+---
+
+**Author:** Jan Matyas — [dreamshape-app.vercel.app](https://dreamshape-app.vercel.app)

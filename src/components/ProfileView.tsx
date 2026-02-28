@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
@@ -185,6 +186,109 @@ export default function ProfileView({
   const recentPRs = getRecentPRs()
   const strengthTrend = getStrengthTrend()
   const volumeDelta = getVolumeWeekDelta()
+
+  // Charts state
+  const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month')
+  const [calPeriod, setCalPeriod] = useState<'week' | 'month' | 'year'>('month')
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+
+  const volumeData = useMemo(() => {
+    const calcVolume = (wos: typeof workoutLogs) =>
+      wos.reduce(
+        (sum, wo) => sum + wo.exercises.reduce(
+          (es, ex) => es + ex.sets.reduce((ss, s) => ss + s.weight * s.reps, 0), 0
+        ), 0
+      )
+
+    if (chartPeriod === 'week') {
+      return Array.from({ length: 7 }, (_, i) => {
+        const day = new Date()
+        day.setDate(day.getDate() - (6 - i))
+        day.setHours(0, 0, 0, 0)
+        const nextDay = new Date(day)
+        nextDay.setDate(day.getDate() + 1)
+        const dayWorkouts = workoutLogs.filter(w => {
+          const d = new Date(w.date)
+          return d >= day && d < nextDay
+        })
+        return { week: day.toLocaleDateString('en-US', { weekday: 'short' }), volume: Math.round(calcVolume(dayWorkouts) / 1000) }
+      })
+    }
+
+    if (chartPeriod === 'year') {
+      return Array.from({ length: 12 }, (_, i) => {
+        const monthStart = new Date()
+        monthStart.setDate(1)
+        monthStart.setMonth(monthStart.getMonth() - (11 - i))
+        monthStart.setHours(0, 0, 0, 0)
+        const monthEnd = new Date(monthStart)
+        monthEnd.setMonth(monthStart.getMonth() + 1)
+        const monthWorkouts = workoutLogs.filter(w => { const d = new Date(w.date); return d >= monthStart && d < monthEnd })
+        const isJan = monthStart.getMonth() === 0
+        const yr = monthStart.getFullYear().toString().slice(2)
+        const label = isJan ? `Jan '${yr}` : monthStart.toLocaleDateString('en-US', { month: 'short' })
+        return { week: label, volume: Math.round(calcVolume(monthWorkouts) / 1000) }
+      })
+    }
+
+    return Array.from({ length: 8 }, (_, i) => {
+      const offset = 7 - i
+      const weekStart = new Date()
+      weekStart.setDate(weekStart.getDate() - (offset * 7 + 7))
+      weekStart.setHours(0, 0, 0, 0)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 7)
+      const weekWorkouts = workoutLogs.filter(w => { const d = new Date(w.date); return d >= weekStart && d < weekEnd })
+      const monthName = weekStart.toLocaleDateString('en-US', { month: 'short' })
+      const weekNum = Math.ceil(weekStart.getDate() / 7)
+      return { week: `${monthName} W${weekNum}`, volume: Math.round(calcVolume(weekWorkouts) / 1000) }
+    })
+  }, [workoutLogs, chartPeriod])
+
+  const calendarData = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayTime = today.getTime()
+    return Array.from({ length: 84 }, (_, i) => {
+      const date = new Date(today)
+      date.setDate(today.getDate() - (83 - i))
+      date.setHours(0, 0, 0, 0)
+      const dateStr = date.toISOString().split('T')[0]
+      const workout = workoutLogs.find(log => {
+        const logDate = new Date(log.date)
+        logDate.setHours(0, 0, 0, 0)
+        return logDate.getTime() === date.getTime()
+      }) ?? null
+      return { date: dateStr, workout, isToday: date.getTime() === todayTime }
+    })
+  }, [workoutLogs])
+
+  const monthCalendarData = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayTime = today.getTime()
+    const year = today.getFullYear()
+    const month = today.getMonth()
+    const firstDay = new Date(year, month, 1)
+    let startDow = firstDay.getDay() - 1
+    if (startDow < 0) startDow = 6
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    type Cell = { date: string; dayNum: number; workout: WorkoutLog | null; isToday: boolean } | null
+    const cells: Cell[] = []
+    for (let i = 0; i < startDow; i++) cells.push(null)
+    for (let d = 1; d <= daysInMonth; d++) {
+      const date = new Date(year, month, d)
+      date.setHours(0, 0, 0, 0)
+      const dateStr = date.toISOString().split('T')[0]
+      const workout = workoutLogs.find(log => {
+        const logDate = new Date(log.date)
+        logDate.setHours(0, 0, 0, 0)
+        return logDate.getTime() === date.getTime()
+      }) ?? null
+      cells.push({ date: dateStr, dayNum: d, workout, isToday: date.getTime() === todayTime })
+    }
+    return cells
+  }, [workoutLogs])
 
   return (
     <>
@@ -422,6 +526,236 @@ export default function ProfileView({
             <div className="stat-item-label">Favorite Exercise</div>
             <div className="stat-item-value">{favoriteExercise}</div>
           </div>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="profile-section">
+        <h3 className="section-title">Progress</h3>
+
+        {/* Workout Calendar */}
+        <div className="chart-card">
+          <div className="chart-header-row">
+            <div>
+              <h4 className="chart-title">Workout Calendar</h4>
+              <p className="chart-subtitle">
+                {calPeriod === 'week' && 'This week — tap a workout to see details'}
+                {calPeriod === 'month' && `${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
+                {calPeriod === 'year' && 'Last 12 weeks — tap a workout to see details'}
+              </p>
+            </div>
+            <div className="chart-period-toggle">
+              {(['week', 'month', 'year'] as const).map(p => (
+                <button
+                  key={p}
+                  className={`period-btn${calPeriod === p ? ' active' : ''}`}
+                  onClick={() => { setCalPeriod(p); setSelectedDate(null) }}
+                >
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {calPeriod === 'year' && (
+            <div className="calendar-wrapper">
+              <div className="calendar-y-axis">
+                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                  <div key={d} className="calendar-y-label">{d}</div>
+                ))}
+              </div>
+              <div className="calendar-main">
+                <div className="heatmap-grid">
+                  {calendarData.map((day) => (
+                    <div
+                      key={day.date}
+                      className={[
+                        'heatmap-day',
+                        day.workout ? 'active' : '',
+                        day.isToday ? 'today' : '',
+                        selectedDate === day.date ? 'selected' : '',
+                      ].filter(Boolean).join(' ')}
+                      title={day.date}
+                      onClick={() => {
+                        if (day.workout) setSelectedDate(selectedDate === day.date ? null : day.date)
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="calendar-x-axis">
+                  {Array.from({ length: 12 }, (_, i) => {
+                    const date = new Date()
+                    date.setDate(date.getDate() - (11 - i) * 7)
+                    return (
+                      <div key={i} className="calendar-x-label">
+                        {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {calPeriod === 'week' && (
+            <div className="week-cal-row">
+              {calendarData.slice(-7).map((day) => {
+                const d = new Date(day.date + 'T12:00:00')
+                const isSelected = selectedDate === day.date
+                return (
+                  <div
+                    key={day.date}
+                    className={[
+                      'week-cal-cell',
+                      day.workout ? 'active' : '',
+                      day.isToday ? 'today' : '',
+                      isSelected ? 'selected' : '',
+                    ].filter(Boolean).join(' ')}
+                    onClick={() => {
+                      if (day.workout) setSelectedDate(isSelected ? null : day.date)
+                    }}
+                  >
+                    <span className="week-cal-day">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                    <span className="week-cal-num">{d.getDate()}</span>
+                    {day.workout && <span className="week-cal-dot" />}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {calPeriod === 'month' && (
+            <div>
+              <div className="month-cal-header">
+                {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+                  <span key={d}>{d}</span>
+                ))}
+              </div>
+              <div className="month-cal-grid">
+                {monthCalendarData.map((cell, i) =>
+                  cell ? (
+                    <div
+                      key={cell.date}
+                      className={[
+                        'month-cal-cell',
+                        cell.workout ? 'active' : '',
+                        cell.isToday ? 'today' : '',
+                        selectedDate === cell.date ? 'selected' : '',
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => {
+                        if (cell.workout) setSelectedDate(selectedDate === cell.date ? null : cell.date)
+                      }}
+                    >
+                      {cell.dayNum}
+                    </div>
+                  ) : (
+                    <div key={`pad-${i}`} className="month-cal-cell empty" />
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
+          {selectedDate && (() => {
+            const w = workoutLogs.find(log => {
+              const logDate = new Date(log.date)
+              logDate.setHours(0, 0, 0, 0)
+              return logDate.toISOString().split('T')[0] === selectedDate
+            })
+            if (!w) return null
+            const vol = w.exercises.reduce(
+              (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0
+            )
+            const dur = Math.floor(w.duration / 60)
+            return (
+              <div className="calendar-day-detail">
+                <div className="day-detail-header">
+                  <span className="day-detail-date">
+                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
+                      weekday: 'short', month: 'short', day: 'numeric'
+                    })}
+                  </span>
+                  <button className="day-detail-close" onClick={() => setSelectedDate(null)}>×</button>
+                </div>
+                <div className="day-detail-name">{w.templateName}</div>
+                <div className="day-detail-meta">
+                  <span>{dur} min</span>
+                  <span>{(vol / 1000).toFixed(1)}t volume</span>
+                  <span>{w.exercises.length} exercises</span>
+                </div>
+                <div className="day-detail-exercises">
+                  {w.exercises.slice(0, 5).map(ex => (
+                    <span key={ex.exerciseId} className="day-detail-exercise-tag">{ex.exerciseName}</span>
+                  ))}
+                  {w.exercises.length > 5 && (
+                    <span className="day-detail-exercise-tag muted">+{w.exercises.length - 5} more</span>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+        </div>
+
+        {/* Volume Trend */}
+        <div className="chart-card">
+          <div className="chart-header-row">
+            <div>
+              <h4 className="chart-title">Volume Trend</h4>
+              <p className="chart-subtitle">
+                {chartPeriod === 'week' && 'Daily volume — this week (tons)'}
+                {chartPeriod === 'month' && 'Weekly totals — last 8 weeks (tons)'}
+                {chartPeriod === 'year' && 'Monthly totals — last 12 months (tons)'}
+              </p>
+            </div>
+            <div className="chart-period-toggle">
+              {(['week', 'month', 'year'] as const).map(p => (
+                <button
+                  key={p}
+                  className={`period-btn${chartPeriod === p ? ' active' : ''}`}
+                  onClick={() => setChartPeriod(p)}
+                >
+                  {p.charAt(0).toUpperCase() + p.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <AreaChart
+              data={volumeData}
+              margin={{ bottom: chartPeriod === 'month' ? 24 : 0, left: 0, right: 4 }}
+            >
+              <XAxis
+                dataKey="week"
+                stroke="#555555"
+                fontSize={10}
+                tickLine={false}
+                axisLine={false}
+                interval={0}
+                angle={chartPeriod === 'month' ? -40 : 0}
+                textAnchor={chartPeriod === 'month' ? 'end' : 'middle'}
+                height={chartPeriod === 'month' ? 48 : 20}
+              />
+              <YAxis stroke="#555555" fontSize={11} tickLine={false} axisLine={false} width={28} />
+              <Tooltip
+                contentStyle={{
+                  background: '#1a1a1a',
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  fontSize: '13px'
+                }}
+                cursor={{ stroke: 'rgba(255,255,255,0.08)' }}
+              />
+              <Area
+                type="monotone"
+                dataKey="volume"
+                stroke="#22c55e"
+                fill="#22c55e"
+                fillOpacity={0.15}
+                strokeWidth={2}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

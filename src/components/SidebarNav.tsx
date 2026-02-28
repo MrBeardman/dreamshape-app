@@ -1,6 +1,6 @@
 import type { UserProfile } from '../types'
 
-type View = 'dashboard' | 'progress' | 'start' | 'nutrition' | 'profile'
+type View = 'dashboard' | 'habits' | 'progress' | 'start' | 'nutrition' | 'profile'
 
 interface SidebarNavProps {
   currentView: View
@@ -27,11 +27,14 @@ export default function SidebarNav({ currentView, onNavigate, userName, userProf
           <span>Home</span>
         </button>
 
-        <button className={`sidebar-nav-item ${currentView === 'progress' ? 'active' : ''}`} onClick={() => onNavigate('progress')}>
+        <button className={`sidebar-nav-item ${currentView === 'habits' ? 'active' : ''}`} onClick={() => onNavigate('habits')}>
           <svg className="sidebar-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            <rect x="3" y="5" width="4" height="4" rx="0.5"/>
+            <line x1="10" y1="7" x2="21" y2="7"/>
+            <rect x="3" y="13" width="4" height="4" rx="0.5"/>
+            <line x1="10" y1="15" x2="21" y2="15"/>
           </svg>
-          <span>History</span>
+          <span>Habits</span>
         </button>
 
         <button className={`sidebar-nav-item ${currentView === 'start' ? 'active' : ''}`} onClick={() => onNavigate('start')}>

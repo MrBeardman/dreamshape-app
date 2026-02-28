@@ -99,3 +99,22 @@ export interface NutritionLog {
   date: string // 'YYYY-MM-DD'
   entries: MealEntry[]
 }
+
+export interface Habit {
+  id: string
+  name: string
+  createdAt: string
+}
+
+export interface HabitCompletion {
+  habitId: string
+  date: string // YYYY-MM-DD
+}
+
+export interface DailyTask {
+  id: string
+  text: string
+  date: string // YYYY-MM-DD
+  completed: boolean
+  createdAt: string
+}

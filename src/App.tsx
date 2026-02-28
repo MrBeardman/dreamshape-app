@@ -5,7 +5,7 @@ import SyncIndicator from './components/SyncIndicator'
 import AuthView from './components/AuthView'
 import type { User } from '@supabase/supabase-js'
 import './App-redesign.css'
-import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, NutritionLog, FoodItem, MealEntry } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, NutritionLog, FoodItem, MealEntry, Habit, HabitCompletion, DailyTask } from './types'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
@@ -19,6 +19,7 @@ import BottomNav from './components/BottomNav'
 import SidebarNav from './components/SidebarNav'
 import ProfileView from './components/ProfileView'
 import NutritionView from './components/NutritionView'
+import HabitsView from './components/HabitsView'
 import ExerciseProgressSheet from './components/ExerciseProgressSheet'
 import { useConfirm } from './hooks/useConfirm'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
@@ -31,6 +32,9 @@ const ACTIVE_WORKOUT_KEY = 'dreamshape_active_workout'
 const ORIGINAL_EXERCISES_KEY = 'dreamshape_original_exercises'
 const NUTRITION_LOGS_KEY = 'dreamshape_nutrition_logs'
 const CUSTOM_FOODS_KEY = 'dreamshape_custom_foods'
+const HABITS_KEY = 'dreamshape_habits'
+const HABIT_COMPLETIONS_KEY = 'dreamshape_habit_completions'
+const DAILY_TASKS_KEY = 'dreamshape_daily_tasks'
 
 function App() {
   // Load templates from localStorage
@@ -104,9 +108,25 @@ function App() {
     return []
   })
 
+  const [habits, setHabits] = useState<Habit[]>(() => {
+    const saved = localStorage.getItem(HABITS_KEY)
+    if (saved) { try { return JSON.parse(saved) } catch { return [] } }
+    return []
+  })
+  const [habitCompletions, setHabitCompletions] = useState<HabitCompletion[]>(() => {
+    const saved = localStorage.getItem(HABIT_COMPLETIONS_KEY)
+    if (saved) { try { return JSON.parse(saved) } catch { return [] } }
+    return []
+  })
+  const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(() => {
+    const saved = localStorage.getItem(DAILY_TASKS_KEY)
+    if (saved) { try { return JSON.parse(saved) } catch { return [] } }
+    return []
+  })
+
   const [isCreating, setIsCreating] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
-  const [currentView, setCurrentView] = useState<'dashboard' | 'progress' | 'start' | 'nutrition' | 'profile'>('dashboard')
+  const [currentView, setCurrentView] = useState<'dashboard' | 'habits' | 'progress' | 'start' | 'nutrition' | 'profile'>('dashboard')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
 
   // Workout logging state — lazy-initialized from localStorage so iOS app kills don't lose the session
@@ -305,6 +325,18 @@ function App() {
   useEffect(() => {
     localStorage.setItem(CUSTOM_FOODS_KEY, JSON.stringify(customFoods))
   }, [customFoods])
+
+  useEffect(() => {
+    localStorage.setItem(HABITS_KEY, JSON.stringify(habits))
+  }, [habits])
+
+  useEffect(() => {
+    localStorage.setItem(HABIT_COMPLETIONS_KEY, JSON.stringify(habitCompletions))
+  }, [habitCompletions])
+
+  useEffect(() => {
+    localStorage.setItem(DAILY_TASKS_KEY, JSON.stringify(dailyTasks))
+  }, [dailyTasks])
 
   // Show resume prompt once on auth completion if a workout was already in localStorage
   useEffect(() => {
@@ -961,6 +993,47 @@ function App() {
     setCustomFoods(prev => prev.filter(f => f.id !== foodId))
   }
 
+  // ============================================
+  // HABITS & TASKS HANDLERS
+  // ============================================
+
+  const addHabit = (name: string) => {
+    const habit: Habit = { id: crypto.randomUUID(), name, createdAt: new Date().toISOString() }
+    setHabits(prev => [...prev, habit])
+  }
+
+  const deleteHabit = (id: string) => {
+    setHabits(prev => prev.filter(h => h.id !== id))
+    setHabitCompletions(prev => prev.filter(c => c.habitId !== id))
+  }
+
+  const toggleHabitCompletion = (habitId: string, date: string) => {
+    setHabitCompletions(prev => {
+      const exists = prev.some(c => c.habitId === habitId && c.date === date)
+      if (exists) return prev.filter(c => !(c.habitId === habitId && c.date === date))
+      return [...prev, { habitId, date }]
+    })
+  }
+
+  const addDailyTask = (text: string, date: string) => {
+    const task: DailyTask = {
+      id: crypto.randomUUID(),
+      text,
+      date,
+      completed: false,
+      createdAt: new Date().toISOString(),
+    }
+    setDailyTasks(prev => [...prev, task])
+  }
+
+  const toggleTaskCompletion = (id: string) => {
+    setDailyTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t))
+  }
+
+  const deleteTask = (id: string) => {
+    setDailyTasks(prev => prev.filter(t => t.id !== id))
+  }
+
   return (
     <>
     <div className="app">
@@ -1063,11 +1136,30 @@ function App() {
                       userProfile={userProfile}
                       exerciseDatabase={exerciseDatabase}
                       nutritionLogs={nutritionLogs}
+                      habits={habits}
+                      habitCompletions={habitCompletions}
+                      dailyTasks={dailyTasks}
                       onStartWorkout={startWorkout}
                       onStartEmptyWorkout={startEmptyWorkout}
                       onEditProfile={() => setCurrentView('profile')}
                       onViewAllTemplates={() => setCurrentView('start')}
                       onNavigateToNutrition={() => setCurrentView('nutrition')}
+                      onNavigateToHabits={() => setCurrentView('habits')}
+                      onViewHistory={() => setCurrentView('progress')}
+                    />
+                  )}
+
+                  {currentView === 'habits' && (
+                    <HabitsView
+                      habits={habits}
+                      habitCompletions={habitCompletions}
+                      dailyTasks={dailyTasks}
+                      onAddHabit={addHabit}
+                      onDeleteHabit={deleteHabit}
+                      onToggleHabitCompletion={toggleHabitCompletion}
+                      onAddTask={addDailyTask}
+                      onToggleTask={toggleTaskCompletion}
+                      onDeleteTask={deleteTask}
                     />
                   )}
 

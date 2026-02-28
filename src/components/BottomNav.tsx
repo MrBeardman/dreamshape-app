@@ -1,4 +1,4 @@
-type View = 'dashboard' | 'progress' | 'start' | 'nutrition' | 'profile'
+type View = 'dashboard' | 'habits' | 'progress' | 'start' | 'nutrition' | 'profile'
 
 interface BottomNavProps {
   currentView: View
@@ -19,13 +19,17 @@ export default function BottomNav({ currentView, onNavigate }: BottomNavProps) {
       </button>
 
       <button
-        className={`nav-item ${currentView === 'progress' ? 'active' : ''}`}
-        onClick={() => onNavigate('progress')}
+        className={`nav-item ${currentView === 'habits' ? 'active' : ''}`}
+        onClick={() => onNavigate('habits')}
       >
         <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          <rect x="3" y="5" width="4" height="4" rx="0.5"/>
+          <line x1="10" y1="7" x2="21" y2="7"/>
+          <rect x="3" y="13" width="4" height="4" rx="0.5"/>
+          <line x1="10" y1="15" x2="21" y2="15"/>
+          <polyline points="5 7 5 7" strokeWidth="3" strokeLinecap="round"/>
         </svg>
-        <span className="nav-label">History</span>
+        <span className="nav-label">Habits</span>
       </button>
 
       <button
