@@ -9,6 +9,34 @@ export interface OFFProduct {
   sugarPer100g: number
 }
 
+/**
+ * Pick the best Open Food Facts subdomain based on the browser locale.
+ * Country-specific subdomains (cz.openfoodfacts.org, de.openfoodfacts.org, …)
+ * are smaller → faster, and return locally relevant products first.
+ */
+function getOFFBaseUrl(): string {
+  const lang = (navigator.language ?? '').toLowerCase()
+  const parts = lang.split('-') // e.g. ['cs', 'cz'] or ['de'] or ['en', 'us']
+
+  // Country code explicitly in the locale tag, e.g. cs-CZ → 'cz'
+  if (parts.length > 1) {
+    const cc = parts[1]
+    const supported = new Set([
+      'cz', 'sk', 'de', 'fr', 'es', 'it', 'pl', 'nl', 'pt',
+      'ro', 'hu', 'gb', 'us', 'be', 'ch', 'at', 'se', 'no', 'dk', 'fi',
+    ])
+    if (supported.has(cc)) return `https://${cc}.openfoodfacts.org`
+  }
+
+  // Language code → country code for languages where they differ
+  const langToCC: Record<string, string> = {
+    cs: 'cz', sk: 'sk', de: 'de', fr: 'fr', es: 'es', it: 'it',
+    pl: 'pl', nl: 'nl', pt: 'pt', ro: 'ro', hu: 'hu',
+  }
+  const cc = langToCC[parts[0]]
+  return cc ? `https://${cc}.openfoodfacts.org` : 'https://world.openfoodfacts.org'
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseNutriments(n: Record<string, any>, name: string, brand?: string, barcode?: string): OFFProduct | null {
   if (!name?.trim()) return null
@@ -27,9 +55,13 @@ function parseNutriments(n: Record<string, any>, name: string, brand?: string, b
 }
 
 export async function lookupBarcode(barcode: string): Promise<OFFProduct | null> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
   try {
+    const base = getOFFBaseUrl()
     const resp = await fetch(
-      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json?fields=product_name,brands,nutriments,code`
+      `${base}/api/v2/product/${barcode}.json?fields=product_name,brands,nutriments,code`,
+      { signal: controller.signal }
     )
     if (!resp.ok) return null
     const data = await resp.json()
@@ -43,20 +75,23 @@ export async function lookupBarcode(barcode: string): Promise<OFFProduct | null>
     )
   } catch {
     return null
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
 export async function searchFoods(query: string): Promise<OFFProduct[]> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 8000)
   try {
-    // v2 search API — faster than legacy /cgi/search.pl, sorted by scan count so
-    // the most popular (best-documented) products come first
+    const base = getOFFBaseUrl()
     const url =
-      `https://world.openfoodfacts.org/api/v2/search` +
+      `${base}/api/v2/search` +
       `?search_terms=${encodeURIComponent(query)}` +
       `&page_size=25` +
       `&fields=product_name,brands,nutriments,code` +
       `&sort_by=unique_scans_n`
-    const resp = await fetch(url)
+    const resp = await fetch(url, { signal: controller.signal })
     if (!resp.ok) return []
     const data = await resp.json()
     if (!data.products) return []
@@ -68,5 +103,7 @@ export async function searchFoods(query: string): Promise<OFFProduct[]> {
       .filter((p): p is OFFProduct => p !== null)
   } catch {
     return []
+  } finally {
+    clearTimeout(timeout)
   }
 }
