@@ -343,6 +343,7 @@
   flex-direction: column;
   animation: slideUp 0.25s ease;
   overflow: hidden;
+  transition: margin-bottom 0.15s ease, max-height 0.15s ease;
 }
 
 @keyframes fadeIn {

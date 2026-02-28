@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { FoodItem, MealEntry, FoodPortion } from '../types'
 import { searchFoods, lookupBarcode } from '../lib/openFoodFacts'
 import type { OFFProduct } from '../lib/openFoodFacts'
@@ -77,6 +77,25 @@ export default function FoodSearchSheet({
   const [customPortions, setCustomPortions] = useState<Array<{ name: string; grams: string }>>([])
   const [newPortionName, setNewPortionName] = useState('')
   const [newPortionGrams, setNewPortionGrams] = useState('')
+
+  // Keep sheet above keyboard via Visual Viewport API
+  const sheetRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!vv) return
+    const update = () => {
+      if (!sheetRef.current) return
+      const keyboardHeight = Math.max(0, window.innerHeight - vv.offsetTop - vv.height)
+      sheetRef.current.style.marginBottom = `${keyboardHeight}px`
+      sheetRef.current.style.maxHeight = keyboardHeight > 0 ? `${vv.height * 0.95}px` : ''
+    }
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [])
 
   // Debounced search
   useEffect(() => {
@@ -176,7 +195,7 @@ export default function FoodSearchSheet({
 
   return (
     <div className="food-search-overlay" onClick={onClose}>
-      <div className="food-search-sheet" onClick={e => e.stopPropagation()}>
+      <div ref={sheetRef} className="food-search-sheet" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="food-search-header">
           <h3 className="food-search-title">
