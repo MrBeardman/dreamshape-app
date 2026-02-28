@@ -218,7 +218,12 @@ export default function ExerciseCard({
 
       {/* Switch Exercise Panel */}
       {showSwitchPanel && (
-        <div className="switch-exercise-panel" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="switch-exercise-panel"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
           <div className="switch-exercise-header">
             <span className="switch-exercise-title">Switch Exercise</span>
             <button
