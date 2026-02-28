@@ -490,6 +490,32 @@ function App() {
     addExerciseToWorkout(name, muscleGroup, equipment)
   }
 
+  const switchExerciseInWorkout = (exerciseIndex: number, exerciseName: string, _muscleGroup: string, _equipment: string) => {
+    if (!activeWorkout) return
+    const lastData = getLastExerciseData(exerciseName)
+    const newExercise: ExerciseLog = {
+      exerciseId: crypto.randomUUID(),
+      exerciseName,
+      sets: lastData && lastData.sets.length > 0
+        ? lastData.sets.map(set => ({
+            id: crypto.randomUUID(),
+            weight: set.weight,
+            reps: set.reps,
+            completed: false,
+            type: set.type,
+          }))
+        : [{ id: crypto.randomUUID(), weight: 0, reps: 0, completed: false }],
+    }
+    const updatedExercises = [...activeWorkout.exercises]
+    updatedExercises[exerciseIndex] = newExercise
+    setActiveWorkout({ ...activeWorkout, exercises: updatedExercises })
+  }
+
+  const createAndSwitchExerciseInWorkout = async (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => {
+    await addExerciseToDatabase({ name, muscleGroup, equipment })
+    switchExerciseInWorkout(exerciseIndex, name, muscleGroup, equipment)
+  }
+
   const removeExerciseFromWorkout = async (exerciseIndex: number) => {
     if (!activeWorkout) return
 
@@ -941,6 +967,8 @@ function App() {
                     onSetExerciseNotes={setExerciseNotes}
                     onToggleSetType={toggleSetType}
                     onCreateAndAddExercise={createAndAddExerciseToWorkout}
+                    onSwitchExercise={switchExerciseInWorkout}
+                    onCreateAndSwitchExercise={createAndSwitchExerciseInWorkout}
                     onViewExerciseHistory={setExerciseHistoryTarget}
                   />
                   {showFinishModal && (() => {

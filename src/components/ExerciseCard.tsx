@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { ExerciseLog } from '../types'
@@ -20,6 +20,9 @@ interface ExerciseCardProps {
   onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
   onToggleSetType: (exerciseIndex: number, setIndex: number) => void
   formatRestTime: (seconds: number) => string
+  exerciseDatabase?: Array<{ name: string; muscleGroup: string; equipment: string }>
+  onSwitchExercise?: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
+  onCreateAndSwitchExercise?: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
   onViewExerciseHistory?: (exerciseName: string) => void
 }
 
@@ -40,12 +43,81 @@ export default function ExerciseCard({
   onSetExerciseNotes,
   onToggleSetType,
   formatRestTime,
+  exerciseDatabase,
+  onSwitchExercise,
+  onCreateAndSwitchExercise,
   onViewExerciseHistory,
 }: ExerciseCardProps) {
   const [showNotesMenu, setShowNotesMenu] = useState(false)
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [notesText, setNotesText] = useState(exercise.notes || '')
   const [prFlashSetId, setPrFlashSetId] = useState<string | null>(null)
+  const [showSwitchPanel, setShowSwitchPanel] = useState(false)
+  const [switchInput, setSwitchInput] = useState('')
+  const [switchShowCreate, setSwitchShowCreate] = useState(false)
+  const [switchNewMuscle, setSwitchNewMuscle] = useState('Other')
+  const [switchNewEquip, setSwitchNewEquip] = useState('Barbell')
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
+  const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
+
+  // Close context menu when clicking outside
+  useEffect(() => {
+    if (!showNotesMenu) return
+    const handleOutside = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowNotesMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    document.addEventListener('touchstart', handleOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside)
+      document.removeEventListener('touchstart', handleOutside)
+    }
+  }, [showNotesMenu])
+
+  const getSwitchSuggestions = () => {
+    if (!exerciseDatabase) return {}
+    const term = switchInput.toLowerCase().trim()
+    const filtered = term
+      ? exerciseDatabase.filter(ex =>
+          ex.name.toLowerCase().includes(term) ||
+          ex.muscleGroup.toLowerCase().includes(term)
+        )
+      : exerciseDatabase
+    const grouped: Record<string, typeof filtered> = {}
+    filtered.forEach(ex => {
+      if (!grouped[ex.muscleGroup]) grouped[ex.muscleGroup] = []
+      grouped[ex.muscleGroup].push(ex)
+    })
+    return grouped
+  }
+
+  const handleSwitch = (name: string, muscleGroup: string, equipment: string) => {
+    onSwitchExercise?.(exerciseIndex, name, muscleGroup, equipment)
+    setShowSwitchPanel(false)
+    setSwitchInput('')
+    setSwitchShowCreate(false)
+  }
+
+  const handleCreateAndSwitch = () => {
+    onCreateAndSwitchExercise?.(exerciseIndex, switchInput.trim(), switchNewMuscle, switchNewEquip)
+    setShowSwitchPanel(false)
+    setSwitchInput('')
+    setSwitchShowCreate(false)
+    setSwitchNewMuscle('Other')
+    setSwitchNewEquip('Barbell')
+  }
+
+  const closeSwitchPanel = () => {
+    setShowSwitchPanel(false)
+    setSwitchInput('')
+    setSwitchShowCreate(false)
+    setSwitchNewMuscle('Other')
+    setSwitchNewEquip('Barbell')
+  }
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: exercise.exerciseId })
@@ -99,7 +171,7 @@ export default function ExerciseCard({
         </div>
         <div className="exercise-header-actions">
           {pr > 0 && <span className="pr-badge">PR: {pr} kg</span>}
-          <div className="exercise-menu-container">
+          <div className="exercise-menu-container" ref={menuRef}>
             <button
               className="btn-exercise-menu"
               onClick={(e) => { e.stopPropagation(); setShowNotesMenu(!showNotesMenu) }}
@@ -115,6 +187,14 @@ export default function ExerciseCard({
                 >
                   {exercise.notes ? 'Edit note' : 'Add note'}
                 </button>
+                {onSwitchExercise && (
+                  <button
+                    className="menu-item"
+                    onClick={(e) => { e.stopPropagation(); setShowSwitchPanel(true); setShowNotesMenu(false) }}
+                  >
+                    Switch exercise
+                  </button>
+                )}
                 {onViewExerciseHistory && (
                   <button
                     className="menu-item"
@@ -135,6 +215,93 @@ export default function ExerciseCard({
           </button>
         </div>
       </div>
+
+      {/* Switch Exercise Panel */}
+      {showSwitchPanel && (
+        <div className="switch-exercise-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="switch-exercise-header">
+            <span className="switch-exercise-title">Switch Exercise</span>
+            <button
+              className="btn-notes-cancel"
+              onClick={(e) => { e.stopPropagation(); closeSwitchPanel() }}
+            >
+              Cancel
+            </button>
+          </div>
+          <input
+            type="text"
+            className="input"
+            placeholder="Search exercises..."
+            value={switchInput}
+            onChange={(e) => setSwitchInput(e.target.value)}
+            autoFocus
+          />
+          <div className="switch-search-results">
+            {Object.entries(getSwitchSuggestions()).map(([group, groupExercises]) => (
+              <div key={group}>
+                <div className="suggestion-group-header">{group}</div>
+                {groupExercises.map((ex, idx) => (
+                  <div
+                    key={idx}
+                    className="suggestion-item"
+                    onClick={(e) => { e.stopPropagation(); handleSwitch(ex.name, ex.muscleGroup, ex.equipment) }}
+                  >
+                    <span className="suggestion-name">{ex.name}</span>
+                    <span className="suggestion-meta">{ex.muscleGroup} · {ex.equipment}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            {switchInput.trim() && !exerciseDatabase?.some(ex => ex.name.toLowerCase() === switchInput.trim().toLowerCase()) && (
+              <div className="suggestion-create-section">
+                {!switchShowCreate ? (
+                  <div
+                    className="suggestion-item suggestion-create"
+                    onClick={(e) => { e.stopPropagation(); setSwitchShowCreate(true) }}
+                  >
+                    <span className="suggestion-name">+ Create "{switchInput.trim()}"</span>
+                    <span className="suggestion-meta">Add to library & switch</span>
+                  </div>
+                ) : (
+                  <div className="create-exercise-inline" onClick={(e) => e.stopPropagation()}>
+                    <div className="create-exercise-name">"{switchInput.trim()}"</div>
+                    <div className="create-exercise-selects">
+                      <select
+                        className="rest-select"
+                        value={switchNewMuscle}
+                        onChange={(e) => setSwitchNewMuscle(e.target.value)}
+                      >
+                        {MUSCLE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <select
+                        className="rest-select"
+                        value={switchNewEquip}
+                        onChange={(e) => setSwitchNewEquip(e.target.value)}
+                      >
+                        {EQUIPMENT_OPTIONS.map(eq => <option key={eq} value={eq}>{eq}</option>)}
+                      </select>
+                    </div>
+                    <div className="create-exercise-actions">
+                      <button
+                        className="btn-notes-cancel"
+                        onClick={(e) => { e.stopPropagation(); setSwitchShowCreate(false) }}
+                      >
+                        Back
+                      </button>
+                      <button
+                        className="btn-notes-save"
+                        onClick={(e) => { e.stopPropagation(); handleCreateAndSwitch() }}
+                      >
+                        Create & Switch
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Exercise Notes edit mode */}
       {isEditingNotes && (

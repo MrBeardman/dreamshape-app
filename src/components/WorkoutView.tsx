@@ -45,6 +45,8 @@ interface WorkoutViewProps {
   onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
   onToggleSetType: (exerciseIndex: number, setIndex: number) => void
   onCreateAndAddExercise: (name: string, muscleGroup: string, equipment: string) => void
+  onSwitchExercise: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
+  onCreateAndSwitchExercise: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
   onViewExerciseHistory?: (exerciseName: string) => void
 }
 
@@ -71,6 +73,8 @@ export default function WorkoutView({
   onSetExerciseNotes,
   onToggleSetType,
   onCreateAndAddExercise,
+  onSwitchExercise,
+  onCreateAndSwitchExercise,
   onViewExerciseHistory,
 }: WorkoutViewProps) {
   const [exerciseInput, setExerciseInput] = useState('')
@@ -290,6 +294,7 @@ export default function WorkoutView({
                 lastWorkoutSets={getLastWorkoutSets(exerciseLog.exerciseName)}
                 exerciseRestDuration={exerciseLog.restDuration || restDuration}
                 activeRestTimer={activeRestTimer}
+                exerciseDatabase={exerciseDatabase}
                 onUpdateSet={onUpdateSet}
                 onToggleSetCompleted={onToggleSetCompleted}
                 onAddSet={onAddSet}
@@ -300,6 +305,8 @@ export default function WorkoutView({
                 onSetExerciseNotes={onSetExerciseNotes}
                 onToggleSetType={onToggleSetType}
                 formatRestTime={formatRestTime}
+                onSwitchExercise={onSwitchExercise}
+                onCreateAndSwitchExercise={onCreateAndSwitchExercise}
                 onViewExerciseHistory={onViewExerciseHistory}
               />
             ))}
