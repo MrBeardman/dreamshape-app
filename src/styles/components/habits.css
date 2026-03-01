@@ -494,3 +494,104 @@
   color: var(--text-secondary);
   font-size: 16px;
 }
+
+/* ============================================
+   HABIT HISTORY HEATMAP
+   ============================================ */
+
+.habit-heatmap-section {
+  margin-top: 28px;
+}
+
+.habit-heatmap-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.habit-heatmap-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.habit-heatmap-subtitle {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* 12-column grid (12 weeks × 7 rows) */
+.habit-hm-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 3px;
+  margin-bottom: 0.5rem;
+}
+
+/* Base cell */
+.habit-hm-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.habit-hm-cell:hover { transform: scale(1.2); z-index: 1; }
+
+/* Color levels */
+.habit-hm-0 {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+}
+.habit-hm-1 {
+  background: rgba(245, 197, 24, 0.18);
+  border-color: rgba(245, 197, 24, 0.18);
+}
+.habit-hm-2 {
+  background: rgba(245, 197, 24, 0.42);
+  border-color: rgba(245, 197, 24, 0.42);
+}
+.habit-hm-3 {
+  background: rgba(245, 197, 24, 0.68);
+  border-color: rgba(245, 197, 24, 0.68);
+}
+.habit-hm-4 {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Today ring */
+.habit-hm-today {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 1px;
+}
+
+/* Selected ring */
+.habit-hm-selected {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+/* Legend */
+.habit-hm-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+
+.habit-hm-legend .habit-hm-cell {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  cursor: default;
+}
+
+.habit-hm-legend .habit-hm-cell:hover { transform: none; }
