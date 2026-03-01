@@ -119,3 +119,9 @@ export interface DailyTask {
   completed: boolean
   createdAt: string
 }
+
+export interface WeightEntry {
+  id: string
+  date: string   // YYYY-MM-DD
+  weight: number // kg
+}

@@ -1,11 +1,15 @@
 import { useState, useRef } from 'react'
-import type { WorkoutLog } from '../types'
+import type { WorkoutLog, WeightEntry } from '../types'
+import WeightTrackerSheet from './WeightTrackerSheet'
 
 interface WorkoutsViewProps {
   workoutLogs: WorkoutLog[]
+  weightEntries: WeightEntry[]
   onStartWorkout: () => void
   onSelectWorkout: (workout: WorkoutLog) => void
   onDeleteWorkout: (id: string) => void
+  onAddWeightEntry: (entry: WeightEntry) => void
+  onDeleteWeightEntry: (id: string) => void
 }
 
 const DELETE_REVEAL = 80 // px to swipe left to reveal delete button
@@ -129,7 +133,11 @@ function SwipeableCard({
   )
 }
 
-export default function WorkoutsView({ workoutLogs, onStartWorkout, onSelectWorkout, onDeleteWorkout }: WorkoutsViewProps) {
+export default function WorkoutsView({ workoutLogs, weightEntries, onStartWorkout, onSelectWorkout, onDeleteWorkout, onAddWeightEntry, onDeleteWeightEntry }: WorkoutsViewProps) {
+  const [showWeightTracker, setShowWeightTracker] = useState(false)
+
+  const sortedWeight = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date))
+  const latestWeight = sortedWeight[sortedWeight.length - 1]
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const today = new Date()
@@ -181,10 +189,38 @@ export default function WorkoutsView({ workoutLogs, onStartWorkout, onSelectWork
 
   return (
     <div className="workouts-view">
+      {showWeightTracker && (
+        <WeightTrackerSheet
+          weightEntries={weightEntries}
+          onAdd={onAddWeightEntry}
+          onDelete={onDeleteWeightEntry}
+          onClose={() => setShowWeightTracker(false)}
+        />
+      )}
+
       <div className="workouts-header">
         <h2 className="view-title">History</h2>
         <button className="btn-header" onClick={onStartWorkout}>New</button>
       </div>
+
+      {/* Weight tracker card */}
+      <button className="weight-tracker-card" onClick={() => setShowWeightTracker(true)}>
+        <div className="weight-tracker-card-left">
+          <span className="weight-tracker-card-label">Body Weight</span>
+          {latestWeight ? (
+            <>
+              <span className="weight-tracker-card-value">{latestWeight.weight} kg</span>
+              <span className="weight-tracker-card-sub">
+                {new Date(latestWeight.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {weightEntries.length > 1 && ` · ${weightEntries.length} entries`}
+              </span>
+            </>
+          ) : (
+            <span className="weight-tracker-card-value" style={{ color: 'var(--text-tertiary)', fontSize: 'var(--text-base)' }}>Tap to log weight</span>
+          )}
+        </div>
+        <span className="weight-tracker-card-arrow">›</span>
+      </button>
 
       {workoutLogs.length > 0 && (
         <div className="workouts-summary">

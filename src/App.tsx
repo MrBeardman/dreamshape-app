@@ -5,7 +5,7 @@ import SyncIndicator from './components/SyncIndicator'
 import AuthView from './components/AuthView'
 import type { User } from '@supabase/supabase-js'
 import './App-redesign.css'
-import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, NutritionLog, FoodItem, MealEntry, Habit, HabitCompletion, DailyTask } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, NutritionLog, FoodItem, MealEntry, Habit, HabitCompletion, DailyTask, WeightEntry } from './types'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
@@ -36,6 +36,7 @@ const HABITS_KEY = 'dreamshape_habits'
 const HABIT_COMPLETIONS_KEY = 'dreamshape_habit_completions'
 const DAILY_TASKS_KEY = 'dreamshape_daily_tasks'
 const RECENT_FOODS_KEY = 'dreamshape_recent_foods'
+const WEIGHT_KEY = 'dreamshape_weight'
 
 function App() {
   // Load templates from localStorage
@@ -126,6 +127,12 @@ function App() {
   })
   const [dailyTasks, setDailyTasks] = useState<DailyTask[]>(() => {
     const saved = localStorage.getItem(DAILY_TASKS_KEY)
+    if (saved) { try { return JSON.parse(saved) } catch { return [] } }
+    return []
+  })
+
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>(() => {
+    const saved = localStorage.getItem(WEIGHT_KEY)
     if (saved) { try { return JSON.parse(saved) } catch { return [] } }
     return []
   })
@@ -1052,6 +1059,22 @@ function App() {
     setDailyTasks(prev => prev.filter(t => t.id !== id))
   }
 
+  const addWeightEntry = (entry: WeightEntry) => {
+    setWeightEntries(prev => {
+      const updated = [...prev, entry].sort((a, b) => a.date.localeCompare(b.date))
+      localStorage.setItem(WEIGHT_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }
+
+  const deleteWeightEntry = (id: string) => {
+    setWeightEntries(prev => {
+      const updated = prev.filter(e => e.id !== id)
+      localStorage.setItem(WEIGHT_KEY, JSON.stringify(updated))
+      return updated
+    })
+  }
+
   return (
     <>
     <div className="app">
@@ -1184,9 +1207,12 @@ function App() {
                   {currentView === 'progress' && (
                     <WorkoutsView
                       workoutLogs={workoutLogs}
+                      weightEntries={weightEntries}
                       onStartWorkout={startEmptyWorkout}
                       onSelectWorkout={setSelectedWorkout}
                       onDeleteWorkout={deleteWorkout}
+                      onAddWeightEntry={addWeightEntry}
+                      onDeleteWeightEntry={deleteWeightEntry}
                     />
                   )}
 
