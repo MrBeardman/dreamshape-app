@@ -3,18 +3,35 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
-import type { UserProfile, WorkoutLog, NutritionGoals } from '../types'
+import type { UserProfile, WorkoutLog, NutritionLog, Habit, HabitCompletion, WeightEntry, NutritionGoals } from '../types'
 
 interface ProfileViewProps {
   userProfile: UserProfile
   workoutLogs: WorkoutLog[]
+  nutritionLogs: NutritionLog[]
+  habits: Habit[]
+  habitCompletions: HabitCompletion[]
+  weightEntries: WeightEntry[]
   onUpdateProfile: (profile: UserProfile) => void
   onSignOut: () => void
+}
+
+// inline helper — same 5-level scheme as HabitsView
+function hmLevel(ratio: number): 0 | 1 | 2 | 3 | 4 {
+  if (ratio <= 0) return 0
+  if (ratio < 0.25) return 1
+  if (ratio < 0.5) return 2
+  if (ratio < 0.75) return 3
+  return 4
 }
 
 export default function ProfileView({
   userProfile,
   workoutLogs,
+  nutritionLogs,
+  habits,
+  habitCompletions,
+  weightEntries,
   onUpdateProfile,
   onSignOut,
 }: ProfileViewProps) {
@@ -45,6 +62,8 @@ export default function ProfileView({
     setIsEditing(false)
   }
 
+  // ─── Gym helpers ─────────────────────────────────────────────────────────────
+
   const getTotalVolume = () => {
     return workoutLogs.reduce((total, workout) => {
       return total + workout.exercises.reduce((exSum, exercise) => {
@@ -57,8 +76,7 @@ export default function ProfileView({
 
   const getTotalDuration = () => {
     const totalSeconds = workoutLogs.reduce((sum, w) => sum + w.duration, 0)
-    const hours = Math.floor(totalSeconds / 3600)
-    return hours
+    return Math.floor(totalSeconds / 3600)
   }
 
   const getWeeklyGoalProgress = () => {
@@ -66,24 +84,17 @@ export default function ProfileView({
     const weekStart = new Date(now)
     weekStart.setDate(now.getDate() - now.getDay())
     weekStart.setHours(0, 0, 0, 0)
-
-    const thisWeekWorkouts = workoutLogs.filter(w => {
-      const workoutDate = new Date(w.date)
-      return workoutDate >= weekStart
-    }).length
-
-    const goal = 4 // 4 workouts per week goal
-    return Math.min((thisWeekWorkouts / goal) * 100, 100)
+    const thisWeekWorkouts = workoutLogs.filter(w => new Date(w.date) >= weekStart).length
+    const goal = 4
+    return { count: thisWeekWorkouts, goal, pct: Math.min((thisWeekWorkouts / goal) * 100, 100) }
   }
 
   const getRecentPRs = () => {
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
     const historicalMax: Record<string, number> = {}
     const recentMax: Record<string, number> = {}
     const recentDate: Record<string, string> = {}
-
     workoutLogs.forEach(workout => {
       const workoutDate = new Date(workout.date)
       const isRecent = workoutDate >= thirtyDaysAgo
@@ -102,7 +113,6 @@ export default function ProfileView({
         })
       })
     })
-
     return Object.entries(recentMax)
       .filter(([name, weight]) => weight > (historicalMax[name] ?? 0))
       .map(([name, weight]) => ({
@@ -120,30 +130,25 @@ export default function ProfileView({
     const now = new Date()
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1)
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-
     const exerciseCounts: Record<string, number> = {}
     workoutLogs.forEach(w => w.exercises.forEach(e => {
       exerciseCounts[e.exerciseName] = (exerciseCounts[e.exerciseName] ?? 0) + 1
     }))
-
     const top3 = Object.entries(exerciseCounts)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 3)
       .map(([name]) => name)
-
     return top3.map(name => {
       const thisMonthMax = workoutLogs
         .filter(w => new Date(w.date) >= thisMonthStart)
         .flatMap(w => w.exercises.filter(e => e.exerciseName === name))
         .flatMap(e => e.sets)
         .reduce((max, s) => Math.max(max, s.weight), 0)
-
       const lastMonthMax = workoutLogs
         .filter(w => { const d = new Date(w.date); return d >= lastMonthStart && d < thisMonthStart })
         .flatMap(w => w.exercises.filter(e => e.exerciseName === name))
         .flatMap(e => e.sets)
         .reduce((max, s) => Math.max(max, s.weight), 0)
-
       return { name, thisMonth: thisMonthMax, lastMonth: lastMonthMax }
     }).filter(t => t.thisMonth > 0 || t.lastMonth > 0)
   }
@@ -155,12 +160,10 @@ export default function ProfileView({
     weekStart.setHours(0, 0, 0, 0)
     const prevWeekStart = new Date(weekStart)
     prevWeekStart.setDate(weekStart.getDate() - 7)
-
     const calcVol = (logs: typeof workoutLogs) =>
       logs.reduce((sum, w) =>
         sum + w.exercises.reduce((es, e) =>
           es + e.sets.reduce((ss, s) => ss + s.weight * s.reps, 0), 0), 0)
-
     const thisWeek = calcVol(workoutLogs.filter(w => new Date(w.date) >= weekStart))
     const lastWeek = calcVol(workoutLogs.filter(w => { const d = new Date(w.date); return d >= prevWeekStart && d < weekStart }))
     return { thisWeek, lastWeek }
@@ -168,26 +171,137 @@ export default function ProfileView({
 
   const getMostFrequentExercise = () => {
     const exerciseCounts: Record<string, number> = {}
-
     workoutLogs.forEach(workout => {
       workout.exercises.forEach(exercise => {
         exerciseCounts[exercise.exerciseName] = (exerciseCounts[exercise.exerciseName] || 0) + 1
       })
     })
-
     const sorted = Object.entries(exerciseCounts).sort((a, b) => b[1] - a[1])
     return sorted[0] ? sorted[0][0] : 'None'
   }
 
+  // ─── Nutrition helpers ────────────────────────────────────────────────────────
+
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  const todayNutrition = useMemo(() => {
+    const log = nutritionLogs.find(l => l.date === todayStr)
+    if (!log) return { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    return log.entries.reduce(
+      (acc, e) => ({
+        calories: acc.calories + e.calories,
+        protein: acc.protein + e.protein,
+        carbs: acc.carbs + e.carbs,
+        fat: acc.fat + e.fat,
+      }),
+      { calories: 0, protein: 0, carbs: 0, fat: 0 }
+    )
+  }, [nutritionLogs, todayStr])
+
+  const sevenDayAvgCalories = useMemo(() => {
+    const days: number[] = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const ds = d.toISOString().split('T')[0]
+      const log = nutritionLogs.find(l => l.date === ds)
+      if (log) {
+        const kcal = log.entries.reduce((sum, e) => sum + e.calories, 0)
+        days.push(kcal)
+      }
+    }
+    if (days.length === 0) return 0
+    return Math.round(days.reduce((a, b) => a + b, 0) / days.length)
+  }, [nutritionLogs])
+
+  // ─── Habits helpers ───────────────────────────────────────────────────────────
+
+  const todayHabitsTotal = habits.length
+  const todayHabitsDone = habits.filter(h =>
+    habitCompletions.some(c => c.habitId === h.id && c.date === todayStr)
+  ).length
+
+  const habitStreak = useMemo(() => {
+    let streak = 0
+    const d = new Date()
+    // start from yesterday if today has no completions yet, else from today
+    const startOffset = todayHabitsDone > 0 ? 0 : 1
+    for (let i = startOffset; i < 365; i++) {
+      const day = new Date(d)
+      day.setDate(d.getDate() - i)
+      const ds = day.toISOString().split('T')[0]
+      const done = habitCompletions.some(c => c.date === ds)
+      if (done) {
+        streak++
+      } else {
+        break
+      }
+    }
+    return streak
+  }, [habitCompletions, todayHabitsDone])
+
+  // 14-day mini heatmap: 2 rows × 7 cols, oldest top-left, today bottom-right
+  const miniHeatmapDays = useMemo(() => {
+    return Array.from({ length: 14 }, (_, i) => {
+      const day = new Date()
+      day.setDate(day.getDate() - (13 - i))
+      const ds = day.toISOString().split('T')[0]
+      const done = habitCompletions.filter(c => c.date === ds).length
+      const total = habits.length
+      const ratio = total > 0 ? done / total : 0
+      return { ds, level: hmLevel(ratio) }
+    })
+  }, [habitCompletions, habits])
+
+  // ─── Weight helpers ───────────────────────────────────────────────────────────
+
+  const sortedWeightEntries = useMemo(() =>
+    [...weightEntries].sort((a, b) => a.date.localeCompare(b.date)),
+    [weightEntries]
+  )
+
+  const latestWeight = sortedWeightEntries[sortedWeightEntries.length - 1]
+  const firstWeight = sortedWeightEntries[0]
+
+  const weightSparkline = useMemo(() => {
+    const entries = sortedWeightEntries.slice(-10)
+    if (entries.length < 2) return null
+    const values = entries.map(e => e.weight)
+    const min = Math.min(...values)
+    const max = Math.max(...values)
+    const svgW = 120
+    const svgH = 40
+    const range = max - min || 1
+    const points = entries.map((e, i) => {
+      const x = (i / (entries.length - 1)) * svgW
+      const y = svgH - ((e.weight - min) / range) * (svgH - 6) - 3
+      return `${x.toFixed(1)},${y.toFixed(1)}`
+    }).join(' ')
+    return points
+  }, [sortedWeightEntries])
+
+  // ─── Derived values ───────────────────────────────────────────────────────────
+
   const totalVolume = getTotalVolume()
   const totalHours = getTotalDuration()
   const favoriteExercise = getMostFrequentExercise()
-  const weeklyProgress = getWeeklyGoalProgress()
+  const weeklyGoal = getWeeklyGoalProgress()
   const recentPRs = getRecentPRs()
   const strengthTrend = getStrengthTrend()
   const volumeDelta = getVolumeWeekDelta()
+  const nutritionGoals = userProfile.nutritionGoals
 
-  // Charts state
+  // ─── Today ring values ────────────────────────────────────────────────────────
+
+  const calRingPct = nutritionGoals
+    ? Math.min((todayNutrition.calories / nutritionGoals.calories) * 100, 100)
+    : 0
+  const habitRingPct = todayHabitsTotal > 0
+    ? Math.min((todayHabitsDone / todayHabitsTotal) * 100, 100)
+    : 0
+
+  // ─── Charts state ─────────────────────────────────────────────────────────────
+
   const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month')
   const [calPeriod, setCalPeriod] = useState<'week' | 'month' | 'year'>('month')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -361,40 +475,77 @@ export default function ProfileView({
         )}
       </div>
 
-      {/* Goals */}
+      {/* ── TODAY ── 3-ring row */}
       <div className="profile-section">
-        <h3 className="section-title">Goals</h3>
+        <h3 className="section-title">Today</h3>
 
-        {/* Weekly goal + volume delta */}
-        <div className="goals-top-row">
-          <div className="widget-card goals-weekly-card">
+        <div className="goals-rings-row">
+          {/* Gym ring */}
+          <div className="goals-ring-cell">
             <CircularProgress
-              value={weeklyProgress}
+              value={weeklyGoal.pct}
               max={100}
               size={72}
               strokeWidth={6}
               color="#fbbf24"
-              label="This Week"
-              subtitle={`${Math.round(weeklyProgress / 25)} / 4 workouts`}
+              label="Workouts"
+              subtitle={`${weeklyGoal.count} / 4 this wk`}
               displayMode="percentage"
             />
           </div>
-          <div className="goals-volume-card">
-            <div className="goals-volume-label">Volume this week</div>
-            <div className="goals-volume-value">{(volumeDelta.thisWeek / 1000).toFixed(1)}t</div>
-            {volumeDelta.lastWeek > 0 && (
-              <div className={`goals-volume-delta ${volumeDelta.thisWeek >= volumeDelta.lastWeek ? 'positive' : 'negative'}`}>
-                {volumeDelta.thisWeek >= volumeDelta.lastWeek ? '↑' : '↓'}
-                {Math.abs(Math.round(((volumeDelta.thisWeek - volumeDelta.lastWeek) / volumeDelta.lastWeek) * 100))}% vs last week
-              </div>
-            )}
-            {volumeDelta.lastWeek === 0 && volumeDelta.thisWeek > 0 && (
-              <div className="goals-volume-delta positive">First data this week</div>
-            )}
+
+          {/* Calories ring */}
+          <div className="goals-ring-cell">
+            <CircularProgress
+              value={calRingPct}
+              max={100}
+              size={72}
+              strokeWidth={6}
+              color="#22c55e"
+              label="Calories"
+              subtitle={
+                nutritionGoals
+                  ? `${Math.round(todayNutrition.calories)} / ${nutritionGoals.calories}`
+                  : 'No goal set'
+              }
+              displayMode="percentage"
+            />
+          </div>
+
+          {/* Habits ring */}
+          <div className="goals-ring-cell">
+            <CircularProgress
+              value={habitRingPct}
+              max={100}
+              size={72}
+              strokeWidth={6}
+              color="#3b82f6"
+              label="Habits"
+              subtitle={`${todayHabitsDone} / ${todayHabitsTotal} today`}
+              displayMode="percentage"
+            />
           </div>
         </div>
 
-        {/* Recent PRs */}
+        {/* Volume delta row */}
+        <div className="goals-volume-mini">
+          Volume this week: <strong>{(volumeDelta.thisWeek / 1000).toFixed(1)}t</strong>
+          {volumeDelta.lastWeek > 0 && (
+            <span className={`goals-volume-mini-delta ${volumeDelta.thisWeek >= volumeDelta.lastWeek ? 'positive' : 'negative'}`}>
+              {' '}{volumeDelta.thisWeek >= volumeDelta.lastWeek ? '↑' : '↓'}
+              {Math.abs(Math.round(((volumeDelta.thisWeek - volumeDelta.lastWeek) / volumeDelta.lastWeek) * 100))}% vs last wk
+            </span>
+          )}
+          {volumeDelta.lastWeek === 0 && volumeDelta.thisWeek > 0 && (
+            <span className="goals-volume-mini-delta positive"> First data this week</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── GYM PROGRESS ── PRs + strength trend */}
+      <div className="profile-section">
+        <h3 className="section-title">Gym Progress</h3>
+
         {recentPRs.length > 0 && (
           <div className="goals-card">
             <div className="goals-card-title">Recent PRs <span className="goals-card-subtitle">last 30 days</span></div>
@@ -413,7 +564,6 @@ export default function ProfileView({
           </div>
         )}
 
-        {/* Strength trend */}
         {strengthTrend.length > 0 && (
           <div className="goals-card">
             <div className="goals-card-title">Strength Trend <span className="goals-card-subtitle">this vs last month</span></div>
@@ -443,93 +593,7 @@ export default function ProfileView({
         )}
       </div>
 
-      {/* Nutrition Goals */}
-      <div className="profile-section">
-        <div className="section-header-row">
-          <h3 className="section-title">Nutrition Goals</h3>
-          {!isEditingGoals && (
-            <button className="btn-edit-section" onClick={() => setIsEditingGoals(true)}>
-              {userProfile.nutritionGoals ? 'Edit' : 'Set Goals'}
-            </button>
-          )}
-        </div>
-
-        {isEditingGoals ? (
-          <div className="nutrition-goals-form">
-            {[
-              { label: 'Daily Calories', value: goalCalories, setter: setGoalCalories, unit: 'kcal' },
-              { label: 'Protein', value: goalProtein, setter: setGoalProtein, unit: 'g' },
-              { label: 'Carbohydrates', value: goalCarbs, setter: setGoalCarbs, unit: 'g' },
-              { label: 'Fat', value: goalFat, setter: setGoalFat, unit: 'g' },
-              { label: 'Sugar', value: goalSugar, setter: setGoalSugar, unit: 'g' },
-            ].map(({ label, value, setter, unit }) => (
-              <div key={label} className="nutrition-goal-row">
-                <label className="nutrition-goal-label">{label}</label>
-                <div className="nutrition-goal-input-wrap">
-                  <input
-                    type="number"
-                    className="input nutrition-goal-input"
-                    value={value}
-                    onChange={(e) => setter(e.target.value)}
-                    inputMode="numeric"
-                  />
-                  <span className="nutrition-goal-unit">{unit}</span>
-                </div>
-              </div>
-            ))}
-            <div className="nutrition-goals-actions">
-              <button className="btn btn-secondary" onClick={() => setIsEditingGoals(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSaveGoals}>Save Goals</button>
-            </div>
-          </div>
-        ) : userProfile.nutritionGoals ? (
-          <div className="nutrition-goals-display">
-            {[
-              { label: 'Calories', value: userProfile.nutritionGoals.calories, unit: 'kcal' },
-              { label: 'Protein', value: userProfile.nutritionGoals.protein, unit: 'g' },
-              { label: 'Carbs', value: userProfile.nutritionGoals.carbs, unit: 'g' },
-              { label: 'Fat', value: userProfile.nutritionGoals.fat, unit: 'g' },
-              { label: 'Sugar', value: userProfile.nutritionGoals.sugar, unit: 'g' },
-            ].map(({ label, value, unit }) => (
-              <div key={label} className="stat-item">
-                <div className="stat-item-label">{label}</div>
-                <div className="stat-item-value">{value} {unit}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="goals-empty">Set your daily nutrition targets to track calories and macros.</p>
-        )}
-      </div>
-
-      {/* Stats Grid */}
-      <div className="profile-section">
-        <h3 className="section-title">Lifetime Stats</h3>
-
-        <div className="stats-list">
-          <div className="stat-item">
-            <div className="stat-item-label">Total Workouts</div>
-            <div className="stat-item-value">{workoutLogs.length}</div>
-          </div>
-
-          <div className="stat-item">
-            <div className="stat-item-label">Total Volume</div>
-            <div className="stat-item-value">{(totalVolume / 1000).toFixed(1)} tons</div>
-          </div>
-
-          <div className="stat-item">
-            <div className="stat-item-label">Time Spent</div>
-            <div className="stat-item-value">{totalHours} hours</div>
-          </div>
-
-          <div className="stat-item">
-            <div className="stat-item-label">Favorite Exercise</div>
-            <div className="stat-item-value">{favoriteExercise}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Section */}
+      {/* ── PROGRESS (calendar + volume trend chart) ── */}
       <div className="profile-section">
         <h3 className="section-title">Progress</h3>
 
@@ -759,7 +823,190 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* Actions */}
+      {/* ── NUTRITION ── rich card */}
+      <div className="profile-section">
+        <div className="section-header-row">
+          <h3 className="section-title">Nutrition</h3>
+          {!isEditingGoals && (
+            <button className="btn-edit-section" onClick={() => setIsEditingGoals(true)}>
+              {nutritionGoals ? 'Edit' : 'Set Goals'}
+            </button>
+          )}
+        </div>
+
+        {isEditingGoals ? (
+          <div className="nutrition-goals-form">
+            {[
+              { label: 'Daily Calories', value: goalCalories, setter: setGoalCalories, unit: 'kcal' },
+              { label: 'Protein', value: goalProtein, setter: setGoalProtein, unit: 'g' },
+              { label: 'Carbohydrates', value: goalCarbs, setter: setGoalCarbs, unit: 'g' },
+              { label: 'Fat', value: goalFat, setter: setGoalFat, unit: 'g' },
+              { label: 'Sugar', value: goalSugar, setter: setGoalSugar, unit: 'g' },
+            ].map(({ label, value, setter, unit }) => (
+              <div key={label} className="nutrition-goal-row">
+                <label className="nutrition-goal-label">{label}</label>
+                <div className="nutrition-goal-input-wrap">
+                  <input
+                    type="number"
+                    className="input nutrition-goal-input"
+                    value={value}
+                    onChange={(e) => setter(e.target.value)}
+                    inputMode="numeric"
+                  />
+                  <span className="nutrition-goal-unit">{unit}</span>
+                </div>
+              </div>
+            ))}
+            <div className="nutrition-goals-actions">
+              <button className="btn btn-secondary" onClick={() => setIsEditingGoals(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSaveGoals}>Save Goals</button>
+            </div>
+          </div>
+        ) : nutritionGoals ? (
+          <div className="nutrition-today-card">
+            {/* Macro progress bars */}
+            {[
+              { label: 'Calories', value: Math.round(todayNutrition.calories), goal: nutritionGoals.calories, unit: 'kcal', color: '#fbbf24' },
+              { label: 'Protein', value: Math.round(todayNutrition.protein), goal: nutritionGoals.protein, unit: 'g', color: '#22c55e' },
+              { label: 'Carbs', value: Math.round(todayNutrition.carbs), goal: nutritionGoals.carbs, unit: 'g', color: '#3b82f6' },
+              { label: 'Fat', value: Math.round(todayNutrition.fat), goal: nutritionGoals.fat, unit: 'g', color: '#f97316' },
+            ].map(({ label, value, goal, unit, color }) => (
+              <div key={label} className="nutrition-bar-row">
+                <span className="nutrition-bar-label">{label}</span>
+                <div className="nutrition-bar-track">
+                  <div
+                    className="nutrition-bar-fill"
+                    style={{
+                      width: `${Math.min((value / goal) * 100, 100)}%`,
+                      background: color,
+                    }}
+                  />
+                </div>
+                <span className="nutrition-bar-value">{value} / {goal} {unit}</span>
+              </div>
+            ))}
+
+            {/* 7-day avg */}
+            {sevenDayAvgCalories > 0 && (
+              <div className="nutrition-avg-row">
+                7-day avg: <strong>{sevenDayAvgCalories} kcal / day</strong>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="goals-empty">Set your daily nutrition targets to track calories and macros.</p>
+        )}
+      </div>
+
+      {/* ── HABITS ── mini heatmap + streak + today list */}
+      {habits.length > 0 && (
+        <div className="profile-section">
+          <h3 className="section-title">Habits</h3>
+
+          <div className="habits-profile-card">
+            {/* Header count */}
+            <div className="habits-profile-header">
+              <span className="habits-profile-count">{todayHabitsDone} / {todayHabitsTotal} today</span>
+              {habitStreak > 0 ? (
+                <span className="habits-profile-streak">🔥 {habitStreak}-day streak</span>
+              ) : (
+                <span className="habits-profile-streak muted">No current streak</span>
+              )}
+            </div>
+
+            {/* 14-day mini heatmap */}
+            <div className="habits-mini-hm-grid">
+              {miniHeatmapDays.map(({ ds, level }) => (
+                <div
+                  key={ds}
+                  className={`habits-mini-hm-cell habit-hm-${level}`}
+                  title={ds}
+                />
+              ))}
+            </div>
+
+            {/* Today's habit list */}
+            <div className="habits-profile-list">
+              {habits.map(h => {
+                const done = habitCompletions.some(c => c.habitId === h.id && c.date === todayStr)
+                return (
+                  <div key={h.id} className={`habits-profile-item ${done ? 'done' : 'undone'}`}>
+                    <span className="habits-profile-check">{done ? '✓' : '✗'}</span>
+                    <span className="habits-profile-name">{h.name}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BODY WEIGHT ── sparkline card */}
+      {weightEntries.length > 0 && latestWeight && firstWeight && (
+        <div className="profile-section">
+          <h3 className="section-title">Body Weight</h3>
+
+          <div className="weight-profile-card">
+            <div className="weight-profile-top">
+              <div className="weight-profile-latest">
+                <span className="weight-profile-value">{latestWeight.weight} kg</span>
+                <span className="weight-profile-date">
+                  {new Date(latestWeight.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+              {firstWeight.date !== latestWeight.date && (
+                <div className={`weight-profile-delta ${latestWeight.weight <= firstWeight.weight ? 'negative' : 'positive'}`}>
+                  {latestWeight.weight <= firstWeight.weight ? '−' : '+'}{Math.abs(latestWeight.weight - firstWeight.weight).toFixed(1)} kg
+                  {' '}since {new Date(firstWeight.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </div>
+              )}
+            </div>
+
+            {weightSparkline && (
+              <svg
+                className="weight-sparkline-svg"
+                viewBox="0 0 120 40"
+                preserveAspectRatio="none"
+              >
+                <polyline
+                  points={weightSparkline}
+                  fill="none"
+                  stroke="#fbbf24"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── LIFETIME STATS ── */}
+      <div className="profile-section">
+        <h3 className="section-title">Lifetime Stats</h3>
+
+        <div className="stats-list">
+          <div className="stat-item">
+            <div className="stat-item-label">Total Workouts</div>
+            <div className="stat-item-value">{workoutLogs.length}</div>
+          </div>
+          <div className="stat-item">
+            <div className="stat-item-label">Total Volume</div>
+            <div className="stat-item-value">{(totalVolume / 1000).toFixed(1)} tons</div>
+          </div>
+          <div className="stat-item">
+            <div className="stat-item-label">Time Spent</div>
+            <div className="stat-item-value">{totalHours} hours</div>
+          </div>
+          <div className="stat-item">
+            <div className="stat-item-label">Favorite Exercise</div>
+            <div className="stat-item-value">{favoriteExercise}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── DATA & SETTINGS ── */}
       <div className="profile-section">
         <h3 className="section-title">Data & Settings</h3>
 

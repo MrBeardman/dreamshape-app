@@ -1248,6 +1248,10 @@ function App() {
                     <ProfileView
                       userProfile={userProfile}
                       workoutLogs={workoutLogs}
+                      nutritionLogs={nutritionLogs}
+                      habits={habits}
+                      habitCompletions={habitCompletions}
+                      weightEntries={weightEntries}
                       onUpdateProfile={handleUpdateProfile}
                       onSignOut={handleSignOut}
                     />

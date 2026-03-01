@@ -727,3 +727,235 @@
   overflow: hidden;
   width: -webkit-fill-available;
 }
+
+/* ===== TODAY — 3-RING ROW ===== */
+.goals-rings-row {
+  display: flex;
+  gap: 8px;
+  justify-content: space-around;
+  margin-bottom: 12px;
+}
+
+.goals-ring-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.goals-volume-mini {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 4px 0 2px;
+}
+
+.goals-volume-mini strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.goals-volume-mini-delta {
+  font-weight: 500;
+}
+
+.goals-volume-mini-delta.positive { color: #10b981; }
+.goals-volume-mini-delta.negative { color: #ef4444; }
+
+/* ===== NUTRITION TODAY CARD ===== */
+.nutrition-today-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nutrition-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nutrition-bar-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  width: 58px;
+  flex-shrink: 0;
+}
+
+.nutrition-bar-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-secondary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.nutrition-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.nutrition-bar-value {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  min-width: 90px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nutrition-avg-row {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.nutrition-avg-row strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ===== HABITS PROFILE CARD ===== */
+.habits-profile-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.habits-profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.habits-profile-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.habits-profile-streak {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.habits-profile-streak.muted {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+/* 14-cell mini heatmap: 7 cols × 2 rows */
+.habits-mini-hm-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.habits-mini-hm-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+}
+
+/* reuse habit-hm-* colour vars from HabitsView */
+.habit-hm-0 { background: var(--bg-secondary); }
+.habit-hm-1 { background: rgba(59, 130, 246, 0.25); }
+.habit-hm-2 { background: rgba(59, 130, 246, 0.45); }
+.habit-hm-3 { background: rgba(59, 130, 246, 0.70); }
+.habit-hm-4 { background: rgba(59, 130, 246, 1.00); }
+
+.habits-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.habits-profile-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.habits-profile-item.done .habits-profile-name {
+  color: var(--text-primary);
+}
+
+.habits-profile-item.undone .habits-profile-name {
+  color: var(--text-tertiary);
+}
+
+.habits-profile-check {
+  font-size: 12px;
+  width: 16px;
+  text-align: center;
+}
+
+.habits-profile-item.done .habits-profile-check { color: #22c55e; }
+.habits-profile-item.undone .habits-profile-check { color: var(--text-tertiary); }
+
+/* ===== WEIGHT PROFILE CARD ===== */
+.weight-profile-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.weight-profile-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.weight-profile-latest {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.weight-profile-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.weight-profile-date {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.weight-profile-delta {
+  font-size: 12px;
+  font-weight: 500;
+  text-align: right;
+}
+
+.weight-profile-delta.negative { color: #22c55e; }
+.weight-profile-delta.positive { color: #ef4444; }
+
+.weight-sparkline-svg {
+  width: 100%;
+  height: 40px;
+  display: block;
+  overflow: visible;
+}
