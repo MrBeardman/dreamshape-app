@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { FoodItem, MealEntry, FoodPortion } from '../types'
 import { searchFoods, lookupBarcode } from '../lib/openFoodFacts'
+import { searchUSDA } from '../lib/usdaFoods'
 import type { OFFProduct } from '../lib/openFoodFacts'
 import BarcodeScanner from './BarcodeScanner'
 
@@ -126,11 +127,33 @@ export default function FoodSearchSheet({
   useEffect(() => {
     const q = query.trim()
     if (!q) { setResults([]); return }
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       setIsSearching(true)
-      const r = await searchFoods(q)
-      setResults(r)
-      setIsSearching(false)
+      setResults([])
+
+      let offResults: OFFProduct[] = []
+      let usdaResults: OFFProduct[] = []
+      let settled = 0
+
+      function mergeAndShow() {
+        // USDA first (generic foods), then OFF (branded). Deduplicate by name.
+        const seen = new Set<string>()
+        const merged: OFFProduct[] = []
+        for (const p of [...usdaResults, ...offResults]) {
+          const key = p.name.toLowerCase()
+          if (!seen.has(key)) {
+            seen.add(key)
+            merged.push(p)
+            if (merged.length >= 30) break
+          }
+        }
+        setResults(merged)
+        settled++
+        if (settled === 2) setIsSearching(false)
+      }
+
+      searchUSDA(q).then(r => { usdaResults = r; mergeAndShow() })
+      searchFoods(q).then(r => { offResults = r; mergeAndShow() })
     }, 500)
     return () => clearTimeout(timer)
   }, [query])

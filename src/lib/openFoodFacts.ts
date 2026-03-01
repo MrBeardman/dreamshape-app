@@ -158,12 +158,22 @@ export async function lookupBarcode(barcode: string): Promise<OFFProduct | null>
   }
 }
 
+const _searchCache = new Map<string, { results: OFFProduct[]; ts: number }>()
+const _CACHE_TTL = 5 * 60 * 1000  // 5 min
+
 export async function searchFoods(query: string): Promise<OFFProduct[]> {
+  const key = query.toLowerCase()
+  const cached = _searchCache.get(key)
+  if (cached && Date.now() - cached.ts < _CACHE_TTL) {
+    console.log('[OFF] cache hit for:', query)
+    return cached.results
+  }
+
   const controller = new AbortController()
   const timeout = setTimeout(() => {
-    console.warn('[OFF] request timed out after 15s')
+    console.warn('[OFF] request timed out after 20s')
     controller.abort()
-  }, 15000)
+  }, 20000)
   try {
     const locale = getLocaleParams()
     // /cgi/search.pl is the Elasticsearch-powered endpoint that actually filters
@@ -203,6 +213,7 @@ export async function searchFoods(query: string): Promise<OFFProduct[]> {
       )
       .filter((p): p is OFFProduct => p !== null)
     console.log('[OFF] filtered products:', mapped.length)
+    _searchCache.set(key, { results: mapped, ts: Date.now() })
     return mapped
   } catch (err) {
     if ((err as Error)?.name !== 'AbortError') console.error('[OFF] search error:', err)
