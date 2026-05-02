@@ -1337,3 +1337,52 @@
   color: var(--text-tertiary);
   text-align: center;
 }
+
+/* ===== PROGRESSIVE OVERLOAD SUGGESTIONS ===== */
+.overload-suggestions {
+  margin-bottom: 12px;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.overload-title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--success);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.overload-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.overload-name {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 12px;
+}
+
+.overload-rec {
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--success);
+  white-space: nowrap;
+}
+
+/* ===== EXERCISE ROW 1RM ===== */
+.exercise-row-1rm {
+  color: var(--primary);
+  font-weight: var(--font-medium);
+}

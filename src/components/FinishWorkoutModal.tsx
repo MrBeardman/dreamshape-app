@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { Exercise, ExerciseLog } from '../types'
+import { useState, useMemo } from 'react'
+import type { Exercise, ExerciseLog, WorkoutLog } from '../types'
 
 interface FinishWorkoutModalProps {
   originalTemplateName: string | null
@@ -13,6 +13,7 @@ interface FinishWorkoutModalProps {
   currentExercises: Exercise[]
   exerciseLogs: ExerciseLog[]
   duration: number // seconds
+  workoutLogs: WorkoutLog[]
   onUpdateTemplate: () => void
   onSaveAsNewTemplate: (name: string, exercises: Exercise[]) => void
   onJustFinish: () => void
@@ -36,6 +37,7 @@ export default function FinishWorkoutModal({
   currentExercises,
   exerciseLogs,
   duration,
+  workoutLogs,
   onUpdateTemplate,
   onSaveAsNewTemplate,
   onJustFinish,
@@ -64,6 +66,24 @@ export default function FinishWorkoutModal({
         .reduce((s2, set) => s2 + set.weight * set.reps, 0),
     0
   )
+
+  // Progressive overload suggestions: show +2.5kg if all working sets completed
+  const overloadSuggestions = useMemo(() => {
+    return exerciseLogs
+      .map(ex => {
+        const workingSets = ex.sets.filter(s => (s.type ?? 'working') === 'working')
+        if (workingSets.length === 0) return null
+        const allCompleted = workingSets.every(s => s.completed)
+        if (!allCompleted) return null
+        const topWeight = Math.max(...workingSets.map(s => s.weight))
+        if (topWeight <= 0) return null
+        // Only suggest if we have a previous session to compare against
+        const prev = workoutLogs.find(w => w.exercises.some(e => e.exerciseName === ex.exerciseName))
+        if (!prev) return null
+        return { name: ex.exerciseName, currentWeight: topWeight, nextWeight: topWeight + 2.5 }
+      })
+      .filter(Boolean) as Array<{ name: string; currentWeight: number; nextWeight: number }>
+  }, [exerciseLogs, workoutLogs])
 
   const handleFinish = async () => {
     if (isSaving) return
@@ -191,6 +211,19 @@ export default function FinishWorkoutModal({
               />
               <span>Just finish</span>
             </label>
+          </div>
+        )}
+
+        {/* Progressive overload suggestions */}
+        {overloadSuggestions.length > 0 && (
+          <div className="overload-suggestions">
+            <div className="overload-title">Next session suggestions</div>
+            {overloadSuggestions.map(s => (
+              <div key={s.name} className="overload-row">
+                <span className="overload-name">{s.name}</span>
+                <span className="overload-rec">↑ Try {s.nextWeight} kg</span>
+              </div>
+            ))}
           </div>
         )}
 

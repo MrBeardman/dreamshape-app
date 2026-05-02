@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react'
 import { DEFAULT_EXERCISES } from '../data/defaultExercises'
+import { estimateOneRepMax } from '../lib/exerciseStats'
+import type { WorkoutLog } from '../types'
 
 interface ExerciseEntry {
   name: string
@@ -9,6 +11,7 @@ interface ExerciseEntry {
 
 interface ExercisesViewProps {
   exerciseDatabase: ExerciseEntry[]
+  workoutLogs: WorkoutLog[]
   onAddToDatabase: (exercise: ExerciseEntry) => void
   onDeleteFromDatabase: (name: string) => void
 }
@@ -16,7 +19,7 @@ interface ExercisesViewProps {
 const MUSCLE_GROUPS = ['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
 const DEFAULT_NAMES = new Set(DEFAULT_EXERCISES.map(e => e.name))
 
-export default function ExercisesView({ exerciseDatabase, onAddToDatabase, onDeleteFromDatabase }: ExercisesViewProps) {
+export default function ExercisesView({ exerciseDatabase, workoutLogs, onAddToDatabase, onDeleteFromDatabase }: ExercisesViewProps) {
   const [filterGroup, setFilterGroup] = useState('All')
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
@@ -78,11 +81,15 @@ export default function ExercisesView({ exerciseDatabase, onAddToDatabase, onDel
         )}
         {filtered.map(ex => {
           const isCustom = !DEFAULT_NAMES.has(ex.name)
+          const oneRM = estimateOneRepMax(workoutLogs, ex.name)
           return (
             <div key={ex.name} className="exercise-row">
               <div className="exercise-row-info">
                 <span className="exercise-row-name">{ex.name}</span>
-                <span className="exercise-row-meta">{ex.muscleGroup} · {ex.equipment}</span>
+                <span className="exercise-row-meta">
+                  {ex.muscleGroup} · {ex.equipment}
+                  {oneRM !== null && <span className="exercise-row-1rm"> · ~{oneRM} kg 1RM</span>}
+                </span>
               </div>
               {isCustom && (
                 <button

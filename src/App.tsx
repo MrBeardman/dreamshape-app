@@ -719,6 +719,7 @@ function App() {
                         currentExercises={activeWorkout.exercises.map(ex => resolveExerciseFromLog(ex, activeWorkout.originalTemplateId))}
                         exerciseLogs={activeWorkout.exercises}
                         duration={Math.floor((Date.now() - activeWorkout.startTime) / 1000)}
+                        workoutLogs={workoutLogs}
                         onUpdateTemplate={handleUpdateTemplate}
                         onSaveAsNewTemplate={handleSaveAsNewTemplate}
                         onJustFinish={handleJustFinish}
@@ -753,6 +754,7 @@ function App() {
                   {currentView === 'exercises' && (
                     <ExercisesView
                       exerciseDatabase={exerciseDatabase}
+                      workoutLogs={workoutLogs}
                       onAddToDatabase={addExerciseToDatabase}
                       onDeleteFromDatabase={deleteExerciseFromDatabase}
                     />
