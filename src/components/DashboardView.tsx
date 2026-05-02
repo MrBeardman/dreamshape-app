@@ -87,6 +87,11 @@ export default function DashboardView({
         }
       })
     })
+    // Runs count as Legs training
+    runLogs.forEach(run => {
+      const t = new Date(run.date).getTime()
+      if (!lastTrained['Legs'] || t > lastTrained['Legs']) lastTrained['Legs'] = t
+    })
     const now = Date.now()
     return MUSCLE_GROUPS.map(group => {
       const last = lastTrained[group]
