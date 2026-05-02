@@ -18,8 +18,7 @@
 @import './styles/components/library.css';
 @import './styles/components/workout.css';
 @import './styles/components/progress-sheet.css';
-@import './styles/components/nutrition.css';
-@import './styles/components/habits.css';
+@import './styles/components/exercises.css';
 
 /* View Styles */
 @import './styles/views/templates.css';

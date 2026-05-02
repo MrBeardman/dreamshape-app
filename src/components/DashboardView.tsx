@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import CircularProgress from './CircularProgress'
-import type { WorkoutTemplate, WorkoutLog, UserProfile, NutritionLog, Habit, HabitCompletion, DailyTask } from '../types'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog } from '../types'
 
 interface ExerciseDbEntry {
   name: string
@@ -11,55 +11,34 @@ interface ExerciseDbEntry {
 interface DashboardViewProps {
   templates: WorkoutTemplate[]
   workoutLogs: WorkoutLog[]
+  runLogs: RunLog[]
   userProfile: UserProfile
   exerciseDatabase: ExerciseDbEntry[]
-  nutritionLogs: NutritionLog[]
-  habits: Habit[]
-  habitCompletions: HabitCompletion[]
-  dailyTasks: DailyTask[]
   onStartWorkout: (template: WorkoutTemplate) => void
   onStartEmptyWorkout: () => void
-  onEditProfile: () => void
   onViewAllTemplates: () => void
-  onNavigateToNutrition: () => void
-  onNavigateToHabits: () => void
   onViewHistory: () => void
 }
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'] as const
 
+function formatPace(secondsPerKm: number): string {
+  const mins = Math.floor(secondsPerKm / 60)
+  const secs = Math.round(secondsPerKm % 60)
+  return `${mins}:${String(secs).padStart(2, '0')} /km`
+}
+
 export default function DashboardView({
   templates,
   workoutLogs,
+  runLogs,
   userProfile,
   exerciseDatabase,
-  nutritionLogs,
-  habits,
-  habitCompletions,
-  dailyTasks,
   onStartWorkout,
   onStartEmptyWorkout,
   onViewAllTemplates,
-  onNavigateToNutrition,
-  onNavigateToHabits,
   onViewHistory,
 }: DashboardViewProps) {
-  const todayStr = new Date().toISOString().split('T')[0]
-
-  const todayNutrition = useMemo(
-    () => nutritionLogs.find(l => l.date === todayStr),
-    [nutritionLogs, todayStr]
-  )
-  const nutritionTotals = useMemo(() => {
-    const entries = todayNutrition?.entries ?? []
-    return {
-      calories: Math.round(entries.reduce((s, e) => s + e.calories, 0)),
-      protein: Math.round(entries.reduce((s, e) => s + e.protein, 0) * 10) / 10,
-      carbs: Math.round(entries.reduce((s, e) => s + e.carbs, 0) * 10) / 10,
-      fat: Math.round(entries.reduce((s, e) => s + e.fat, 0) * 10) / 10,
-    }
-  }, [todayNutrition])
-
   const totalWorkouts = workoutLogs.length
 
   const currentStreak = useMemo(() => {
@@ -80,9 +59,7 @@ export default function DashboardView({
       if (workoutDates.has(checkDate.toDateString())) {
         streak++
       } else if (i > 0) {
-        const prevDate = new Date(checkDate)
-        prevDate.setDate(checkDate.getDate() - 1)
-        if (!workoutDates.has(prevDate.toDateString())) break
+        break
       } else {
         break
       }
@@ -93,17 +70,13 @@ export default function DashboardView({
   const avgPerWeek = useMemo(() => {
     if (workoutLogs.length === 0) return '0'
     const oldestWorkout = new Date(workoutLogs[workoutLogs.length - 1].date)
-    const weeksDiff = Math.max(
-      1,
-      Math.floor((Date.now() - oldestWorkout.getTime()) / (7 * 24 * 60 * 60 * 1000))
-    )
+    const weeksDiff = Math.max(1, Math.floor((Date.now() - oldestWorkout.getTime()) / (7 * 24 * 60 * 60 * 1000)))
     return (workoutLogs.length / weeksDiff).toFixed(1)
   }, [workoutLogs])
 
   const muscleGroupCoverage = useMemo(() => {
     const exToGroup: Record<string, string> = {}
     exerciseDatabase.forEach(ex => { exToGroup[ex.name] = ex.muscleGroup })
-
     const lastTrained: Record<string, number> = {}
     workoutLogs.forEach(workout => {
       const t = new Date(workout.date).getTime()
@@ -114,7 +87,6 @@ export default function DashboardView({
         }
       })
     })
-
     const now = Date.now()
     return MUSCLE_GROUPS.map(group => {
       const last = lastTrained[group]
@@ -124,31 +96,41 @@ export default function DashboardView({
     })
   }, [workoutLogs, exerciseDatabase])
 
-  // Habits widget data
-  const todayCompletedHabitIds = useMemo(
-    () => new Set(habitCompletions.filter(c => c.date === todayStr).map(c => c.habitId)),
-    [habitCompletions, todayStr]
-  )
-  const habitsCompleted = habits.filter(h => todayCompletedHabitIds.has(h.id)).length
-  const habitsTotal = habits.length
-  const todayTasks = dailyTasks.filter(t => t.date === todayStr)
-  const tasksRemaining = todayTasks.filter(t => !t.completed).length
+  // Run stats
+  const runStats = useMemo(() => {
+    if (runLogs.length === 0) return null
+
+    const totalRuns = runLogs.length
+    const totalDistance = runLogs.reduce((s, r) => s + r.distance, 0)
+    const avgPace = Math.round(runLogs.reduce((s, r) => s + r.averagePace, 0) / runLogs.length)
+
+    // Group by floored km for 5k/10k averages
+    const fiveKRuns = runLogs.filter(r => Math.floor(r.distance) === 5)
+    const tenKRuns = runLogs.filter(r => Math.floor(r.distance) === 10)
+
+    const avg5kPace = fiveKRuns.length > 0
+      ? Math.round(fiveKRuns.reduce((s, r) => s + r.averagePace, 0) / fiveKRuns.length)
+      : null
+    const avg10kPace = tenKRuns.length > 0
+      ? Math.round(tenKRuns.reduce((s, r) => s + r.averagePace, 0) / tenKRuns.length)
+      : null
+
+    return { totalRuns, totalDistance, avgPace, avg5kPace, avg10kPace, fiveKCount: fiveKRuns.length, tenKCount: tenKRuns.length }
+  }, [runLogs])
 
   return (
     <div className="dashboard-view">
       {/* Profile Header */}
       <div className="dashboard-header">
         <div className="profile-section">
-          <div className="profile-avatar">
-            {userProfile.name.charAt(0).toUpperCase()}
-          </div>
+          <div className="profile-avatar">{userProfile.name.charAt(0).toUpperCase()}</div>
           <div className="profile-info">
             <h2 className="profile-name">{userProfile.name}</h2>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Workout Stats Grid */}
       <div className="stats-grid">
         <div className="widget-card">
           <CircularProgress
@@ -162,7 +144,6 @@ export default function DashboardView({
             displayMode="value"
           />
         </div>
-
         <div className="widget-card">
           <CircularProgress
             value={currentStreak}
@@ -175,7 +156,6 @@ export default function DashboardView({
             displayMode="value"
           />
         </div>
-
         <div className="widget-card">
           <CircularProgress
             value={Number(avgPerWeek)}
@@ -197,52 +177,53 @@ export default function DashboardView({
         </button>
       </div>
 
-      {/* Habits & Tasks Widget */}
-      <div className="home-habits-widget" onClick={onNavigateToHabits}>
-        <div className="home-habits-top">
-          <span className="home-habits-label">Habits &amp; Tasks</span>
-          <span className="home-habits-arrow">→</span>
-        </div>
-        {habitsTotal === 0 && todayTasks.length === 0 ? (
-          <p className="home-habits-empty">Track your daily habits and tasks</p>
-        ) : (
-          <div className="home-habits-stats">
-            {habitsTotal > 0 && (
-              <div className="home-habits-stat">
-                <span className="home-habits-stat-val">{habitsCompleted}/{habitsTotal}</span>
-                <span className="home-habits-stat-label">Habits done</span>
-              </div>
-            )}
-            {todayTasks.length > 0 && (
-              <div className="home-habits-stat">
-                <span className="home-habits-stat-val">{tasksRemaining}</span>
-                <span className="home-habits-stat-label">Tasks left</span>
-              </div>
-            )}
+      {/* Run Stats Widget */}
+      {runStats && (
+        <div className="run-stats-widget" onClick={onViewHistory}>
+          <div className="run-stats-top">
+            <span className="run-stats-label">Running</span>
+            <span className="run-stats-arrow">→</span>
           </div>
-        )}
-        {habitsTotal > 0 && (
-          <div className="home-habits-bar-row">
-            <div className="home-habits-bar-track">
-              <div
-                className="home-habits-bar-fill"
-                style={{ width: `${habitsTotal > 0 ? (habitsCompleted / habitsTotal) * 100 : 0}%` }}
-              />
+          <div className="run-stats-grid">
+            <div className="run-stat-cell">
+              <span className="run-stat-cell-val">{runStats.totalRuns}</span>
+              <span className="run-stat-cell-label">Runs</span>
+            </div>
+            <div className="run-stat-cell">
+              <span className="run-stat-cell-val">{runStats.totalDistance.toFixed(1)} km</span>
+              <span className="run-stat-cell-label">Total distance</span>
+            </div>
+            <div className="run-stat-cell">
+              <span className="run-stat-cell-val">{formatPace(runStats.avgPace)}</span>
+              <span className="run-stat-cell-label">Avg pace</span>
             </div>
           </div>
-        )}
-      </div>
+          {(runStats.avg5kPace !== null || runStats.avg10kPace !== null) && (
+            <div className="run-pace-breakdown">
+              {runStats.avg5kPace !== null && (
+                <div className="run-pace-row">
+                  <span className="run-pace-dist">5 km ({runStats.fiveKCount} runs)</span>
+                  <span className="run-pace-val">{formatPace(runStats.avg5kPace)}</span>
+                </div>
+              )}
+              {runStats.avg10kPace !== null && (
+                <div className="run-pace-row">
+                  <span className="run-pace-dist">10 km ({runStats.tenKCount} runs)</span>
+                  <span className="run-pace-val">{formatPace(runStats.avg10kPace)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Templates Horizontal Scroll */}
       {templates.length > 0 && (
         <div className="templates-section">
           <div className="section-header">
             <h3 className="section-title">Your Templates</h3>
-            <button className="btn-see-all" onClick={onViewAllTemplates}>
-              See All →
-            </button>
+            <button className="btn-see-all" onClick={onViewAllTemplates}>See All →</button>
           </div>
-
           <div className="templates-scroll">
             {templates.map(template => {
               const logs = workoutLogs.filter(w => w.templateName === template.name && w.duration > 60)
@@ -250,11 +231,7 @@ export default function DashboardView({
                 ? Math.round(logs.reduce((s, w) => s + w.duration, 0) / logs.length / 60)
                 : null
               return (
-                <div
-                  key={template.id}
-                  className="template-card-mini"
-                  onClick={() => onStartWorkout(template)}
-                >
+                <div key={template.id} className="template-card-mini" onClick={() => onStartWorkout(template)}>
                   <div className="template-card-name">{template.name}</div>
                   <div className="template-card-exercises">
                     {template.exercises.length} exercises{avgMin !== null && ` · ~${avgMin} min`}
@@ -285,48 +262,9 @@ export default function DashboardView({
         </div>
       )}
 
-      {/* Nutrition Widget */}
-      <div className="dashboard-nutrition-widget" onClick={onNavigateToNutrition}>
-        <div className="dashboard-nutrition-top">
-          <span className="dashboard-nutrition-label">Today's Nutrition</span>
-          <span className="dashboard-nutrition-arrow">→</span>
-        </div>
-        {userProfile.nutritionGoals ? (
-          <>
-            <div className="dashboard-cal-row">
-              <span className="dashboard-cal-val">{nutritionTotals.calories}</span>
-              <span className="dashboard-cal-unit">kcal</span>
-              <span className="dashboard-cal-goal">/ {userProfile.nutritionGoals.calories}</span>
-            </div>
-            <div className="dashboard-macro-mini-bars">
-              {[
-                { label: 'Protein', val: nutritionTotals.protein, goal: userProfile.nutritionGoals.protein, color: '#4ade80' },
-                { label: 'Carbs', val: nutritionTotals.carbs, goal: userProfile.nutritionGoals.carbs, color: '#60a5fa' },
-                { label: 'Fat', val: nutritionTotals.fat, goal: userProfile.nutritionGoals.fat, color: '#f97316' },
-              ].map(({ label, val, goal, color }) => (
-                <div key={label} className="dashboard-macro-mini-row">
-                  <span className="dashboard-macro-mini-label">{label}</span>
-                  <div className="dashboard-macro-mini-track">
-                    <div
-                      className="dashboard-macro-mini-fill"
-                      style={{ width: `${Math.min(val / goal * 100, 100)}%`, background: color }}
-                    />
-                  </div>
-                  <span className="dashboard-macro-mini-val">{val}g</span>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <p className="dashboard-nutrition-no-goals">
-            Set nutrition goals in Profile to track your macros
-          </p>
-        )}
-      </div>
-
       {/* Workout History link */}
       <button className="home-history-link" onClick={onViewHistory}>
-        <span className="home-history-link-text">Workout History</span>
+        <span className="home-history-link-text">Full History</span>
         <span className="home-history-link-arrow">→</span>
       </button>
     </div>
