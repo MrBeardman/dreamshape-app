@@ -58,6 +58,22 @@ export interface RunLog {
   notes?: string
 }
 
+export type PlanDayType = 'workout' | 'run' | 'rest'
+
+export interface PlanDay {
+  type: PlanDayType
+  templateId?: string  // only when type === 'workout'
+  label?: string       // optional custom label
+}
+
+export interface TrainingPlan {
+  id: string
+  name: string
+  days: PlanDay[]      // the repeating cycle
+  startDate: string    // YYYY-MM-DD — day 0 of the cycle
+  isActive: boolean
+}
+
 export interface UserProfile {
   name: string
   memberSince: string

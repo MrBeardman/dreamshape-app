@@ -41,3 +41,17 @@ create policy "Users can manage their own run logs"
 
 -- Also add duration update support for workouts (already exists, just needs RLS update policy)
 -- The workouts table already has RLS; the new updateWorkout() call uses the existing policy.
+
+-- Training Plans table
+create table if not exists training_plans (
+  id         uuid primary key,
+  user_id    uuid references auth.users(id) on delete cascade not null,
+  name       text not null,
+  days       jsonb not null,
+  start_date text not null,
+  is_active  boolean default false,
+  created_at timestamp with time zone default now()
+);
+alter table training_plans enable row level security;
+create policy "Users can manage their own training plans"
+  on training_plans for all using (auth.uid() = user_id);

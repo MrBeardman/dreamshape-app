@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { WorkoutTemplate, WorkoutLog, UserProfile, WeightEntry, RunLog } from '../types'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, WeightEntry, RunLog, TrainingPlan } from '../types'
 
 export class SyncService {
   private userId: string
@@ -36,6 +36,8 @@ export class SyncService {
       for (const exercise of localExercises) await this.createCustomExercise(exercise)
       for (const entry of localWeightEntries) await this.upsertWeightEntry(entry)
       for (const run of localRunLogs) await this.createRunLog(run)
+      const localPlan = this.getLocalPlan()
+      if (localPlan) await this.upsertPlan(localPlan)
 
       localStorage.setItem(migrationKey, 'true')
     } catch (error) {
@@ -56,9 +58,10 @@ export class SyncService {
     exercises: Array<{ name: string; muscleGroup: string; equipment: string }>
     weightEntries: WeightEntry[]
     runLogs: RunLog[]
+    activePlan: TrainingPlan | null
   }> {
     try {
-      const [profileRes, templatesRes, workoutsRes, exercisesRes, weightRes, runsRes] =
+      const [profileRes, templatesRes, workoutsRes, exercisesRes, weightRes, runsRes, plansRes] =
         await Promise.all([
           supabase.from('profiles').select('*').eq('id', this.userId).single(),
           supabase.from('templates').select('*').eq('user_id', this.userId).order('created_at', { ascending: false }),
@@ -66,6 +69,7 @@ export class SyncService {
           supabase.from('custom_exercises').select('*').eq('user_id', this.userId).order('name'),
           supabase.from('weight_entries').select('*').eq('user_id', this.userId).order('date', { ascending: true }),
           supabase.from('run_logs').select('*').eq('user_id', this.userId).order('date', { ascending: false }),
+          supabase.from('training_plans').select('*').eq('user_id', this.userId).eq('is_active', true).maybeSingle(),
         ])
 
       const profile: UserProfile | null = profileRes.data
@@ -116,7 +120,11 @@ export class SyncService {
         notes: r.notes ?? undefined,
       }))
 
-      return { profile, templates, workouts, exercises, weightEntries, runLogs }
+      const activePlan: TrainingPlan | null = plansRes.data
+        ? { id: plansRes.data.id, name: plansRes.data.name, days: plansRes.data.days, startDate: plansRes.data.start_date, isActive: true }
+        : null
+
+      return { profile, templates, workouts, exercises, weightEntries, runLogs, activePlan }
     } catch (error) {
       console.error('Failed to load data:', error)
       return {
@@ -126,6 +134,7 @@ export class SyncService {
         exercises: this.getLocalExercises(),
         weightEntries: this.getLocalWeightEntries(),
         runLogs: this.getLocalRunLogs(),
+        activePlan: this.getLocalPlan(),
       }
     }
   }
@@ -311,5 +320,30 @@ export class SyncService {
 
   private getLocalRunLogs(): RunLog[] {
     try { return JSON.parse(localStorage.getItem('dreamshape_runs') || '[]') } catch { return [] }
+  }
+
+  private getLocalPlan(): TrainingPlan | null {
+    try { return JSON.parse(localStorage.getItem('dreamshape_plan') || 'null') } catch { return null }
+  }
+
+  // ============================================
+  // TRAINING PLANS
+  // ============================================
+  async upsertPlan(plan: TrainingPlan): Promise<void> {
+    // Deactivate all other plans first
+    await supabase.from('training_plans').update({ is_active: false }).eq('user_id', this.userId)
+    const { error } = await supabase.from('training_plans').upsert({
+      id: plan.id,
+      user_id: this.userId,
+      name: plan.name,
+      days: plan.days,
+      start_date: plan.startDate,
+      is_active: plan.isActive,
+    }, { onConflict: 'id' })
+    if (error) throw error
+  }
+
+  async deletePlan(planId: string): Promise<void> {
+    await supabase.from('training_plans').delete().eq('id', planId).eq('user_id', this.userId)
   }
 }

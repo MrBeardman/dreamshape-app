@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import CircularProgress from './CircularProgress'
-import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog } from '../types'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog, TrainingPlan } from '../types'
+import { getTodayPlanDay } from './PlanSection'
 
 interface ExerciseDbEntry {
   name: string
@@ -12,12 +13,14 @@ interface DashboardViewProps {
   templates: WorkoutTemplate[]
   workoutLogs: WorkoutLog[]
   runLogs: RunLog[]
+  activePlan: TrainingPlan | null
   userProfile: UserProfile
   exerciseDatabase: ExerciseDbEntry[]
   onStartWorkout: (template: WorkoutTemplate) => void
   onStartEmptyWorkout: () => void
   onViewAllTemplates: () => void
   onViewHistory: () => void
+  onViewPlan: () => void
 }
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'] as const
@@ -28,16 +31,20 @@ function formatPace(secondsPerKm: number): string {
   return `${mins}:${String(secs).padStart(2, '0')} /km`
 }
 
+const DAY_TYPE_ICONS: Record<string, string> = { workout: '🏋️', run: '🏃', rest: '😴' }
+
 export default function DashboardView({
   templates,
   workoutLogs,
   runLogs,
+  activePlan,
   userProfile,
   exerciseDatabase,
   onStartWorkout,
   onStartEmptyWorkout,
   onViewAllTemplates,
   onViewHistory,
+  onViewPlan,
 }: DashboardViewProps) {
   const totalWorkouts = workoutLogs.length
 
@@ -181,6 +188,35 @@ export default function DashboardView({
           <span>Start Empty Workout</span>
         </button>
       </div>
+
+      {/* Today's plan */}
+      {activePlan && (() => {
+        const todayEntry = getTodayPlanDay(activePlan)
+        if (!todayEntry) return null
+        const { day, cycleIndex } = todayEntry
+        const template = day.type === 'workout' ? templates.find(t => t.id === day.templateId) : null
+        const label = day.type === 'workout'
+          ? (template?.name ?? 'Workout')
+          : day.type === 'run' ? 'Run day' : 'Rest day'
+        return (
+          <div className={`today-plan-card today-plan-${day.type}`} onClick={day.type === 'workout' && template ? () => onStartWorkout(template) : onViewPlan}>
+            <div className="today-plan-meta">
+              <span className="today-plan-label">Today · Day {cycleIndex + 1}/{activePlan.days.length}</span>
+              <span className="today-plan-plan-name">{activePlan.name}</span>
+            </div>
+            <div className="today-plan-main">
+              <span className="today-plan-icon">{DAY_TYPE_ICONS[day.type]}</span>
+              <span className="today-plan-session">{label}</span>
+            </div>
+            {day.type === 'workout' && template && (
+              <div className="today-plan-cta">Start →</div>
+            )}
+            {day.type === 'run' && (
+              <div className="today-plan-cta">Log run →</div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Run Stats Widget */}
       {runStats && (

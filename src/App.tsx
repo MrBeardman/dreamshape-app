@@ -5,7 +5,7 @@ import SyncIndicator from './components/SyncIndicator'
 import AuthView from './components/AuthView'
 import type { User } from '@supabase/supabase-js'
 import './App-redesign.css'
-import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, WeightEntry, RunLog } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, WeightEntry, RunLog, TrainingPlan } from './types'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
@@ -31,6 +31,7 @@ const ACTIVE_WORKOUT_KEY = 'dreamshape_active_workout'
 const ORIGINAL_EXERCISES_KEY = 'dreamshape_original_exercises'
 const WEIGHT_KEY = 'dreamshape_weight'
 const RUNS_KEY = 'dreamshape_runs'
+const PLAN_KEY = 'dreamshape_plan'
 
 function App() {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>(() => {
@@ -54,6 +55,10 @@ function App() {
 
   const [runLogs, setRunLogs] = useState<RunLog[]>(() => {
     try { return JSON.parse(localStorage.getItem(RUNS_KEY) || '[]') } catch { return [] }
+  })
+
+  const [activePlan, setActivePlan] = useState<TrainingPlan | null>(() => {
+    try { return JSON.parse(localStorage.getItem(PLAN_KEY) || 'null') } catch { return null }
   })
 
   const [user, setUser] = useState<User | null>(null)
@@ -96,6 +101,7 @@ function App() {
   useEffect(() => { localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile)) }, [userProfile])
   useEffect(() => { localStorage.setItem(WEIGHT_KEY, JSON.stringify(weightEntries)) }, [weightEntries])
   useEffect(() => { localStorage.setItem(RUNS_KEY, JSON.stringify(runLogs)) }, [runLogs])
+  useEffect(() => { localStorage.setItem(PLAN_KEY, JSON.stringify(activePlan)) }, [activePlan])
 
   useEffect(() => {
     if (activeWorkout) localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(activeWorkout))
@@ -151,6 +157,11 @@ function App() {
 
       setRunLogs(data.runLogs)
       localStorage.setItem(RUNS_KEY, JSON.stringify(data.runLogs))
+
+      if (data.activePlan !== undefined) {
+        setActivePlan(data.activePlan)
+        localStorage.setItem(PLAN_KEY, JSON.stringify(data.activePlan))
+      }
 
       setLastSyncTime(new Date())
     } catch (error) {
@@ -655,6 +666,30 @@ function App() {
   }
 
   // ============================================
+  // TRAINING PLAN
+  // ============================================
+
+  const savePlan = async (plan: TrainingPlan) => {
+    setActivePlan(plan)
+    if (syncService) {
+      setIsSyncing(true)
+      try { await syncService.upsertPlan(plan); setLastSyncTime(new Date()) }
+      catch (error) { console.error('Failed to sync plan:', error) }
+      finally { setIsSyncing(false) }
+    }
+  }
+
+  const deletePlan = async () => {
+    if (!activePlan) return
+    const id = activePlan.id
+    setActivePlan(null)
+    if (syncService) {
+      try { await syncService.deletePlan(id) }
+      catch (error) { console.error('Failed to delete plan:', error) }
+    }
+  }
+
+  // ============================================
   // RENDER
   // ============================================
 
@@ -742,12 +777,14 @@ function App() {
                       templates={templates}
                       workoutLogs={workoutLogs}
                       runLogs={runLogs}
+                      activePlan={activePlan}
                       userProfile={userProfile}
                       exerciseDatabase={exerciseDatabase}
                       onStartWorkout={startWorkout}
                       onStartEmptyWorkout={startEmptyWorkout}
                       onViewAllTemplates={() => setCurrentView('start')}
                       onViewHistory={() => setCurrentView('history')}
+                      onViewPlan={() => setCurrentView('start')}
                     />
                   )}
 
@@ -779,10 +816,13 @@ function App() {
                     <TemplatesView
                       templates={templates}
                       workoutLogs={workoutLogs}
+                      activePlan={activePlan}
                       onCreateTemplate={() => { setSelectedTemplate(null); setIsCreating(true) }}
                       onEditTemplate={editTemplate}
                       onDeleteTemplate={deleteTemplate}
                       onStartWorkout={startWorkout}
+                      onSavePlan={savePlan}
+                      onDeletePlan={deletePlan}
                     />
                   )}
 
