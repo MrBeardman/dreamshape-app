@@ -55,3 +55,8 @@ create table if not exists training_plans (
 alter table training_plans enable row level security;
 create policy "Users can manage their own training plans"
   on training_plans for all using (auth.uid() = user_id);
+
+-- Add action-based cycle columns to training_plans
+-- Run these if you already created the training_plans table above
+alter table training_plans add column if not exists current_cycle_index integer default 0;
+alter table training_plans add column if not exists check_ins jsonb default '[]';

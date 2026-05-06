@@ -11,6 +11,8 @@ interface TemplatesViewProps {
   onStartWorkout: (template: WorkoutTemplate) => void
   onSavePlan: (plan: TrainingPlan) => void
   onDeletePlan: () => void
+  onCompleteDay: () => void
+  onSkipDay: () => void
 }
 
 export default function TemplatesView({
@@ -23,6 +25,8 @@ export default function TemplatesView({
   onStartWorkout,
   onSavePlan,
   onDeletePlan,
+  onCompleteDay,
+  onSkipDay,
 }: TemplatesViewProps) {
   const getAvgDuration = (templateName: string): number | null => {
     const logs = workoutLogs.filter(w => w.templateName === templateName && w.duration > 60)
@@ -39,6 +43,8 @@ export default function TemplatesView({
           templates={templates}
           onSavePlan={onSavePlan}
           onDeletePlan={onDeletePlan}
+          onCompleteDay={onCompleteDay}
+          onSkipDay={onSkipDay}
         />
       </div>
 

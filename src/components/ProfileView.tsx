@@ -3,12 +3,14 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
-import type { UserProfile, WorkoutLog, WeightEntry } from '../types'
+import type { UserProfile, WorkoutLog, WeightEntry, TrainingPlan } from '../types'
+import { getPlanStreak } from './PlanSection'
 
 interface ProfileViewProps {
   userProfile: UserProfile
   workoutLogs: WorkoutLog[]
   weightEntries: WeightEntry[]
+  activePlan: TrainingPlan | null
   onUpdateProfile: (profile: UserProfile) => void
   onSignOut: () => void
 }
@@ -17,6 +19,7 @@ export default function ProfileView({
   userProfile,
   workoutLogs,
   weightEntries,
+  activePlan,
   onUpdateProfile,
   onSignOut,
 }: ProfileViewProps) {
@@ -342,6 +345,45 @@ export default function ProfileView({
           )}
         </div>
       </div>
+
+      {/* Plan streak */}
+      {activePlan && (() => {
+        const streak = getPlanStreak(activePlan.checkIns)
+        const total = activePlan.checkIns.length
+        const completed = activePlan.checkIns.filter(c => c.completed).length
+        return (
+          <div className="plan-streak-profile">
+            <div className="plan-streak-profile-top">
+              <span className="plan-streak-profile-name">{activePlan.name}</span>
+              <span className="plan-streak-profile-streak">
+                {streak > 0 ? `🔥 ${streak} day streak` : 'No current streak'}
+              </span>
+            </div>
+            {total > 0 && (
+              <div className="plan-history-dots">
+                {[...activePlan.checkIns]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .slice(0, 20)
+                  .reverse()
+                  .map(ci => (
+                    <div
+                      key={ci.id}
+                      className={`plan-history-dot ${ci.completed ? 'done' : 'skipped'}`}
+                      title={`${ci.date}: ${ci.completed ? '✓' : '✗'}`}
+                    />
+                  ))}
+              </div>
+            )}
+            <div className="plan-streak-stats">
+              <span>{completed} completed</span>
+              <span>·</span>
+              <span>{total - completed} skipped</span>
+              <span>·</span>
+              <span>{total > 0 ? Math.round((completed / total) * 100) : 0}% adherence</span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Gym Progress */}
       <div className="profile-section">

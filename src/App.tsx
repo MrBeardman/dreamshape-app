@@ -689,6 +689,23 @@ function App() {
     }
   }
 
+  const checkInPlanDay = async (completed: boolean) => {
+    if (!activePlan) return
+    const todayStr = new Date().toISOString().split('T')[0]
+    if (activePlan.checkIns.some(ci => ci.date === todayStr)) return
+    const cycleIndex = activePlan.currentCycleIndex % activePlan.days.length
+    const checkIn = { id: crypto.randomUUID(), date: todayStr, cycleIndex, completed }
+    const updatedPlan: TrainingPlan = {
+      ...activePlan,
+      checkIns: [...activePlan.checkIns, checkIn],
+      currentCycleIndex: completed ? activePlan.currentCycleIndex + 1 : activePlan.currentCycleIndex,
+    }
+    await savePlan(updatedPlan)
+  }
+
+  const completePlanDay = () => checkInPlanDay(true)
+  const skipPlanDay = () => checkInPlanDay(false)
+
   // ============================================
   // RENDER
   // ============================================
@@ -755,10 +772,12 @@ function App() {
                         exerciseLogs={activeWorkout.exercises}
                         duration={Math.floor((Date.now() - activeWorkout.startTime) / 1000)}
                         workoutLogs={workoutLogs}
+                        activePlan={activePlan}
                         onUpdateTemplate={handleUpdateTemplate}
                         onSaveAsNewTemplate={handleSaveAsNewTemplate}
                         onJustFinish={handleJustFinish}
                         onCancel={() => setShowFinishModal(false)}
+                        onCompleteDay={completePlanDay}
                       />
                     )
                   })()}
@@ -784,7 +803,9 @@ function App() {
                       onStartEmptyWorkout={startEmptyWorkout}
                       onViewAllTemplates={() => setCurrentView('start')}
                       onViewHistory={() => setCurrentView('history')}
-                      onViewPlan={() => setCurrentView('start')}
+                      onViewPlan={() => setCurrentView('history')}
+                      onCompleteDay={completePlanDay}
+                      onSkipDay={skipPlanDay}
                     />
                   )}
 
@@ -823,6 +844,8 @@ function App() {
                       onStartWorkout={startWorkout}
                       onSavePlan={savePlan}
                       onDeletePlan={deletePlan}
+                      onCompleteDay={completePlanDay}
+                      onSkipDay={skipPlanDay}
                     />
                   )}
 
@@ -831,6 +854,7 @@ function App() {
                       userProfile={userProfile}
                       workoutLogs={workoutLogs}
                       weightEntries={weightEntries}
+                      activePlan={activePlan}
                       onUpdateProfile={handleUpdateProfile}
                       onSignOut={handleSignOut}
                     />

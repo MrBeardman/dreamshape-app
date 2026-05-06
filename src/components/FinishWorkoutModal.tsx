@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
-import type { Exercise, ExerciseLog, WorkoutLog } from '../types'
+import type { Exercise, ExerciseLog, WorkoutLog, TrainingPlan } from '../types'
+import { getTodayPlanDay } from './PlanSection'
 
 interface FinishWorkoutModalProps {
   originalTemplateName: string | null
@@ -14,10 +15,12 @@ interface FinishWorkoutModalProps {
   exerciseLogs: ExerciseLog[]
   duration: number // seconds
   workoutLogs: WorkoutLog[]
+  activePlan: TrainingPlan | null
   onUpdateTemplate: () => void
   onSaveAsNewTemplate: (name: string, exercises: Exercise[]) => void
   onJustFinish: () => void
   onCancel: () => void
+  onCompleteDay?: () => void
 }
 
 function formatDuration(seconds: number): string {
@@ -38,11 +41,25 @@ export default function FinishWorkoutModal({
   exerciseLogs,
   duration,
   workoutLogs,
+  activePlan,
   onUpdateTemplate,
   onSaveAsNewTemplate,
   onJustFinish,
-  onCancel
+  onCancel,
+  onCompleteDay,
 }: FinishWorkoutModalProps) {
+  // Detect if this workout matches today's plan day
+  const planMatchesWorkout = useMemo(() => {
+    if (!activePlan || !originalTemplateId) return false
+    const { day } = getTodayPlanDay(activePlan)
+    if (day.type !== 'workout') return false
+    const todayStr = new Date().toISOString().split('T')[0]
+    const alreadyCheckedIn = activePlan.checkIns.some(ci => ci.date === todayStr)
+    return day.templateId === originalTemplateId && !alreadyCheckedIn
+  }, [activePlan, originalTemplateId])
+
+  const [logToPlan, setLogToPlan] = useState(planMatchesWorkout)
+
   const isFromTemplate = !!originalTemplateId
   const isUnchanged = isFromTemplate && !hasChanges
 
@@ -106,6 +123,7 @@ export default function FinishWorkoutModal({
       } else {
         await onJustFinish()
       }
+      if (logToPlan && onCompleteDay) onCompleteDay()
     } catch (err) {
       console.error('Error finishing workout:', err)
       setError('Failed to save workout. Please try again.')
@@ -212,6 +230,18 @@ export default function FinishWorkoutModal({
               <span>Just finish</span>
             </label>
           </div>
+        )}
+
+        {/* Plan check-in */}
+        {planMatchesWorkout && (
+          <label className="plan-log-checkbox">
+            <input
+              type="checkbox"
+              checked={logToPlan}
+              onChange={e => setLogToPlan(e.target.checked)}
+            />
+            <span>Mark training plan step as complete</span>
+          </label>
         )}
 
         {/* Progressive overload suggestions */}

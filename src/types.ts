@@ -66,12 +66,21 @@ export interface PlanDay {
   label?: string       // optional custom label
 }
 
+export interface PlanCheckIn {
+  id: string
+  date: string         // YYYY-MM-DD — calendar date this was logged
+  cycleIndex: number   // which day in the cycle (for history display)
+  completed: boolean   // true = done, false = skipped
+}
+
 export interface TrainingPlan {
   id: string
   name: string
-  days: PlanDay[]      // the repeating cycle
-  startDate: string    // YYYY-MM-DD — day 0 of the cycle
+  days: PlanDay[]
+  currentCycleIndex: number  // which day in the cycle is pending next
+  checkIns: PlanCheckIn[]    // full history of completions + skips
   isActive: boolean
+  startDate?: string         // kept for display ("started X weeks ago")
 }
 
 export interface UserProfile {

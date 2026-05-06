@@ -121,7 +121,15 @@ export class SyncService {
       }))
 
       const activePlan: TrainingPlan | null = plansRes.data
-        ? { id: plansRes.data.id, name: plansRes.data.name, days: plansRes.data.days, startDate: plansRes.data.start_date, isActive: true }
+        ? {
+            id: plansRes.data.id,
+            name: plansRes.data.name,
+            days: plansRes.data.days,
+            currentCycleIndex: plansRes.data.current_cycle_index ?? 0,
+            checkIns: plansRes.data.check_ins ?? [],
+            startDate: plansRes.data.start_date ?? undefined,
+            isActive: true,
+          }
         : null
 
       return { profile, templates, workouts, exercises, weightEntries, runLogs, activePlan }
@@ -330,15 +338,16 @@ export class SyncService {
   // TRAINING PLANS
   // ============================================
   async upsertPlan(plan: TrainingPlan): Promise<void> {
-    // Deactivate all other plans first
     await supabase.from('training_plans').update({ is_active: false }).eq('user_id', this.userId)
     const { error } = await supabase.from('training_plans').upsert({
       id: plan.id,
       user_id: this.userId,
       name: plan.name,
       days: plan.days,
-      start_date: plan.startDate,
+      start_date: plan.startDate ?? null,
       is_active: plan.isActive,
+      current_cycle_index: plan.currentCycleIndex,
+      check_ins: plan.checkIns,
     }, { onConflict: 'id' })
     if (error) throw error
   }

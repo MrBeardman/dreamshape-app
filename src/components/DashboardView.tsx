@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import CircularProgress from './CircularProgress'
 import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog, TrainingPlan } from '../types'
-import { getTodayPlanDay } from './PlanSection'
+import { getTodayPlanDay, getPlanStreak } from './PlanSection'
 
 interface ExerciseDbEntry {
   name: string
@@ -21,6 +21,8 @@ interface DashboardViewProps {
   onViewAllTemplates: () => void
   onViewHistory: () => void
   onViewPlan: () => void
+  onCompleteDay: () => void
+  onSkipDay: () => void
 }
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'] as const
@@ -45,6 +47,8 @@ export default function DashboardView({
   onViewAllTemplates,
   onViewHistory,
   onViewPlan,
+  onCompleteDay,
+  onSkipDay,
 }: DashboardViewProps) {
   const totalWorkouts = workoutLogs.length
 
@@ -191,28 +195,41 @@ export default function DashboardView({
 
       {/* Today's plan */}
       {activePlan && (() => {
-        const todayEntry = getTodayPlanDay(activePlan)
-        if (!todayEntry) return null
-        const { day, cycleIndex } = todayEntry
+        const { day, cycleIndex } = getTodayPlanDay(activePlan)
         const template = day.type === 'workout' ? templates.find(t => t.id === day.templateId) : null
-        const label = day.type === 'workout'
-          ? (template?.name ?? 'Workout')
-          : day.type === 'run' ? 'Run day' : 'Rest day'
+        const label = day.type === 'workout' ? (template?.name ?? 'Workout') : day.type === 'run' ? 'Run' : 'Rest'
+        const streak = getPlanStreak(activePlan.checkIns)
+        const todayStr = new Date().toISOString().split('T')[0]
+        const todayCheckIn = activePlan.checkIns.find(ci => ci.date === todayStr)
         return (
-          <div className={`today-plan-card today-plan-${day.type}`} onClick={day.type === 'workout' && template ? () => onStartWorkout(template) : onViewPlan}>
+          <div className={`today-plan-card today-plan-${day.type}`}>
             <div className="today-plan-meta">
-              <span className="today-plan-label">Today · Day {cycleIndex + 1}/{activePlan.days.length}</span>
-              <span className="today-plan-plan-name">{activePlan.name}</span>
+              <span className="today-plan-label">Training Plan · Step {cycleIndex + 1}/{activePlan.days.length}</span>
+              {streak > 0 && <span className="today-plan-streak">🔥 {streak} streak</span>}
             </div>
             <div className="today-plan-main">
               <span className="today-plan-icon">{DAY_TYPE_ICONS[day.type]}</span>
               <span className="today-plan-session">{label}</span>
             </div>
-            {day.type === 'workout' && template && (
-              <div className="today-plan-cta">Start →</div>
-            )}
-            {day.type === 'run' && (
-              <div className="today-plan-cta">Log run →</div>
+            {!todayCheckIn ? (
+              <div className="today-plan-actions">
+                {day.type === 'workout' && template && (
+                  <button className="today-plan-start-btn" onClick={() => onStartWorkout(template)}>
+                    Start workout →
+                  </button>
+                )}
+                {day.type === 'run' && (
+                  <button className="today-plan-start-btn" onClick={() => { onViewPlan() }}>
+                    Log run →
+                  </button>
+                )}
+                <button className="today-plan-done-btn" onClick={onCompleteDay}>✓ Done</button>
+                <button className="today-plan-skip-btn" onClick={onSkipDay}>Skip</button>
+              </div>
+            ) : (
+              <div className="today-plan-checked">
+                {todayCheckIn.completed ? '✓ Completed today' : '✗ Skipped — same step tomorrow'}
+              </div>
             )}
           </div>
         )
