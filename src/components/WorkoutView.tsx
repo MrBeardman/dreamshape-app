@@ -73,12 +73,64 @@ export default function WorkoutView({
   const [newExMuscle, setNewExMuscle] = useState('Other')
   const [newExEquip, setNewExEquip] = useState('Barbell')
   const addExerciseRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const createFormRef = useRef<HTMLDivElement>(null)
+  const [dropdownMaxHeight, setDropdownMaxHeight] = useState<number | undefined>(undefined)
+  const [scrollSpacer, setScrollSpacer] = useState(0)
+  const showCreateFormRef = useRef(showCreateForm)
+  showCreateFormRef.current = showCreateForm
 
-  // When the create form expands, scroll it fully into view so keyboard doesn't cover it
+  // The Add Exercise section sits at the very bottom of the page, so there's
+  // normally nothing below it for scrollIntoView to scroll into — the keyboard
+  // shrinks the visible (visual) viewport without shrinking the scrollable
+  // (layout) viewport, so the browser has no room to bring it above the
+  // keyboard. Reserve a full viewport of scratch room so it always can.
+  useEffect(() => {
+    if (!showSuggestions) {
+      setScrollSpacer(0)
+      return
+    }
+    setScrollSpacer(window.innerHeight)
+    const id = setTimeout(() => {
+      addExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 350)
+    return () => clearTimeout(id)
+  }, [showSuggestions])
+
+  // Keep the suggestions dropdown from extending past whatever space the
+  // on-screen keyboard leaves above it.
+  useEffect(() => {
+    if (!showSuggestions) return
+
+    const vv = window.visualViewport
+    const updateMaxHeight = () => {
+      if (!dropdownRef.current) return
+      const viewportHeight = vv?.height ?? window.innerHeight
+      const offsetTop = vv?.offsetTop ?? 0
+      const top = dropdownRef.current.getBoundingClientRect().top - offsetTop
+      const available = viewportHeight - top - 16
+      setDropdownMaxHeight(Math.max(120, Math.min(280, available)))
+    }
+
+    updateMaxHeight()
+    vv?.addEventListener('resize', updateMaxHeight)
+    vv?.addEventListener('scroll', updateMaxHeight)
+    window.addEventListener('resize', updateMaxHeight)
+    window.addEventListener('scroll', updateMaxHeight, { passive: true })
+    return () => {
+      vv?.removeEventListener('resize', updateMaxHeight)
+      vv?.removeEventListener('scroll', updateMaxHeight)
+      window.removeEventListener('resize', updateMaxHeight)
+      window.removeEventListener('scroll', updateMaxHeight)
+    }
+  }, [showSuggestions])
+
+  // When the create form expands, scroll its buttons into view within the
+  // dropdown's own scroll area so they stay reachable above the keyboard.
   useEffect(() => {
     if (showCreateForm) {
       setTimeout(() => {
-        addExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
       }, 50)
     }
   }, [showCreateForm])
@@ -286,18 +338,25 @@ export default function WorkoutView({
                 placeholder="Search exercises..."
                 value={exerciseInput}
                 onChange={(e) => setExerciseInput(e.target.value)}
-                onFocus={() => {
-                  setShowSuggestions(true)
-                  // After keyboard opens (~350ms), scroll section to top so dropdown fits above keyboard
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => {
+                  // Tapping "+Create" (or its native <select> controls once open)
+                  // blurs this input too, racing this same close-on-blur timer.
+                  // Re-check at fire time so an open create-form always wins —
+                  // it closes explicitly via Cancel / Add to Workout instead.
                   setTimeout(() => {
-                    addExerciseRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }, 350)
+                    if (showCreateFormRef.current) return
+                    setShowSuggestions(false)
+                  }, 200)
                 }}
-                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                 className="input"
               />
               {showSuggestions && (
-                <div className="suggestions-dropdown">
+                <div
+                  ref={dropdownRef}
+                  className="suggestions-dropdown"
+                  style={dropdownMaxHeight ? { maxHeight: dropdownMaxHeight } : undefined}
+                >
                   {Object.entries(getGroupedSuggestions()).map(([group, groupExercises]) => (
                     <div key={group}>
                       <div className="suggestion-group-header">{group}</div>
@@ -330,7 +389,7 @@ export default function WorkoutView({
                           <span className="suggestion-meta">Add to library & workout</span>
                         </div>
                       ) : (
-                        <div className="create-exercise-inline" onClick={e => e.stopPropagation()}>
+                        <div ref={createFormRef} className="create-exercise-inline" onClick={e => e.stopPropagation()}>
                           <div className="create-exercise-name">"{exerciseInput.trim()}"</div>
                           <div className="create-exercise-selects">
                             <select
@@ -377,6 +436,7 @@ export default function WorkoutView({
               )}
             </div>
           </div>
+          {scrollSpacer > 0 && <div style={{ height: scrollSpacer }} aria-hidden="true" />}
         </div>
 
       <div className="workout-footer">
