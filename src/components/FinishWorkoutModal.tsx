@@ -15,6 +15,7 @@ interface FinishWorkoutModalProps {
   exerciseLogs: ExerciseLog[]
   duration: number // seconds
   workoutLogs: WorkoutLog[]
+  exerciseDatabase?: Array<{ name: string; trackingMode?: 'weight-reps' | 'time' }>
   activePlan: TrainingPlan | null
   onUpdateTemplate: () => void
   onSaveAsNewTemplate: (name: string, exercises: Exercise[]) => void
@@ -41,6 +42,7 @@ export default function FinishWorkoutModal({
   exerciseLogs,
   duration,
   workoutLogs,
+  exerciseDatabase,
   activePlan,
   onUpdateTemplate,
   onSaveAsNewTemplate,
@@ -84,23 +86,78 @@ export default function FinishWorkoutModal({
     0
   )
 
-  // Progressive overload suggestions: show +2.5kg if all working sets completed
+  // Progressive overload suggestions — double progression: only recommend adding weight
+  // once ALL working sets at the current weight have hit the rep target for TWO
+  // consecutive sessions (this one + the last time this weight was used), not just
+  // "everything got checked off" regardless of how many reps actually landed.
+  //
+  // There's no explicit "target reps" setting (adding one would mean a whole new
+  // per-exercise settings UI); instead the target is inferred as the best working-set
+  // rep count ever previously logged at this exact weight — which is exactly the number
+  // the lifter was already chasing last time they were at this weight.
+  const PROGRESSION_INCREMENT = 2.5
+
   const overloadSuggestions = useMemo(() => {
+    const workingSetsAt = (sets: { weight: number; reps: number; type?: string }[], weight: number) =>
+      sets.filter(s => (s.type ?? 'working') === 'working' && s.weight === weight)
+
     return exerciseLogs
       .map(ex => {
+        // Time-tracked exercises (holds like planks) don't have a "weight" to progress
+        if (exerciseDatabase?.find(e => e.name === ex.exerciseName)?.trackingMode === 'time') return null
+
         const workingSets = ex.sets.filter(s => (s.type ?? 'working') === 'working')
         if (workingSets.length === 0) return null
-        const allCompleted = workingSets.every(s => s.completed)
-        if (!allCompleted) return null
+        if (!workingSets.every(s => s.completed)) return null
+
         const topWeight = Math.max(...workingSets.map(s => s.weight))
         if (topWeight <= 0) return null
-        // Only suggest if we have a previous session to compare against
-        const prev = workoutLogs.find(w => w.exercises.some(e => e.exerciseName === ex.exerciseName))
-        if (!prev) return null
-        return { name: ex.exerciseName, currentWeight: topWeight, nextWeight: topWeight + 2.5 }
+
+        const setsAtTop = workingSetsAt(workingSets, topWeight)
+
+        // Prior sessions (workoutLogs is newest-first) where this exercise was also
+        // worked at exactly this weight
+        const priorAtWeight = workoutLogs
+          .map(w => {
+            const pastEx = w.exercises.find(e => e.exerciseName === ex.exerciseName)
+            if (!pastEx) return null
+            const pastSets = workingSetsAt(pastEx.sets, topWeight)
+            return pastSets.length > 0 ? pastSets : null
+          })
+          .filter((s): s is Array<{ weight: number; reps: number; type?: string }> => s !== null)
+
+        // First time ever at this weight — nothing to compare against yet
+        if (priorAtWeight.length === 0) return null
+
+        const targetReps = Math.max(...priorAtWeight.flatMap(sets => sets.map(s => s.reps)))
+        if (targetReps <= 0) return null
+
+        const metThisSession = setsAtTop.every(s => s.reps >= targetReps)
+        const metPriorSession = priorAtWeight[0].every(s => s.reps >= targetReps)
+
+        if (metThisSession && metPriorSession) {
+          const nextWeight = Math.round((topWeight + PROGRESSION_INCREMENT) * 10) / 10
+          return {
+            name: ex.exerciseName,
+            status: 'ready' as const,
+            message: `Hit ${targetReps} reps twice at ${topWeight} kg — try ${nextWeight} kg`,
+          }
+        }
+        if (metThisSession && !metPriorSession) {
+          return {
+            name: ex.exerciseName,
+            status: 'confirm' as const,
+            message: `Hit ${targetReps} reps — repeat ${topWeight} kg once more to confirm`,
+          }
+        }
+        return {
+          name: ex.exerciseName,
+          status: 'not-ready' as const,
+          message: `Stick with ${topWeight} kg — aim for ${targetReps} reps on every set`,
+        }
       })
-      .filter(Boolean) as Array<{ name: string; currentWeight: number; nextWeight: number }>
-  }, [exerciseLogs, workoutLogs])
+      .filter((s): s is { name: string; status: 'ready' | 'confirm' | 'not-ready'; message: string } => s !== null)
+  }, [exerciseLogs, workoutLogs, exerciseDatabase])
 
   const handleFinish = async () => {
     if (isSaving) return
@@ -249,9 +306,12 @@ export default function FinishWorkoutModal({
           <div className="overload-suggestions">
             <div className="overload-title">Next session suggestions</div>
             {overloadSuggestions.map(s => (
-              <div key={s.name} className="overload-row">
+              <div key={s.name} className={`overload-row overload-row--${s.status}`}>
                 <span className="overload-name">{s.name}</span>
-                <span className="overload-rec">↑ Try {s.nextWeight} kg</span>
+                <span className="overload-rec">
+                  {s.status === 'ready' && '↑ '}
+                  {s.message}
+                </span>
               </div>
             ))}
           </div>

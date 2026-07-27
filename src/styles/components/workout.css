@@ -1392,8 +1392,8 @@
 /* ===== PROGRESSIVE OVERLOAD SUGGESTIONS ===== */
 .overload-suggestions {
   margin-bottom: 12px;
-  background: rgba(111, 180, 145, 0.06);
-  border: 1px solid rgba(111, 180, 145, 0.2);
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 12px 14px;
 }
@@ -1401,7 +1401,7 @@
 .overload-title {
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
-  color: var(--success);
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -1409,27 +1409,39 @@
 
 .overload-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
 }
+
+.overload-row:last-child { border-bottom: none; }
 
 .overload-name {
   font-size: var(--text-sm);
-  color: var(--text-secondary);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  margin-right: 12px;
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
 .overload-rec {
-  font-size: var(--text-sm);
-  font-weight: var(--font-bold);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+}
+
+/* Ready to add weight — hit target reps twice in a row */
+.overload-row--ready .overload-rec {
   color: var(--success);
-  white-space: nowrap;
+  font-weight: var(--font-bold);
+}
+
+/* Hit target this session, but not last time — one more to confirm */
+.overload-row--confirm .overload-rec {
+  color: var(--primary);
+}
+
+/* Didn't hit target reps this session — stay at this weight */
+.overload-row--not-ready .overload-rec {
+  color: var(--text-tertiary);
 }
 
 /* ===== EXERCISE ROW 1RM ===== */

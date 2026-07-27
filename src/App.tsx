@@ -772,6 +772,7 @@ function App() {
                         exerciseLogs={activeWorkout.exercises}
                         duration={Math.floor((Date.now() - activeWorkout.startTime) / 1000)}
                         workoutLogs={workoutLogs}
+                        exerciseDatabase={exerciseDatabase}
                         activePlan={activePlan}
                         onUpdateTemplate={handleUpdateTemplate}
                         onSaveAsNewTemplate={handleSaveAsNewTemplate}
