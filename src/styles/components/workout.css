@@ -572,7 +572,7 @@
   display: grid;
   grid-template-columns: 40px 1fr 1fr 40px 24px;
   gap: 6px;
-  padding: 6px 0;
+  padding: 6px 8px;
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-tertiary);
@@ -594,7 +594,7 @@
   grid-template-columns: 40px 1fr 1fr 40px 24px;
   gap: 6px;
   align-items: center;
-  padding: 6px 0;
+  padding: 6px 8px;
   margin: 3px 0;
   border-radius: var(--radius-sm);
 }
