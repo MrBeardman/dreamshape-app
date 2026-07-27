@@ -332,7 +332,7 @@ body {
 /* ===== MINIMIZED WORKOUT BAR ===== */
 .workout-minimized-bar {
   position: fixed;
-  bottom: calc(60px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 10px);
   left: 0;
   right: 0;
   z-index: 200;
