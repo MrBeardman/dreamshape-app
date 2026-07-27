@@ -63,6 +63,7 @@ export default function ExerciseCard({
   const [switchShowCreate, setSwitchShowCreate] = useState(false)
   const [switchNewMuscle, setSwitchNewMuscle] = useState('Other')
   const [switchNewEquip, setSwitchNewEquip] = useState('Barbell')
+  const [showAllExercises, setShowAllExercises] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
@@ -85,20 +86,23 @@ export default function ExerciseCard({
   }, [showNotesMenu])
 
   const getSwitchSuggestions = () => {
-    if (!exerciseDatabase) return {}
+    if (!exerciseDatabase) return { alternatives: [], grouped: {} }
+    const currentMuscleGroup = exerciseDatabase.find(ex => ex.name === exercise.exerciseName)?.muscleGroup
     const term = switchInput.toLowerCase().trim()
+    const pool = exerciseDatabase.filter(ex => ex.name !== exercise.exerciseName)
     const filtered = term
-      ? exerciseDatabase.filter(ex =>
-          ex.name.toLowerCase().includes(term) ||
-          ex.muscleGroup.toLowerCase().includes(term)
-        )
-      : exerciseDatabase
-    const grouped: Record<string, typeof filtered> = {}
-    filtered.forEach(ex => {
+      ? pool.filter(ex => ex.name.toLowerCase().includes(term) || ex.muscleGroup.toLowerCase().includes(term))
+      : pool
+    const alternatives = currentMuscleGroup
+      ? filtered.filter(ex => ex.muscleGroup === currentMuscleGroup)
+      : []
+    const rest = filtered.filter(ex => ex.muscleGroup !== currentMuscleGroup)
+    const grouped: Record<string, typeof pool> = {}
+    rest.forEach(ex => {
       if (!grouped[ex.muscleGroup]) grouped[ex.muscleGroup] = []
       grouped[ex.muscleGroup].push(ex)
     })
-    return grouped
+    return { alternatives, grouped }
   }
 
   const handleSwitch = (name: string, muscleGroup: string, equipment: string) => {
@@ -123,6 +127,7 @@ export default function ExerciseCard({
     setSwitchShowCreate(false)
     setSwitchNewMuscle('Other')
     setSwitchNewEquip('Barbell')
+    setShowAllExercises(false)
   }
 
   const handleSaveNotes = () => {
@@ -267,25 +272,65 @@ export default function ExerciseCard({
             className="input"
             placeholder="Search exercises..."
             value={switchInput}
-            onChange={(e) => setSwitchInput(e.target.value)}
+            onChange={(e) => { setSwitchInput(e.target.value); setShowAllExercises(false) }}
             autoFocus
           />
           <div className="switch-search-results">
-            {Object.entries(getSwitchSuggestions()).map(([group, groupExercises]) => (
-              <div key={group}>
-                <div className="suggestion-group-header">{group}</div>
-                {groupExercises.map((ex, idx) => (
-                  <div
-                    key={idx}
-                    className="suggestion-item"
-                    onClick={(e) => { e.stopPropagation(); handleSwitch(ex.name, ex.muscleGroup, ex.equipment) }}
-                  >
-                    <span className="suggestion-name">{ex.name}</span>
-                    <span className="suggestion-meta">{ex.muscleGroup} · {ex.equipment}</span>
-                  </div>
-                ))}
-              </div>
-            ))}
+            {(() => {
+              const { alternatives, grouped } = getSwitchSuggestions()
+              const hasAlternatives = alternatives.length > 0
+              const hasOthers = Object.keys(grouped).length > 0
+              return (
+                <>
+                  {hasAlternatives && (
+                    <div>
+                      <div className="suggestion-group-header suggestion-group-alternatives">
+                        Alternatives
+                        <span className="suggestion-alt-badge">{alternatives.length}</span>
+                      </div>
+                      {alternatives.map((ex, idx) => (
+                        <div
+                          key={idx}
+                          className="suggestion-item suggestion-item-alt"
+                          onClick={(e) => { e.stopPropagation(); handleSwitch(ex.name, ex.muscleGroup, ex.equipment) }}
+                        >
+                          <span className="suggestion-name">{ex.name}</span>
+                          <span className="suggestion-meta">{ex.equipment}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {hasOthers && (
+                    <div>
+                      <button
+                        className="suggestion-show-all-btn"
+                        onClick={(e) => { e.stopPropagation(); setShowAllExercises(p => !p) }}
+                      >
+                        {showAllExercises ? 'Hide other exercises ▲' : `All exercises ▼`}
+                      </button>
+                      {showAllExercises && Object.entries(grouped).map(([group, groupExercises]) => (
+                        <div key={group}>
+                          <div className="suggestion-group-header">{group}</div>
+                          {groupExercises.map((ex, idx) => (
+                            <div
+                              key={idx}
+                              className="suggestion-item"
+                              onClick={(e) => { e.stopPropagation(); handleSwitch(ex.name, ex.muscleGroup, ex.equipment) }}
+                            >
+                              <span className="suggestion-name">{ex.name}</span>
+                              <span className="suggestion-meta">{ex.muscleGroup} · {ex.equipment}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!hasAlternatives && !hasOthers && switchInput.trim() && (
+                    <p className="suggestion-empty">No matches for "{switchInput}"</p>
+                  )}
+                </>
+              )
+            })()}
             {switchInput.trim() && !exerciseDatabase?.some(ex => ex.name.toLowerCase() === switchInput.trim().toLowerCase()) && (
               <div className="suggestion-create-section">
                 {!switchShowCreate ? (

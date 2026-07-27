@@ -1,5 +1,6 @@
-import { useState } from 'react'
-import type { Exercise, ExerciseLog } from '../types'
+import { useState, useMemo } from 'react'
+import type { Exercise, ExerciseLog, WorkoutLog, TrainingPlan } from '../types'
+import { getTodayPlanDay } from './PlanSection'
 
 interface FinishWorkoutModalProps {
   originalTemplateName: string | null
@@ -13,10 +14,13 @@ interface FinishWorkoutModalProps {
   currentExercises: Exercise[]
   exerciseLogs: ExerciseLog[]
   duration: number // seconds
+  workoutLogs: WorkoutLog[]
+  activePlan: TrainingPlan | null
   onUpdateTemplate: () => void
   onSaveAsNewTemplate: (name: string, exercises: Exercise[]) => void
   onJustFinish: () => void
   onCancel: () => void
+  onCompleteDay?: () => void
 }
 
 function formatDuration(seconds: number): string {
@@ -36,11 +40,26 @@ export default function FinishWorkoutModal({
   currentExercises,
   exerciseLogs,
   duration,
+  workoutLogs,
+  activePlan,
   onUpdateTemplate,
   onSaveAsNewTemplate,
   onJustFinish,
-  onCancel
+  onCancel,
+  onCompleteDay,
 }: FinishWorkoutModalProps) {
+  // Detect if this workout matches today's plan day
+  const planMatchesWorkout = useMemo(() => {
+    if (!activePlan || !originalTemplateId) return false
+    const { day } = getTodayPlanDay(activePlan)
+    if (day.type !== 'workout') return false
+    const todayStr = new Date().toISOString().split('T')[0]
+    const alreadyCheckedIn = activePlan.checkIns.some(ci => ci.date === todayStr)
+    return day.templateId === originalTemplateId && !alreadyCheckedIn
+  }, [activePlan, originalTemplateId])
+
+  const [logToPlan, setLogToPlan] = useState(planMatchesWorkout)
+
   const isFromTemplate = !!originalTemplateId
   const isUnchanged = isFromTemplate && !hasChanges
 
@@ -65,6 +84,24 @@ export default function FinishWorkoutModal({
     0
   )
 
+  // Progressive overload suggestions: show +2.5kg if all working sets completed
+  const overloadSuggestions = useMemo(() => {
+    return exerciseLogs
+      .map(ex => {
+        const workingSets = ex.sets.filter(s => (s.type ?? 'working') === 'working')
+        if (workingSets.length === 0) return null
+        const allCompleted = workingSets.every(s => s.completed)
+        if (!allCompleted) return null
+        const topWeight = Math.max(...workingSets.map(s => s.weight))
+        if (topWeight <= 0) return null
+        // Only suggest if we have a previous session to compare against
+        const prev = workoutLogs.find(w => w.exercises.some(e => e.exerciseName === ex.exerciseName))
+        if (!prev) return null
+        return { name: ex.exerciseName, currentWeight: topWeight, nextWeight: topWeight + 2.5 }
+      })
+      .filter(Boolean) as Array<{ name: string; currentWeight: number; nextWeight: number }>
+  }, [exerciseLogs, workoutLogs])
+
   const handleFinish = async () => {
     if (isSaving) return
 
@@ -86,6 +123,7 @@ export default function FinishWorkoutModal({
       } else {
         await onJustFinish()
       }
+      if (logToPlan && onCompleteDay) onCompleteDay()
     } catch (err) {
       console.error('Error finishing workout:', err)
       setError('Failed to save workout. Please try again.')
@@ -191,6 +229,31 @@ export default function FinishWorkoutModal({
               />
               <span>Just finish</span>
             </label>
+          </div>
+        )}
+
+        {/* Plan check-in */}
+        {planMatchesWorkout && (
+          <label className="plan-log-checkbox">
+            <input
+              type="checkbox"
+              checked={logToPlan}
+              onChange={e => setLogToPlan(e.target.checked)}
+            />
+            <span>Mark training plan step as complete</span>
+          </label>
+        )}
+
+        {/* Progressive overload suggestions */}
+        {overloadSuggestions.length > 0 && (
+          <div className="overload-suggestions">
+            <div className="overload-title">Next session suggestions</div>
+            {overloadSuggestions.map(s => (
+              <div key={s.name} className="overload-row">
+                <span className="overload-name">{s.name}</span>
+                <span className="overload-rec">↑ Try {s.nextWeight} kg</span>
+              </div>
+            ))}
           </div>
         )}
 

@@ -3,81 +3,44 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
-import type { UserProfile, WorkoutLog, NutritionLog, Habit, HabitCompletion, WeightEntry, NutritionGoals } from '../types'
+import type { UserProfile, WorkoutLog, WeightEntry, TrainingPlan } from '../types'
+import { getPlanStreak } from './PlanSection'
 
 interface ProfileViewProps {
   userProfile: UserProfile
   workoutLogs: WorkoutLog[]
-  nutritionLogs: NutritionLog[]
-  habits: Habit[]
-  habitCompletions: HabitCompletion[]
   weightEntries: WeightEntry[]
+  activePlan: TrainingPlan | null
   onUpdateProfile: (profile: UserProfile) => void
   onSignOut: () => void
-}
-
-// inline helper — same 5-level scheme as HabitsView
-function hmLevel(ratio: number): 0 | 1 | 2 | 3 | 4 {
-  if (ratio <= 0) return 0
-  if (ratio < 0.25) return 1
-  if (ratio < 0.5) return 2
-  if (ratio < 0.75) return 3
-  return 4
 }
 
 export default function ProfileView({
   userProfile,
   workoutLogs,
-  nutritionLogs,
-  habits,
-  habitCompletions,
   weightEntries,
+  activePlan,
   onUpdateProfile,
   onSignOut,
 }: ProfileViewProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [name, setName] = useState(userProfile.name)
-  const [isEditingGoals, setIsEditingGoals] = useState(false)
-  const [goalCalories, setGoalCalories] = useState(String(userProfile.nutritionGoals?.calories ?? 2000))
-  const [goalProtein, setGoalProtein] = useState(String(userProfile.nutritionGoals?.protein ?? 150))
-  const [goalCarbs, setGoalCarbs] = useState(String(userProfile.nutritionGoals?.carbs ?? 250))
-  const [goalFat, setGoalFat] = useState(String(userProfile.nutritionGoals?.fat ?? 70))
-  const [goalSugar, setGoalSugar] = useState(String(userProfile.nutritionGoals?.sugar ?? 50))
   const { confirm: showConfirm, confirmDialogProps } = useConfirm()
-
-  const handleSaveGoals = () => {
-    const goals: NutritionGoals = {
-      calories: Number(goalCalories) || 2000,
-      protein: Number(goalProtein) || 150,
-      carbs: Number(goalCarbs) || 250,
-      fat: Number(goalFat) || 70,
-      sugar: Number(goalSugar) || 50,
-    }
-    onUpdateProfile({ ...userProfile, nutritionGoals: goals })
-    setIsEditingGoals(false)
-  }
 
   const handleSave = () => {
     onUpdateProfile({ ...userProfile, name })
     setIsEditing(false)
   }
 
-  // ─── Gym helpers ─────────────────────────────────────────────────────────────
+  // ─── Workout helpers ──────────────────────────────────────────────────────────
 
-  const getTotalVolume = () => {
-    return workoutLogs.reduce((total, workout) => {
-      return total + workout.exercises.reduce((exSum, exercise) => {
-        return exSum + exercise.sets.reduce((setSum, set) => {
-          return setSum + (set.weight * set.reps)
-        }, 0)
-      }, 0)
-    }, 0)
-  }
+  const getTotalVolume = () =>
+    workoutLogs.reduce((total, workout) =>
+      total + workout.exercises.reduce((exSum, exercise) =>
+        exSum + exercise.sets.reduce((setSum, set) => setSum + set.weight * set.reps, 0), 0), 0)
 
-  const getTotalDuration = () => {
-    const totalSeconds = workoutLogs.reduce((sum, w) => sum + w.duration, 0)
-    return Math.floor(totalSeconds / 3600)
-  }
+  const getTotalDuration = () =>
+    Math.floor(workoutLogs.reduce((sum, w) => sum + w.duration, 0) / 3600)
 
   const getWeeklyGoalProgress = () => {
     const now = new Date()
@@ -134,10 +97,7 @@ export default function ProfileView({
     workoutLogs.forEach(w => w.exercises.forEach(e => {
       exerciseCounts[e.exerciseName] = (exerciseCounts[e.exerciseName] ?? 0) + 1
     }))
-    const top3 = Object.entries(exerciseCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([name]) => name)
+    const top3 = Object.entries(exerciseCounts).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name]) => name)
     return top3.map(name => {
       const thisMonthMax = workoutLogs
         .filter(w => new Date(w.date) >= thisMonthStart)
@@ -164,9 +124,10 @@ export default function ProfileView({
       logs.reduce((sum, w) =>
         sum + w.exercises.reduce((es, e) =>
           es + e.sets.reduce((ss, s) => ss + s.weight * s.reps, 0), 0), 0)
-    const thisWeek = calcVol(workoutLogs.filter(w => new Date(w.date) >= weekStart))
-    const lastWeek = calcVol(workoutLogs.filter(w => { const d = new Date(w.date); return d >= prevWeekStart && d < weekStart }))
-    return { thisWeek, lastWeek }
+    return {
+      thisWeek: calcVol(workoutLogs.filter(w => new Date(w.date) >= weekStart)),
+      lastWeek: calcVol(workoutLogs.filter(w => { const d = new Date(w.date); return d >= prevWeekStart && d < weekStart })),
+    }
   }
 
   const getMostFrequentExercise = () => {
@@ -180,85 +141,10 @@ export default function ProfileView({
     return sorted[0] ? sorted[0][0] : 'None'
   }
 
-  // ─── Nutrition helpers ────────────────────────────────────────────────────────
-
-  const todayStr = new Date().toISOString().split('T')[0]
-
-  const todayNutrition = useMemo(() => {
-    const log = nutritionLogs.find(l => l.date === todayStr)
-    if (!log) return { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    return log.entries.reduce(
-      (acc, e) => ({
-        calories: acc.calories + e.calories,
-        protein: acc.protein + e.protein,
-        carbs: acc.carbs + e.carbs,
-        fat: acc.fat + e.fat,
-      }),
-      { calories: 0, protein: 0, carbs: 0, fat: 0 }
-    )
-  }, [nutritionLogs, todayStr])
-
-  const sevenDayAvgCalories = useMemo(() => {
-    const days: number[] = []
-    for (let i = 0; i < 7; i++) {
-      const d = new Date()
-      d.setDate(d.getDate() - i)
-      const ds = d.toISOString().split('T')[0]
-      const log = nutritionLogs.find(l => l.date === ds)
-      if (log) {
-        const kcal = log.entries.reduce((sum, e) => sum + e.calories, 0)
-        days.push(kcal)
-      }
-    }
-    if (days.length === 0) return 0
-    return Math.round(days.reduce((a, b) => a + b, 0) / days.length)
-  }, [nutritionLogs])
-
-  // ─── Habits helpers ───────────────────────────────────────────────────────────
-
-  const todayHabitsTotal = habits.length
-  const todayHabitsDone = habits.filter(h =>
-    habitCompletions.some(c => c.habitId === h.id && c.date === todayStr)
-  ).length
-
-  const habitStreak = useMemo(() => {
-    let streak = 0
-    const d = new Date()
-    // start from yesterday if today has no completions yet, else from today
-    const startOffset = todayHabitsDone > 0 ? 0 : 1
-    for (let i = startOffset; i < 365; i++) {
-      const day = new Date(d)
-      day.setDate(d.getDate() - i)
-      const ds = day.toISOString().split('T')[0]
-      const done = habitCompletions.some(c => c.date === ds)
-      if (done) {
-        streak++
-      } else {
-        break
-      }
-    }
-    return streak
-  }, [habitCompletions, todayHabitsDone])
-
-  // 14-day mini heatmap: 2 rows × 7 cols, oldest top-left, today bottom-right
-  const miniHeatmapDays = useMemo(() => {
-    return Array.from({ length: 14 }, (_, i) => {
-      const day = new Date()
-      day.setDate(day.getDate() - (13 - i))
-      const ds = day.toISOString().split('T')[0]
-      const done = habitCompletions.filter(c => c.date === ds).length
-      const total = habits.length
-      const ratio = total > 0 ? done / total : 0
-      return { ds, level: hmLevel(ratio) }
-    })
-  }, [habitCompletions, habits])
-
   // ─── Weight helpers ───────────────────────────────────────────────────────────
 
   const sortedWeightEntries = useMemo(() =>
-    [...weightEntries].sort((a, b) => a.date.localeCompare(b.date)),
-    [weightEntries]
-  )
+    [...weightEntries].sort((a, b) => a.date.localeCompare(b.date)), [weightEntries])
 
   const latestWeight = sortedWeightEntries[sortedWeightEntries.length - 1]
   const firstWeight = sortedWeightEntries[0]
@@ -280,27 +166,7 @@ export default function ProfileView({
     return points
   }, [sortedWeightEntries])
 
-  // ─── Derived values ───────────────────────────────────────────────────────────
-
-  const totalVolume = getTotalVolume()
-  const totalHours = getTotalDuration()
-  const favoriteExercise = getMostFrequentExercise()
-  const weeklyGoal = getWeeklyGoalProgress()
-  const recentPRs = getRecentPRs()
-  const strengthTrend = getStrengthTrend()
-  const volumeDelta = getVolumeWeekDelta()
-  const nutritionGoals = userProfile.nutritionGoals
-
-  // ─── Today ring values ────────────────────────────────────────────────────────
-
-  const calRingPct = nutritionGoals
-    ? Math.min((todayNutrition.calories / nutritionGoals.calories) * 100, 100)
-    : 0
-  const habitRingPct = todayHabitsTotal > 0
-    ? Math.min((todayHabitsDone / todayHabitsTotal) * 100, 100)
-    : 0
-
-  // ─── Charts state ─────────────────────────────────────────────────────────────
+  // ─── Chart state ──────────────────────────────────────────────────────────────
 
   const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month')
   const [calPeriod, setCalPeriod] = useState<'week' | 'month' | 'year'>('month')
@@ -308,11 +174,7 @@ export default function ProfileView({
 
   const volumeData = useMemo(() => {
     const calcVolume = (wos: typeof workoutLogs) =>
-      wos.reduce(
-        (sum, wo) => sum + wo.exercises.reduce(
-          (es, ex) => es + ex.sets.reduce((ss, s) => ss + s.weight * s.reps, 0), 0
-        ), 0
-      )
+      wos.reduce((sum, wo) => sum + wo.exercises.reduce((es, ex) => es + ex.sets.reduce((ss, s) => ss + s.weight * s.reps, 0), 0), 0)
 
     if (chartPeriod === 'week') {
       return Array.from({ length: 7 }, (_, i) => {
@@ -321,10 +183,7 @@ export default function ProfileView({
         day.setHours(0, 0, 0, 0)
         const nextDay = new Date(day)
         nextDay.setDate(day.getDate() + 1)
-        const dayWorkouts = workoutLogs.filter(w => {
-          const d = new Date(w.date)
-          return d >= day && d < nextDay
-        })
+        const dayWorkouts = workoutLogs.filter(w => { const d = new Date(w.date); return d >= day && d < nextDay })
         return { week: day.toLocaleDateString('en-US', { weekday: 'short' }), volume: Math.round(calcVolume(dayWorkouts) / 1000) }
       })
     }
@@ -404,10 +263,17 @@ export default function ProfileView({
     return cells
   }, [workoutLogs])
 
+  const totalVolume = getTotalVolume()
+  const totalHours = getTotalDuration()
+  const favoriteExercise = getMostFrequentExercise()
+  const weeklyGoal = getWeeklyGoalProgress()
+  const recentPRs = getRecentPRs()
+  const strengthTrend = getStrengthTrend()
+  const volumeDelta = getVolumeWeekDelta()
+
   return (
     <>
     <div className="profile-view">
-      {/* Header */}
       <div className="profile-header">
         <h2 className="view-title">Profile</h2>
       </div>
@@ -418,9 +284,7 @@ export default function ProfileView({
         onClick={() => !isEditing && setIsEditing(true)}
         style={{ cursor: isEditing ? 'default' : 'pointer' }}
       >
-        <div className="profile-avatar-large">
-          {userProfile.name.charAt(0).toUpperCase()}
-        </div>
+        <div className="profile-avatar-large">{userProfile.name.charAt(0).toUpperCase()}</div>
 
         {isEditing ? (
           <div className="profile-edit-form" onClick={(e) => e.stopPropagation()}>
@@ -433,54 +297,31 @@ export default function ProfileView({
               autoFocus
             />
             <div className="profile-edit-actions">
-              <button
-                className="btn btn-secondary"
-                onClick={() => {
-                  setName(userProfile.name)
-                  setIsEditing(false)
-                }}
-              >
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={handleSave}>
-                Save
-              </button>
+              <button className="btn btn-secondary" onClick={() => { setName(userProfile.name); setIsEditing(false) }}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleSave}>Save</button>
             </div>
           </div>
         ) : (
           <div className="profile-user-info">
             <div className="profile-name-container">
               <h1 className="profile-name">{userProfile.name}</h1>
-              {userProfile.role === 'creator' && (
-                <span className="creator-badge" title="App Creator">
-                  👑
-                </span>
-              )}
-              {userProfile.role === 'tester' && (
-                <span className="tester-badge" title="Beta Tester">
-                  🧪
-                </span>
-              )}
+              {userProfile.role === 'creator' && <span className="creator-badge" title="App Creator">👑</span>}
+              {userProfile.role === 'tester' && <span className="tester-badge" title="Beta Tester">🧪</span>}
             </div>
             <p className="profile-member-since">
               {userProfile.role === 'creator' && 'Creator'}
               {userProfile.role === 'tester' && 'Beta Tester'}
               {(!userProfile.role || userProfile.role === 'member') && 'Member'}
-              {' '}since {new Date(userProfile.memberSince).toLocaleDateString('en-US', {
-                month: 'long',
-                year: 'numeric'
-              })}
+              {' '}since {new Date(userProfile.memberSince).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </p>
           </div>
         )}
       </div>
 
-      {/* ── TODAY ── 3-ring row */}
+      {/* Today — weekly goal ring */}
       <div className="profile-section">
-        <h3 className="section-title">Today</h3>
-
+        <h3 className="section-title">This Week</h3>
         <div className="goals-rings-row">
-          {/* Gym ring */}
           <div className="goals-ring-cell">
             <CircularProgress
               value={weeklyGoal.pct}
@@ -493,41 +334,7 @@ export default function ProfileView({
               displayMode="percentage"
             />
           </div>
-
-          {/* Calories ring */}
-          <div className="goals-ring-cell">
-            <CircularProgress
-              value={calRingPct}
-              max={100}
-              size={72}
-              strokeWidth={6}
-              color="#22c55e"
-              label="Calories"
-              subtitle={
-                nutritionGoals
-                  ? `${Math.round(todayNutrition.calories)} / ${nutritionGoals.calories}`
-                  : 'No goal set'
-              }
-              displayMode="percentage"
-            />
-          </div>
-
-          {/* Habits ring */}
-          <div className="goals-ring-cell">
-            <CircularProgress
-              value={habitRingPct}
-              max={100}
-              size={72}
-              strokeWidth={6}
-              color="#3b82f6"
-              label="Habits"
-              subtitle={`${todayHabitsDone} / ${todayHabitsTotal} today`}
-              displayMode="percentage"
-            />
-          </div>
         </div>
-
-        {/* Volume delta row */}
         <div className="goals-volume-mini">
           Volume this week: <strong>{(volumeDelta.thisWeek / 1000).toFixed(1)}t</strong>
           {volumeDelta.lastWeek > 0 && (
@@ -536,16 +343,51 @@ export default function ProfileView({
               {Math.abs(Math.round(((volumeDelta.thisWeek - volumeDelta.lastWeek) / volumeDelta.lastWeek) * 100))}% vs last wk
             </span>
           )}
-          {volumeDelta.lastWeek === 0 && volumeDelta.thisWeek > 0 && (
-            <span className="goals-volume-mini-delta positive"> First data this week</span>
-          )}
         </div>
       </div>
 
-      {/* ── GYM PROGRESS ── PRs + strength trend */}
+      {/* Plan streak */}
+      {activePlan && (() => {
+        const streak = getPlanStreak(activePlan.checkIns)
+        const total = activePlan.checkIns.length
+        const completed = activePlan.checkIns.filter(c => c.completed).length
+        return (
+          <div className="plan-streak-profile">
+            <div className="plan-streak-profile-top">
+              <span className="plan-streak-profile-name">{activePlan.name}</span>
+              <span className="plan-streak-profile-streak">
+                {streak > 0 ? `🔥 ${streak} day streak` : 'No current streak'}
+              </span>
+            </div>
+            {total > 0 && (
+              <div className="plan-history-dots">
+                {[...activePlan.checkIns]
+                  .sort((a, b) => b.date.localeCompare(a.date))
+                  .slice(0, 20)
+                  .reverse()
+                  .map(ci => (
+                    <div
+                      key={ci.id}
+                      className={`plan-history-dot ${ci.completed ? 'done' : 'skipped'}`}
+                      title={`${ci.date}: ${ci.completed ? '✓' : '✗'}`}
+                    />
+                  ))}
+              </div>
+            )}
+            <div className="plan-streak-stats">
+              <span>{completed} completed</span>
+              <span>·</span>
+              <span>{total - completed} skipped</span>
+              <span>·</span>
+              <span>{total > 0 ? Math.round((completed / total) * 100) : 0}% adherence</span>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Gym Progress */}
       <div className="profile-section">
         <h3 className="section-title">Gym Progress</h3>
-
         {recentPRs.length > 0 && (
           <div className="goals-card">
             <div className="goals-card-title">Recent PRs <span className="goals-card-subtitle">last 30 days</span></div>
@@ -554,16 +396,12 @@ export default function ProfileView({
                 <span className="goals-pr-name">{pr.name}</span>
                 <span className="goals-pr-value">
                   {pr.weight} kg
-                  {pr.isNew
-                    ? <span className="goals-pr-badge new">New</span>
-                    : <span className="goals-pr-badge">+{pr.delta} kg</span>
-                  }
+                  {pr.isNew ? <span className="goals-pr-badge new">New</span> : <span className="goals-pr-badge">+{pr.delta} kg</span>}
                 </span>
               </div>
             ))}
           </div>
         )}
-
         {strengthTrend.length > 0 && (
           <div className="goals-card">
             <div className="goals-card-title">Strength Trend <span className="goals-card-subtitle">this vs last month</span></div>
@@ -587,34 +425,28 @@ export default function ProfileView({
             })}
           </div>
         )}
-
         {recentPRs.length === 0 && strengthTrend.length === 0 && (
           <p className="goals-empty">Complete more workouts to see your progress here.</p>
         )}
       </div>
 
-      {/* ── PROGRESS (calendar + volume trend chart) ── */}
+      {/* Progress charts */}
       <div className="profile-section">
         <h3 className="section-title">Progress</h3>
 
-        {/* Workout Calendar */}
         <div className="chart-card">
           <div className="chart-header-row">
             <div>
               <h4 className="chart-title">Workout Calendar</h4>
               <p className="chart-subtitle">
-                {calPeriod === 'week' && 'This week — tap a workout to see details'}
+                {calPeriod === 'week' && 'This week'}
                 {calPeriod === 'month' && `${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
-                {calPeriod === 'year' && 'Last 12 weeks — tap a workout to see details'}
+                {calPeriod === 'year' && 'Last 12 weeks'}
               </p>
             </div>
             <div className="chart-period-toggle">
               {(['week', 'month', 'year'] as const).map(p => (
-                <button
-                  key={p}
-                  className={`period-btn${calPeriod === p ? ' active' : ''}`}
-                  onClick={() => { setCalPeriod(p); setSelectedDate(null) }}
-                >
+                <button key={p} className={`period-btn${calPeriod === p ? ' active' : ''}`} onClick={() => { setCalPeriod(p); setSelectedDate(null) }}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
@@ -633,16 +465,8 @@ export default function ProfileView({
                   {calendarData.map((day) => (
                     <div
                       key={day.date}
-                      className={[
-                        'heatmap-day',
-                        day.workout ? 'active' : '',
-                        day.isToday ? 'today' : '',
-                        selectedDate === day.date ? 'selected' : '',
-                      ].filter(Boolean).join(' ')}
-                      title={day.date}
-                      onClick={() => {
-                        if (day.workout) setSelectedDate(selectedDate === day.date ? null : day.date)
-                      }}
+                      className={['heatmap-day', day.workout ? 'active' : '', day.isToday ? 'today' : '', selectedDate === day.date ? 'selected' : ''].filter(Boolean).join(' ')}
+                      onClick={() => { if (day.workout) setSelectedDate(selectedDate === day.date ? null : day.date) }}
                     />
                   ))}
                 </div>
@@ -650,11 +474,7 @@ export default function ProfileView({
                   {Array.from({ length: 12 }, (_, i) => {
                     const date = new Date()
                     date.setDate(date.getDate() - (11 - i) * 7)
-                    return (
-                      <div key={i} className="calendar-x-label">
-                        {date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}
-                      </div>
-                    )
+                    return <div key={i} className="calendar-x-label">{date.toLocaleDateString('en-US', { month: 'short' }).substring(0, 3)}</div>
                   })}
                 </div>
               </div>
@@ -669,15 +489,8 @@ export default function ProfileView({
                 return (
                   <div
                     key={day.date}
-                    className={[
-                      'week-cal-cell',
-                      day.workout ? 'active' : '',
-                      day.isToday ? 'today' : '',
-                      isSelected ? 'selected' : '',
-                    ].filter(Boolean).join(' ')}
-                    onClick={() => {
-                      if (day.workout) setSelectedDate(isSelected ? null : day.date)
-                    }}
+                    className={['week-cal-cell', day.workout ? 'active' : '', day.isToday ? 'today' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ')}
+                    onClick={() => { if (day.workout) setSelectedDate(isSelected ? null : day.date) }}
                   >
                     <span className="week-cal-day">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                     <span className="week-cal-num">{d.getDate()}</span>
@@ -691,24 +504,15 @@ export default function ProfileView({
           {calPeriod === 'month' && (
             <div>
               <div className="month-cal-header">
-                {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-                  <span key={d}>{d}</span>
-                ))}
+                {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <span key={d}>{d}</span>)}
               </div>
               <div className="month-cal-grid">
                 {monthCalendarData.map((cell, i) =>
                   cell ? (
                     <div
                       key={cell.date}
-                      className={[
-                        'month-cal-cell',
-                        cell.workout ? 'active' : '',
-                        cell.isToday ? 'today' : '',
-                        selectedDate === cell.date ? 'selected' : '',
-                      ].filter(Boolean).join(' ')}
-                      onClick={() => {
-                        if (cell.workout) setSelectedDate(selectedDate === cell.date ? null : cell.date)
-                      }}
+                      className={['month-cal-cell', cell.workout ? 'active' : '', cell.isToday ? 'today' : '', selectedDate === cell.date ? 'selected' : ''].filter(Boolean).join(' ')}
+                      onClick={() => { if (cell.workout) setSelectedDate(selectedDate === cell.date ? null : cell.date) }}
                     >
                       {cell.dayNum}
                     </div>
@@ -727,17 +531,13 @@ export default function ProfileView({
               return logDate.toISOString().split('T')[0] === selectedDate
             })
             if (!w) return null
-            const vol = w.exercises.reduce(
-              (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0
-            )
+            const vol = w.exercises.reduce((sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0)
             const dur = Math.floor(w.duration / 60)
             return (
               <div className="calendar-day-detail">
                 <div className="day-detail-header">
                   <span className="day-detail-date">
-                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', {
-                      weekday: 'short', month: 'short', day: 'numeric'
-                    })}
+                    {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   </span>
                   <button className="day-detail-close" onClick={() => setSelectedDate(null)}>×</button>
                 </div>
@@ -751,16 +551,13 @@ export default function ProfileView({
                   {w.exercises.slice(0, 5).map(ex => (
                     <span key={ex.exerciseId} className="day-detail-exercise-tag">{ex.exerciseName}</span>
                   ))}
-                  {w.exercises.length > 5 && (
-                    <span className="day-detail-exercise-tag muted">+{w.exercises.length - 5} more</span>
-                  )}
+                  {w.exercises.length > 5 && <span className="day-detail-exercise-tag muted">+{w.exercises.length - 5} more</span>}
                 </div>
               </div>
             )
           })()}
         </div>
 
-        {/* Volume Trend */}
         <div className="chart-card">
           <div className="chart-header-row">
             <div>
@@ -773,179 +570,29 @@ export default function ProfileView({
             </div>
             <div className="chart-period-toggle">
               {(['week', 'month', 'year'] as const).map(p => (
-                <button
-                  key={p}
-                  className={`period-btn${chartPeriod === p ? ' active' : ''}`}
-                  onClick={() => setChartPeriod(p)}
-                >
+                <button key={p} className={`period-btn${chartPeriod === p ? ' active' : ''}`} onClick={() => setChartPeriod(p)}>
                   {p.charAt(0).toUpperCase() + p.slice(1)}
                 </button>
               ))}
             </div>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart
-              data={volumeData}
-              margin={{ bottom: chartPeriod === 'month' ? 24 : 0, left: 0, right: 4 }}
-            >
-              <XAxis
-                dataKey="week"
-                stroke="#555555"
-                fontSize={10}
-                tickLine={false}
-                axisLine={false}
-                interval={0}
-                angle={chartPeriod === 'month' ? -40 : 0}
-                textAnchor={chartPeriod === 'month' ? 'end' : 'middle'}
-                height={chartPeriod === 'month' ? 48 : 20}
-              />
+            <AreaChart data={volumeData} margin={{ bottom: chartPeriod === 'month' ? 24 : 0, left: 0, right: 4 }}>
+              <XAxis dataKey="week" stroke="#555555" fontSize={10} tickLine={false} axisLine={false} interval={0}
+                angle={chartPeriod === 'month' ? -40 : 0} textAnchor={chartPeriod === 'month' ? 'end' : 'middle'}
+                height={chartPeriod === 'month' ? 48 : 20} />
               <YAxis stroke="#555555" fontSize={11} tickLine={false} axisLine={false} width={28} />
-              <Tooltip
-                contentStyle={{
-                  background: '#1a1a1a',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  fontSize: '13px'
-                }}
-                cursor={{ stroke: 'rgba(255,255,255,0.08)' }}
-              />
-              <Area
-                type="monotone"
-                dataKey="volume"
-                stroke="#22c55e"
-                fill="#22c55e"
-                fillOpacity={0.15}
-                strokeWidth={2}
-              />
+              <Tooltip contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#ffffff', fontSize: '13px' }} cursor={{ stroke: 'rgba(255,255,255,0.08)' }} />
+              <Area type="monotone" dataKey="volume" stroke="#22c55e" fill="#22c55e" fillOpacity={0.15} strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* ── NUTRITION ── rich card */}
-      <div className="profile-section">
-        <div className="section-header-row">
-          <h3 className="section-title">Nutrition</h3>
-          {!isEditingGoals && (
-            <button className="btn-edit-section" onClick={() => setIsEditingGoals(true)}>
-              {nutritionGoals ? 'Edit' : 'Set Goals'}
-            </button>
-          )}
-        </div>
-
-        {isEditingGoals ? (
-          <div className="nutrition-goals-form">
-            {[
-              { label: 'Daily Calories', value: goalCalories, setter: setGoalCalories, unit: 'kcal' },
-              { label: 'Protein', value: goalProtein, setter: setGoalProtein, unit: 'g' },
-              { label: 'Carbohydrates', value: goalCarbs, setter: setGoalCarbs, unit: 'g' },
-              { label: 'Fat', value: goalFat, setter: setGoalFat, unit: 'g' },
-              { label: 'Sugar', value: goalSugar, setter: setGoalSugar, unit: 'g' },
-            ].map(({ label, value, setter, unit }) => (
-              <div key={label} className="nutrition-goal-row">
-                <label className="nutrition-goal-label">{label}</label>
-                <div className="nutrition-goal-input-wrap">
-                  <input
-                    type="number"
-                    className="input nutrition-goal-input"
-                    value={value}
-                    onChange={(e) => setter(e.target.value)}
-                    inputMode="numeric"
-                  />
-                  <span className="nutrition-goal-unit">{unit}</span>
-                </div>
-              </div>
-            ))}
-            <div className="nutrition-goals-actions">
-              <button className="btn btn-secondary" onClick={() => setIsEditingGoals(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={handleSaveGoals}>Save Goals</button>
-            </div>
-          </div>
-        ) : nutritionGoals ? (
-          <div className="nutrition-today-card">
-            {/* Macro progress bars */}
-            {[
-              { label: 'Calories', value: Math.round(todayNutrition.calories), goal: nutritionGoals.calories, unit: 'kcal', color: '#fbbf24' },
-              { label: 'Protein', value: Math.round(todayNutrition.protein), goal: nutritionGoals.protein, unit: 'g', color: '#22c55e' },
-              { label: 'Carbs', value: Math.round(todayNutrition.carbs), goal: nutritionGoals.carbs, unit: 'g', color: '#3b82f6' },
-              { label: 'Fat', value: Math.round(todayNutrition.fat), goal: nutritionGoals.fat, unit: 'g', color: '#f97316' },
-            ].map(({ label, value, goal, unit, color }) => (
-              <div key={label} className="nutrition-bar-row">
-                <span className="nutrition-bar-label">{label}</span>
-                <div className="nutrition-bar-track">
-                  <div
-                    className="nutrition-bar-fill"
-                    style={{
-                      width: `${Math.min((value / goal) * 100, 100)}%`,
-                      background: color,
-                    }}
-                  />
-                </div>
-                <span className="nutrition-bar-value">{value} / {goal} {unit}</span>
-              </div>
-            ))}
-
-            {/* 7-day avg */}
-            {sevenDayAvgCalories > 0 && (
-              <div className="nutrition-avg-row">
-                7-day avg: <strong>{sevenDayAvgCalories} kcal / day</strong>
-              </div>
-            )}
-          </div>
-        ) : (
-          <p className="goals-empty">Set your daily nutrition targets to track calories and macros.</p>
-        )}
-      </div>
-
-      {/* ── HABITS ── mini heatmap + streak + today list */}
-      {habits.length > 0 && (
-        <div className="profile-section">
-          <h3 className="section-title">Habits</h3>
-
-          <div className="habits-profile-card">
-            {/* Header count */}
-            <div className="habits-profile-header">
-              <span className="habits-profile-count">{todayHabitsDone} / {todayHabitsTotal} today</span>
-              {habitStreak > 0 ? (
-                <span className="habits-profile-streak">🔥 {habitStreak}-day streak</span>
-              ) : (
-                <span className="habits-profile-streak muted">No current streak</span>
-              )}
-            </div>
-
-            {/* 14-day mini heatmap */}
-            <div className="habits-mini-hm-grid">
-              {miniHeatmapDays.map(({ ds, level }) => (
-                <div
-                  key={ds}
-                  className={`habits-mini-hm-cell habit-hm-${level}`}
-                  title={ds}
-                />
-              ))}
-            </div>
-
-            {/* Today's habit list */}
-            <div className="habits-profile-list">
-              {habits.map(h => {
-                const done = habitCompletions.some(c => c.habitId === h.id && c.date === todayStr)
-                return (
-                  <div key={h.id} className={`habits-profile-item ${done ? 'done' : 'undone'}`}>
-                    <span className="habits-profile-check">{done ? '✓' : '✗'}</span>
-                    <span className="habits-profile-name">{h.name}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── BODY WEIGHT ── sparkline card */}
+      {/* Body Weight */}
       {weightEntries.length > 0 && latestWeight && firstWeight && (
         <div className="profile-section">
           <h3 className="section-title">Body Weight</h3>
-
           <div className="weight-profile-card">
             <div className="weight-profile-top">
               <div className="weight-profile-latest">
@@ -961,31 +608,18 @@ export default function ProfileView({
                 </div>
               )}
             </div>
-
             {weightSparkline && (
-              <svg
-                className="weight-sparkline-svg"
-                viewBox="0 0 120 40"
-                preserveAspectRatio="none"
-              >
-                <polyline
-                  points={weightSparkline}
-                  fill="none"
-                  stroke="#fbbf24"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
+              <svg className="weight-sparkline-svg" viewBox="0 0 120 40" preserveAspectRatio="none">
+                <polyline points={weightSparkline} fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </div>
         </div>
       )}
 
-      {/* ── LIFETIME STATS ── */}
+      {/* Lifetime Stats */}
       <div className="profile-section">
         <h3 className="section-title">Lifetime Stats</h3>
-
         <div className="stats-list">
           <div className="stat-item">
             <div className="stat-item-label">Total Workouts</div>
@@ -1006,20 +640,15 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* ── DATA & SETTINGS ── */}
+      {/* Data & Settings */}
       <div className="profile-section">
         <h3 className="section-title">Data & Settings</h3>
-
         <div className="action-list">
           <button
             className="action-item"
             onClick={async () => {
               if (await showConfirm({ title: 'Export Data', message: 'Your workouts and profile will be downloaded as a JSON file.', confirmLabel: 'Export' })) {
-                const data = {
-                  workouts: workoutLogs,
-                  profile: userProfile,
-                  exportedAt: new Date().toISOString()
-                }
+                const data = { workouts: workoutLogs, profile: userProfile, exportedAt: new Date().toISOString() }
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
                 const url = URL.createObjectURL(blob)
                 const a = document.createElement('a')
@@ -1033,7 +662,6 @@ export default function ProfileView({
             <span>Export Data</span>
             <span className="action-arrow">→</span>
           </button>
-
           <button className="action-item action-item-danger" onClick={onSignOut}>
             <span>Sign Out</span>
             <span className="action-arrow">→</span>

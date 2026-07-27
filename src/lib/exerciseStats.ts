@@ -1,5 +1,21 @@
 import type { WorkoutLog } from '../types'
 
+// Epley formula: best estimated 1RM across all logged working sets
+export function estimateOneRepMax(workoutLogs: WorkoutLog[], exerciseName: string): number | null {
+  let best = 0
+  for (const workout of workoutLogs) {
+    const exercise = workout.exercises.find(e => e.exerciseName === exerciseName)
+    if (!exercise) continue
+    for (const set of exercise.sets) {
+      if ((set.type ?? 'working') !== 'working') continue
+      if (!set.completed || set.weight <= 0 || set.reps <= 0) continue
+      const estimated = set.weight * (1 + set.reps / 30)
+      if (estimated > best) best = estimated
+    }
+  }
+  return best > 0 ? Math.round(best * 10) / 10 : null
+}
+
 export interface ExerciseSession {
   date: string
   maxWeight: number

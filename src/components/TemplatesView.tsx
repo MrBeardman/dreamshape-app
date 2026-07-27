@@ -1,35 +1,56 @@
-import type { WorkoutTemplate, WorkoutLog } from '../types'
+import type { WorkoutTemplate, WorkoutLog, TrainingPlan } from '../types'
+import PlanSection from './PlanSection'
 
 interface TemplatesViewProps {
   templates: WorkoutTemplate[]
   workoutLogs: WorkoutLog[]
+  activePlan: TrainingPlan | null
   onCreateTemplate: () => void
   onEditTemplate: (template: WorkoutTemplate) => void
   onDeleteTemplate: (id: string) => void
   onStartWorkout: (template: WorkoutTemplate) => void
+  onSavePlan: (plan: TrainingPlan) => void
+  onDeletePlan: () => void
+  onCompleteDay: () => void
+  onSkipDay: () => void
 }
 
 export default function TemplatesView({
   templates,
   workoutLogs,
+  activePlan,
   onCreateTemplate,
   onEditTemplate,
   onDeleteTemplate,
-  onStartWorkout
+  onStartWorkout,
+  onSavePlan,
+  onDeletePlan,
+  onCompleteDay,
+  onSkipDay,
 }: TemplatesViewProps) {
   const getAvgDuration = (templateName: string): number | null => {
     const logs = workoutLogs.filter(w => w.templateName === templateName && w.duration > 60)
     if (logs.length === 0) return null
     return Math.round(logs.reduce((sum, w) => sum + w.duration, 0) / logs.length / 60)
   }
+
   return (
     <div className="main-view">
+      {/* Training Plan section */}
+      <div className="templates-plan-section">
+        <PlanSection
+          activePlan={activePlan}
+          templates={templates}
+          onSavePlan={onSavePlan}
+          onDeletePlan={onDeletePlan}
+          onCompleteDay={onCompleteDay}
+          onSkipDay={onSkipDay}
+        />
+      </div>
+
       <div className="quick-start">
         <h2>My Templates ({templates.length})</h2>
-        <button 
-          className="btn-primary"
-          onClick={onCreateTemplate}
-        >
+        <button className="btn-primary" onClick={onCreateTemplate}>
           + Create Template
         </button>
       </div>
@@ -47,11 +68,7 @@ export default function TemplatesView({
                   )}
                 </p>
               </div>
-              <button 
-                onClick={() => onDeleteTemplate(template.id)}
-                className="btn-remove"
-                style={{ marginTop: '0.25rem' }}
-              >
+              <button onClick={() => onDeleteTemplate(template.id)} className="btn-remove" style={{ marginTop: '0.25rem' }}>
                 ×
               </button>
             </div>
@@ -64,18 +81,8 @@ export default function TemplatesView({
               )}
             </div>
             <div className="template-actions">
-              <button
-                className="btn-edit"
-                onClick={() => onEditTemplate(template)}
-              >
-                Edit
-              </button>
-              <button
-                className="btn-start-workout"
-                onClick={() => onStartWorkout(template)}
-              >
-                Start Workout
-              </button>
+              <button className="btn-edit" onClick={() => onEditTemplate(template)}>Edit</button>
+              <button className="btn-start-workout" onClick={() => onStartWorkout(template)}>Start Workout</button>
             </div>
           </div>
         ))}

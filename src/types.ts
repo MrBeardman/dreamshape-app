@@ -3,14 +3,14 @@ export interface Exercise {
   name: string
   equipment: string
   muscleGroup: string
-  notes?: string  // Per-exercise notes
+  notes?: string
 }
 
 export interface WorkoutTemplate {
   id: string
   name: string
   exercises: Exercise[]
-  notes?: string  // Global template notes
+  notes?: string
 }
 
 export interface Set {
@@ -18,15 +18,15 @@ export interface Set {
   weight: number
   reps: number
   completed: boolean
-  type?: 'warmup' | 'working'  // Set type, defaults to working
+  type?: 'warmup' | 'working'
 }
 
 export interface ExerciseLog {
   exerciseId: string
   exerciseName: string
   sets: Set[]
-  restDuration?: number  // Per-exercise rest duration in seconds
-  notes?: string  // Per-exercise notes during workout
+  restDuration?: number
+  notes?: string
 }
 
 export interface WorkoutLog {
@@ -35,89 +35,58 @@ export interface WorkoutLog {
   date: string
   exercises: ExerciseLog[]
   duration: number
-  activityType?: 'workout' | 'cardio' | 'stretching' | 'recovery'  // For streak tracking
+  activityType?: 'workout' | 'cardio' | 'stretching' | 'recovery'
 }
 
 export interface ActiveWorkout {
   templateName: string
-  originalTemplateId: string | null  // null if started as empty workout
+  originalTemplateId: string | null
   exercises: ExerciseLog[]
   startTime: number
-  notes?: string  // Global workout notes
+  notes?: string
+}
+
+export interface RunLog {
+  id: string
+  date: string         // ISO timestamp
+  distance: number     // km, e.g. 5.02
+  duration: number     // seconds
+  averagePace: number  // seconds per km (calculated or manual override)
+  paceIsManual: boolean
+  averageHR?: number   // bpm
+  difficulty: number   // 1–10
+  notes?: string
+}
+
+export type PlanDayType = 'workout' | 'run' | 'rest'
+
+export interface PlanDay {
+  type: PlanDayType
+  templateId?: string  // only when type === 'workout'
+  label?: string       // optional custom label
+}
+
+export interface PlanCheckIn {
+  id: string
+  date: string         // YYYY-MM-DD — calendar date this was logged
+  cycleIndex: number   // which day in the cycle (for history display)
+  completed: boolean   // true = done, false = skipped
+}
+
+export interface TrainingPlan {
+  id: string
+  name: string
+  days: PlanDay[]
+  currentCycleIndex: number  // which day in the cycle is pending next
+  checkIns: PlanCheckIn[]    // full history of completions + skips
+  isActive: boolean
+  startDate?: string         // kept for display ("started X weeks ago")
 }
 
 export interface UserProfile {
   name: string
   memberSince: string
-  role?: 'creator' | 'tester' | 'member' // Creator = app creator, Tester = beta tester, Member = regular
-  nutritionGoals?: NutritionGoals
-}
-
-export interface NutritionGoals {
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  sugar: number
-}
-
-export interface FoodPortion {
-  name: string   // e.g. "1 slice", "1 cup"
-  grams: number  // e.g. 30, 240
-}
-
-export interface FoodItem {
-  id: string
-  name: string
-  brand?: string
-  barcode?: string
-  caloriesPer100g: number
-  proteinPer100g: number
-  carbsPer100g: number
-  fatPer100g: number
-  sugarPer100g: number
-  isCustom: boolean
-  unit?: 'g' | 'ml'
-  portions?: FoodPortion[]
-}
-
-export interface MealEntry {
-  id: string
-  foodId: string
-  foodName: string
-  brand?: string
-  grams: number
-  meal: 'breakfast' | 'lunch' | 'dinner' | 'snacks'
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  sugar: number
-}
-
-export interface NutritionLog {
-  id: string
-  date: string // 'YYYY-MM-DD'
-  entries: MealEntry[]
-}
-
-export interface Habit {
-  id: string
-  name: string
-  createdAt: string
-}
-
-export interface HabitCompletion {
-  habitId: string
-  date: string // YYYY-MM-DD
-}
-
-export interface DailyTask {
-  id: string
-  text: string
-  date: string // YYYY-MM-DD
-  completed: boolean
-  createdAt: string
+  role?: 'creator' | 'tester' | 'member'
 }
 
 export interface WeightEntry {

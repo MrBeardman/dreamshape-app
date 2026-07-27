@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
-import { getExerciseHistory } from '../lib/exerciseStats'
+import { getExerciseHistory, estimateOneRepMax } from '../lib/exerciseStats'
 import type { WorkoutLog } from '../types'
 
 interface ExerciseProgressSheetProps {
@@ -20,6 +20,7 @@ export default function ExerciseProgressSheet({ exerciseName, workoutLogs, onClo
   )
 
   const bestPR = sessions.length > 0 ? Math.max(...sessions.map(s => s.maxWeight)) : 0
+  const estimated1RM = useMemo(() => estimateOneRepMax(workoutLogs, exerciseName), [workoutLogs, exerciseName])
 
   const chartData = sessions.slice(-16).map(s => ({
     date: new Date(s.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -43,11 +44,20 @@ export default function ExerciseProgressSheet({ exerciseName, workoutLogs, onClo
             <h3 className="progress-sheet-title">{exerciseName}</h3>
             <button className="progress-sheet-close" onClick={onClose}>✕</button>
           </div>
-          {bestPR > 0 && (
-            <div className="progress-sheet-pr">
-              Best: {bestPR} kg
-            </div>
-          )}
+          <div className="progress-sheet-stats-row">
+            {bestPR > 0 && (
+              <div className="progress-sheet-stat">
+                <span className="progress-sheet-stat-label">Best</span>
+                <span className="progress-sheet-stat-val">{bestPR} kg</span>
+              </div>
+            )}
+            {estimated1RM && (
+              <div className="progress-sheet-stat">
+                <span className="progress-sheet-stat-label">Est. 1RM</span>
+                <span className="progress-sheet-stat-val">{estimated1RM} kg</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {sessions.length === 0 ? (

@@ -1275,3 +1275,114 @@
   border-radius: var(--radius-sm);
   background: var(--bg-tertiary);
 }
+
+/* ===== ALTERNATIVES IN SWITCH PANEL ===== */
+
+.suggestion-group-alternatives {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 197, 24, 0.08);
+  color: var(--primary);
+  border-bottom: 1px solid rgba(245, 197, 24, 0.15);
+}
+
+.suggestion-alt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--primary);
+  color: #000;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--font-bold);
+  margin-left: auto;
+}
+
+.suggestion-item-alt {
+  background: rgba(245, 197, 24, 0.04);
+}
+
+.suggestion-item-alt:hover {
+  background: rgba(245, 197, 24, 0.1);
+}
+
+.suggestion-item-alt .suggestion-name {
+  color: var(--text-primary);
+}
+
+.suggestion-show-all-btn {
+  width: 100%;
+  padding: 10px 14px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  text-align: left;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: color var(--transition-fast);
+}
+
+.suggestion-show-all-btn:hover { color: var(--text-secondary); }
+
+.suggestion-empty {
+  padding: 16px 14px;
+  font-size: var(--text-sm);
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+/* ===== PROGRESSIVE OVERLOAD SUGGESTIONS ===== */
+.overload-suggestions {
+  margin-bottom: 12px;
+  background: rgba(34, 197, 94, 0.06);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
+.overload-title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--success);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.overload-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.overload-name {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 12px;
+}
+
+.overload-rec {
+  font-size: var(--text-sm);
+  font-weight: var(--font-bold);
+  color: var(--success);
+  white-space: nowrap;
+}
+
+/* ===== EXERCISE ROW 1RM ===== */
+.exercise-row-1rm {
+  color: var(--primary);
+  font-weight: var(--font-medium);
+}
