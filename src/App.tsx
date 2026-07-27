@@ -802,9 +802,9 @@ function App() {
                       exerciseDatabase={exerciseDatabase}
                       onStartWorkout={startWorkout}
                       onStartEmptyWorkout={startEmptyWorkout}
+                      onAddRun={addRunLog}
                       onViewAllTemplates={() => setCurrentView('start')}
                       onViewHistory={() => setCurrentView('history')}
-                      onViewPlan={() => setCurrentView('history')}
                       onCompleteDay={completePlanDay}
                       onSkipDay={skipPlanDay}
                     />
@@ -829,7 +829,6 @@ function App() {
                       onDeleteWorkout={deleteWorkout}
                       onAddWeightEntry={addWeightEntry}
                       onDeleteWeightEntry={deleteWeightEntry}
-                      onAddRun={addRunLog}
                       onDeleteRun={deleteRunLog}
                     />
                   )}

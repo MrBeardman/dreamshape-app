@@ -42,6 +42,13 @@ export default function ProfileView({
   const getTotalDuration = () =>
     Math.floor(workoutLogs.reduce((sum, w) => sum + w.duration, 0) / 3600)
 
+  const getAvgPerWeek = () => {
+    if (workoutLogs.length === 0) return '0'
+    const oldestWorkout = new Date(workoutLogs[workoutLogs.length - 1].date)
+    const weeksDiff = Math.max(1, Math.floor((Date.now() - oldestWorkout.getTime()) / (7 * 24 * 60 * 60 * 1000)))
+    return (workoutLogs.length / weeksDiff).toFixed(1)
+  }
+
   const getWeeklyGoalProgress = () => {
     const now = new Date()
     const weekStart = new Date(now)
@@ -270,6 +277,7 @@ export default function ProfileView({
   const recentPRs = getRecentPRs()
   const strengthTrend = getStrengthTrend()
   const volumeDelta = getVolumeWeekDelta()
+  const avgPerWeek = getAvgPerWeek()
 
   return (
     <>
@@ -318,30 +326,100 @@ export default function ProfileView({
         )}
       </div>
 
-      {/* Today — weekly goal ring */}
-      <div className="profile-section">
-        <h3 className="section-title">This Week</h3>
-        <div className="goals-rings-row">
-          <div className="goals-ring-cell">
-            <CircularProgress
-              value={weeklyGoal.pct}
-              max={100}
-              size={72}
-              strokeWidth={6}
-              color="#fbbf24"
-              label="Workouts"
-              subtitle={`${weeklyGoal.count} / 4 this wk`}
-              displayMode="percentage"
-            />
-          </div>
+      {/* Overview stat rings */}
+      <div className="stats-grid">
+        <div className="widget-card">
+          <CircularProgress
+            value={workoutLogs.length}
+            max={313}
+            size={80}
+            strokeWidth={6}
+            color="#3b82f6"
+            label="Workouts"
+            subtitle="Total"
+            displayMode="value"
+          />
         </div>
-        <div className="goals-volume-mini">
-          Volume this week: <strong>{(volumeDelta.thisWeek / 1000).toFixed(1)}t</strong>
-          {volumeDelta.lastWeek > 0 && (
-            <span className={`goals-volume-mini-delta ${volumeDelta.thisWeek >= volumeDelta.lastWeek ? 'positive' : 'negative'}`}>
-              {' '}{volumeDelta.thisWeek >= volumeDelta.lastWeek ? '↑' : '↓'}
-              {Math.abs(Math.round(((volumeDelta.thisWeek - volumeDelta.lastWeek) / volumeDelta.lastWeek) * 100))}% vs last wk
-            </span>
+        <div className="widget-card">
+          <CircularProgress
+            value={weeklyGoal.pct}
+            max={100}
+            size={80}
+            strokeWidth={6}
+            color="#fbbf24"
+            label="This Week"
+            subtitle={`${weeklyGoal.count} / 4`}
+            displayMode="percentage"
+          />
+        </div>
+        <div className="widget-card">
+          <CircularProgress
+            value={Number(avgPerWeek)}
+            max={5}
+            size={80}
+            strokeWidth={6}
+            color="#10b981"
+            label="Per Week"
+            subtitle="Average"
+            displayMode="value"
+          />
+        </div>
+      </div>
+
+      <div className="goals-volume-mini">
+        Volume this week: <strong>{(volumeDelta.thisWeek / 1000).toFixed(1)}t</strong>
+        {volumeDelta.lastWeek > 0 && (
+          <span className={`goals-volume-mini-delta ${volumeDelta.thisWeek >= volumeDelta.lastWeek ? 'positive' : 'negative'}`}>
+            {' '}{volumeDelta.thisWeek >= volumeDelta.lastWeek ? '↑' : '↓'}
+            {Math.abs(Math.round(((volumeDelta.thisWeek - volumeDelta.lastWeek) / volumeDelta.lastWeek) * 100))}% vs last wk
+          </span>
+        )}
+      </div>
+
+      {/* Gym Progress — dense grid */}
+      <div className="profile-section">
+        <div className="profile-cards-grid">
+          {recentPRs.length > 0 && (
+            <div className="goals-card">
+              <div className="goals-card-title">Recent PRs <span className="goals-card-subtitle">last 30 days</span></div>
+              {recentPRs.map(pr => (
+                <div key={pr.name} className="goals-pr-row">
+                  <span className="goals-pr-name">{pr.name}</span>
+                  <span className="goals-pr-value">
+                    {pr.weight} kg
+                    {pr.isNew ? <span className="goals-pr-badge new">New</span> : <span className="goals-pr-badge">+{pr.delta} kg</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {strengthTrend.length > 0 && (
+            <div className="goals-card">
+              <div className="goals-card-title">Strength Trend <span className="goals-card-subtitle">this vs last month</span></div>
+              {strengthTrend.map(t => {
+                const delta = t.thisMonth - t.lastMonth
+                const pct = t.lastMonth > 0 ? Math.round((delta / t.lastMonth) * 100) : null
+                return (
+                  <div key={t.name} className="goals-trend-row">
+                    <span className="goals-trend-name">{t.name}</span>
+                    <div className="goals-trend-right">
+                      {t.lastMonth > 0 && <span className="goals-trend-prev">{t.lastMonth} kg →</span>}
+                      <span className="goals-trend-curr">{t.thisMonth > 0 ? `${t.thisMonth} kg` : '—'}</span>
+                      {pct !== null && delta !== 0 && (
+                        <span className={`goals-trend-pct ${delta > 0 ? 'positive' : 'negative'}`}>
+                          {delta > 0 ? '+' : ''}{pct}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {recentPRs.length === 0 && strengthTrend.length === 0 && (
+            <p className="goals-empty">Complete more workouts to see your progress here.</p>
           )}
         </div>
       </div>
@@ -385,55 +463,11 @@ export default function ProfileView({
         )
       })()}
 
-      {/* Gym Progress */}
-      <div className="profile-section">
-        <h3 className="section-title">Gym Progress</h3>
-        {recentPRs.length > 0 && (
-          <div className="goals-card">
-            <div className="goals-card-title">Recent PRs <span className="goals-card-subtitle">last 30 days</span></div>
-            {recentPRs.map(pr => (
-              <div key={pr.name} className="goals-pr-row">
-                <span className="goals-pr-name">{pr.name}</span>
-                <span className="goals-pr-value">
-                  {pr.weight} kg
-                  {pr.isNew ? <span className="goals-pr-badge new">New</span> : <span className="goals-pr-badge">+{pr.delta} kg</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-        {strengthTrend.length > 0 && (
-          <div className="goals-card">
-            <div className="goals-card-title">Strength Trend <span className="goals-card-subtitle">this vs last month</span></div>
-            {strengthTrend.map(t => {
-              const delta = t.thisMonth - t.lastMonth
-              const pct = t.lastMonth > 0 ? Math.round((delta / t.lastMonth) * 100) : null
-              return (
-                <div key={t.name} className="goals-trend-row">
-                  <span className="goals-trend-name">{t.name}</span>
-                  <div className="goals-trend-right">
-                    {t.lastMonth > 0 && <span className="goals-trend-prev">{t.lastMonth} kg →</span>}
-                    <span className="goals-trend-curr">{t.thisMonth > 0 ? `${t.thisMonth} kg` : '—'}</span>
-                    {pct !== null && delta !== 0 && (
-                      <span className={`goals-trend-pct ${delta > 0 ? 'positive' : 'negative'}`}>
-                        {delta > 0 ? '+' : ''}{pct}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        {recentPRs.length === 0 && strengthTrend.length === 0 && (
-          <p className="goals-empty">Complete more workouts to see your progress here.</p>
-        )}
-      </div>
-
       {/* Progress charts */}
       <div className="profile-section">
         <h3 className="section-title">Progress</h3>
 
+        <div className="chart-cards-row">
         <div className="chart-card">
           <div className="chart-header-row">
             <div>
@@ -587,6 +621,7 @@ export default function ProfileView({
             </AreaChart>
           </ResponsiveContainer>
         </div>
+        </div>
       </div>
 
       {/* Body Weight */}
@@ -620,7 +655,7 @@ export default function ProfileView({
       {/* Lifetime Stats */}
       <div className="profile-section">
         <h3 className="section-title">Lifetime Stats</h3>
-        <div className="stats-list">
+        <div className="stats-list stats-list--grid">
           <div className="stat-item">
             <div className="stat-item-label">Total Workouts</div>
             <div className="stat-item-value">{workoutLogs.length}</div>

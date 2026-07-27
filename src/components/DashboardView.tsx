@@ -1,7 +1,7 @@
-import { useMemo } from 'react'
-import CircularProgress from './CircularProgress'
+import { useState, useMemo } from 'react'
 import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog, TrainingPlan } from '../types'
 import { getTodayPlanDay, getPlanStreak } from './PlanSection'
+import LogRunModal from './LogRunModal'
 
 interface ExerciseDbEntry {
   name: string
@@ -19,9 +19,9 @@ interface DashboardViewProps {
   exerciseDatabase: ExerciseDbEntry[]
   onStartWorkout: (template: WorkoutTemplate) => void
   onStartEmptyWorkout: () => void
+  onAddRun: (run: RunLog) => void
   onViewAllTemplates: () => void
   onViewHistory: () => void
-  onViewPlan: () => void
   onCompleteDay: () => void
   onSkipDay: () => void
 }
@@ -45,46 +45,13 @@ export default function DashboardView({
   exerciseDatabase,
   onStartWorkout,
   onStartEmptyWorkout,
+  onAddRun,
   onViewAllTemplates,
   onViewHistory,
-  onViewPlan,
   onCompleteDay,
   onSkipDay,
 }: DashboardViewProps) {
-  const totalWorkouts = workoutLogs.length
-
-  const currentStreak = useMemo(() => {
-    if (workoutLogs.length === 0) return 0
-    const workoutDates = new Set(
-      workoutLogs.map(log => {
-        const d = new Date(log.date)
-        d.setHours(0, 0, 0, 0)
-        return d.toDateString()
-      })
-    )
-    let streak = 0
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    for (let i = 0; i < 365; i++) {
-      const checkDate = new Date(today)
-      checkDate.setDate(today.getDate() - i)
-      if (workoutDates.has(checkDate.toDateString())) {
-        streak++
-      } else if (i > 0) {
-        break
-      } else {
-        break
-      }
-    }
-    return streak
-  }, [workoutLogs])
-
-  const avgPerWeek = useMemo(() => {
-    if (workoutLogs.length === 0) return '0'
-    const oldestWorkout = new Date(workoutLogs[workoutLogs.length - 1].date)
-    const weeksDiff = Math.max(1, Math.floor((Date.now() - oldestWorkout.getTime()) / (7 * 24 * 60 * 60 * 1000)))
-    return (workoutLogs.length / weeksDiff).toFixed(1)
-  }, [workoutLogs])
+  const [showLogRun, setShowLogRun] = useState(false)
 
   const muscleGroupCoverage = useMemo(() => {
     const exToGroup: Record<string, string> = {}
@@ -147,54 +114,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Workout Stats Grid */}
-      <div className="stats-grid">
-        <div className="widget-card">
-          <CircularProgress
-            value={totalWorkouts}
-            max={313}
-            size={80}
-            strokeWidth={6}
-            color="#3b82f6"
-            label="Workouts"
-            subtitle="Total"
-            displayMode="value"
-          />
-        </div>
-        <div className="widget-card">
-          <CircularProgress
-            value={currentStreak}
-            max={365}
-            size={80}
-            strokeWidth={6}
-            color="#f59e0b"
-            label="Day Streak"
-            subtitle="Current"
-            displayMode="value"
-          />
-        </div>
-        <div className="widget-card">
-          <CircularProgress
-            value={Number(avgPerWeek)}
-            max={5}
-            size={80}
-            strokeWidth={6}
-            color="#10b981"
-            label="Per Week"
-            subtitle="Average"
-            displayMode="value"
-          />
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        <button className="btn-action-primary" onClick={onStartEmptyWorkout}>
-          <span>Start Empty Workout</span>
-        </button>
-      </div>
-
-      {/* Today's plan */}
+      {/* Today's plan / training step */}
       {activePlan && (() => {
         const { day, cycleIndex } = getTodayPlanDay(activePlan)
         const template = day.type === 'workout' ? templates.find(t => t.id === day.templateId) : null
@@ -220,7 +140,7 @@ export default function DashboardView({
                   </button>
                 )}
                 {day.type === 'run' && (
-                  <button className="today-plan-start-btn" onClick={() => { onViewPlan() }}>
+                  <button className="today-plan-start-btn" onClick={() => setShowLogRun(true)}>
                     Log run →
                   </button>
                 )}
@@ -235,6 +155,25 @@ export default function DashboardView({
           </div>
         )
       })()}
+
+      {/* Start actions */}
+      <div className="start-action-row">
+        <button className="start-action-btn start-action-workout" onClick={onStartEmptyWorkout}>
+          <span className="start-action-icon">🏋️</span>
+          <span>Start Workout</span>
+        </button>
+        <button className="start-action-btn start-action-run" onClick={() => setShowLogRun(true)}>
+          <span className="start-action-icon">🏃</span>
+          <span>Log Run</span>
+        </button>
+      </div>
+
+      {showLogRun && (
+        <LogRunModal
+          onAdd={onAddRun}
+          onClose={() => setShowLogRun(false)}
+        />
+      )}
 
       {/* Run Stats Widget */}
       {runStats && (
