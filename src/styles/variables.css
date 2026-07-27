@@ -5,50 +5,65 @@
 
 :root {
   /* ===== ACCENT ===== */
-  --primary:       #f5c518;
-  --primary-hover: #e6b800;
-  --primary-light: #f7d04c;
-  --primary-dark:  #c9a800;
+  --primary:          #f5c518;
+  --primary-hover:    #e6b800;
+  --primary-light:    #f7d04c;
+  --primary-dark:     #c9a800;
+  --primary-gradient: linear-gradient(135deg, #f9da6e 0%, #f5c518 55%, #d9a812 100%);
+  --primary-glow:     rgba(245, 197, 24, 0.35);
 
-  /* ===== SURFACES ===== */
-  --bg-primary:   #111111;   /* App background */
-  --bg-secondary: #161616;   /* Slightly elevated */
-  --bg-tertiary:  #1e1e1e;   /* Cards, panels */
-  --bg-hover:     #262626;   /* Hover states */
+  /* ===== SURFACES =====
+     Warm-tinted near-blacks (not neutral gray) so depth reads as "lit",
+     not just lighter opacity — each step nudges hue slightly warmer. */
+  --bg-primary:   #0c0b09;   /* App background */
+  --bg-secondary: #131210;   /* Slightly elevated */
+  --bg-tertiary:  #1c1a17;   /* Cards, panels */
+  --bg-hover:     #262320;   /* Hover states */
+  --bg-raised:    linear-gradient(180deg, #211f1b 0%, #1c1a17 100%); /* subtle bevel for cards */
+
+  /* Faint radial glow anchored top-center, used once behind the app shell for atmosphere */
+  --ambient-glow: radial-gradient(ellipse 120% 60% at 50% -10%, rgba(245, 197, 24, 0.08), transparent 60%);
+
+  /* Grain texture — cheap SVG fractal noise, tiled at low opacity over flat surfaces */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* ===== TEXT ===== */
-  --text-primary:   #ffffff;
-  --text-secondary: #9a9a9a;
-  --text-tertiary:  #555555;
+  --text-primary:   #f7f5f1;
+  --text-secondary: #9d968a;
+  --text-tertiary:  #5c574e;
 
   /* ===== BORDERS ===== */
-  --border:       rgba(255, 255, 255, 0.07);
-  --border-hover: rgba(255, 255, 255, 0.14);
+  --border:       rgba(255, 250, 240, 0.08);
+  --border-hover: rgba(255, 250, 240, 0.16);
 
   /* ===== SEMANTIC ===== */
-  --success:     #22c55e;
-  --success-bg:  rgba(34, 197, 94, 0.1);
+  --success:     #34d399;
+  --success-bg:  rgba(52, 211, 153, 0.1);
   --warning:     #f5c518;
-  --error:       #ef4444;
-  --error-bg:    rgba(239, 68, 68, 0.1);
-  --info:        #3b82f6;
+  --error:       #f97066;
+  --error-bg:    rgba(249, 112, 102, 0.1);
+  --info:        #60a5fa;
 
-  /* ===== SHADOWS ===== */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.6);
-  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.7);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.8);
+  /* ===== SHADOWS =====
+     Two-layer depth: a tight "contact" shadow plus a soft "ambient" one,
+     instead of a single flat drop-shadow. */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 1px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 8px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.4), 0 16px 32px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.45), 0 28px 56px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 4px 20px var(--primary-glow);
 
   /* ===== BORDER RADIUS ===== */
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   14px;
-  --radius-xl:   18px;
-  --radius-2xl:  24px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
   --radius-full: 9999px;
 
   /* ===== TYPOGRAPHY ===== */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif;
+  --font-sans:    'Instrument Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Instrument Sans', -apple-system, sans-serif;
 
   --text-xs:   0.6875rem;  /* 11px */
   --text-sm:   0.8125rem;  /* 13px */
@@ -57,7 +72,7 @@
   --text-xl:   1.1875rem;  /* 19px */
   --text-2xl:  1.375rem;   /* 22px */
   --text-3xl:  1.75rem;    /* 28px */
-  --text-4xl:  2rem;       /* 32px */
+  --text-4xl:  2.25rem;    /* 36px */
 
   --font-normal:    400;
   --font-medium:    500;
@@ -66,6 +81,7 @@
   --font-extrabold: 800;
 
   /* ===== SPACING ===== */
+  --spacing-2xs: 0.375rem;
   --spacing-xs:  0.25rem;
   --spacing-sm:  0.5rem;
   --spacing-md:  1rem;
@@ -81,30 +97,58 @@
   --view-padding-top: calc(env(safe-area-inset-top, 20px) + 16px);
   --view-padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 16px);
 
-  /* ===== TRANSITIONS ===== */
+  /* ===== MOTION =====
+     Easing vocabulary + duration budgets: press feedback 100-160ms, small
+     popovers 125-200ms, dropdowns 150-250ms, modals/sheets 200-500ms. */
+  --ease-out:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --duration-press:  140ms;
+  --duration-fast:   160ms;
+  --duration-base:   220ms;
+  --duration-modal:  360ms;
+  --duration-delight: 560ms;
+
+  /* Kept for existing call sites; equivalent to --duration-base/--ease-out */
   --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 180ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-press: 1ms;
+    --duration-fast: 1ms;
+    --duration-base: 1ms;
+    --duration-modal: 1ms;
+    --duration-delight: 1ms;
+    --transition-fast: 1ms linear;
+    --transition-base: 1ms linear;
+    --transition-slow: 1ms linear;
+  }
+}
+
 [data-theme="light"] {
-  --bg-primary:   #f5f5f5;
+  --bg-primary:   #f7f5f1;
   --bg-secondary: #ffffff;
-  --bg-tertiary:  #eeeeee;
-  --bg-hover:     #e2e2e2;
+  --bg-tertiary:  #efece5;
+  --bg-hover:     #e4e0d7;
+  --bg-raised:    linear-gradient(180deg, #ffffff 0%, #efece5 100%);
+  --ambient-glow: radial-gradient(ellipse 120% 60% at 50% -10%, rgba(245, 197, 24, 0.12), transparent 60%);
 
-  --text-primary:   #111111;
-  --text-secondary: #555555;
-  --text-tertiary:  #999999;
+  --text-primary:   #17150f;
+  --text-secondary: #5c574e;
+  --text-tertiary:  #948d80;
 
-  --border:       rgba(0, 0, 0, 0.07);
-  --border-hover: rgba(0, 0, 0, 0.14);
+  --border:       rgba(23, 21, 15, 0.08);
+  --border-hover: rgba(23, 21, 15, 0.16);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.12);
-  --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.15);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 2px rgba(23, 21, 15, 0.06), 0 1px 1px rgba(23, 21, 15, 0.04);
+  --shadow-md: 0 2px 4px rgba(23, 21, 15, 0.05), 0 8px 16px rgba(23, 21, 15, 0.08);
+  --shadow-lg: 0 4px 8px rgba(23, 21, 15, 0.06), 0 16px 32px rgba(23, 21, 15, 0.1);
+  --shadow-xl: 0 8px 16px rgba(23, 21, 15, 0.08), 0 28px 56px rgba(23, 21, 15, 0.12);
 
-  --success-bg: rgba(34, 197, 94, 0.12);
-  --error-bg:   rgba(239, 68, 68, 0.12);
+  --success-bg: rgba(5, 150, 105, 0.1);
+  --error-bg:   rgba(220, 38, 38, 0.1);
 }

@@ -28,22 +28,25 @@
 }
 
 /* ===== BUTTONS ===== */
+/* Compact standalone variant (used bare, without the shared .btn base) */
 .btn-primary {
   padding: 0 18px;
   height: 36px;
-  background: var(--primary);
+  background: var(--primary-gradient);
   border: none;
   border-radius: var(--radius-md);
-  color: #000;
+  color: #1a1400;
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   cursor: pointer;
-  transition: background var(--transition-base);
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--duration-press) var(--ease-out), filter var(--duration-fast) var(--ease-out);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
-.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-primary:active { transform: scale(0.96); }
 
 .btn-remove {
   width: 32px;
@@ -76,10 +79,11 @@
 }
 
 .template-card {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .template-card h3 {

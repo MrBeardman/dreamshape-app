@@ -175,7 +175,7 @@
 }
 
 .btn-exercise-history:hover {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border-color: var(--border-hover);
   color: var(--text-primary);
 }
@@ -191,7 +191,7 @@
 
 .weight-log-input {
   flex: 1;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -289,7 +289,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;

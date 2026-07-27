@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion } from 'motion/react'
 import { supabase } from '../lib/supabase'
 
 interface AuthViewProps {
@@ -72,7 +73,12 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
 
   return (
     <div className="auth-view">
-      <div className="auth-container">
+      <motion.div
+        className="auth-container"
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+      >
         <div className="auth-header">
           <h1 className="auth-logo">💪 DreamShape</h1>
           <p className="auth-tagline">Track your fitness journey</p>
@@ -195,7 +201,7 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
             </button>
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

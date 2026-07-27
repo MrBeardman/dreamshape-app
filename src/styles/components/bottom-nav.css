@@ -39,12 +39,13 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   flex: 1;
   height: 100%;
   background: none;
   border: none;
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: color var(--duration-fast) var(--ease-out);
   color: var(--text-tertiary);
   position: relative;
 }
@@ -57,53 +58,64 @@
   color: var(--text-primary);
 }
 
-.nav-item.active::before {
-  content: '';
+.nav-item.active .nav-icon {
+  color: var(--primary);
+}
+
+/* Shared-layout pill (Motion layoutId) — slides between tabs instead of
+   cross-fading, so the indicator always looks like it's moving, not resetting. */
+.nav-pill {
   position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 32px;
-  height: 3px;
-  background: var(--primary);
-  border-radius: 0 0 2px 2px;
+  inset: 8px 6px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-md);
+  z-index: 0;
 }
 
 /* Primary center button (Start) */
 .nav-item-primary {
-  background: var(--primary);
-  color: #000;
+  background: var(--primary-gradient);
+  color: #1a1400;
   margin: -12px 8px 0;
   border-radius: var(--radius-lg);
   height: 48px;
   flex: 0 0 80px;
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  box-shadow: var(--shadow-glow);
+  transition: transform var(--duration-press) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), filter var(--duration-fast) var(--ease-out);
 }
 
 .nav-item-primary:hover {
-  background: var(--primary-light);
-  color: #000;
+  filter: brightness(1.06);
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(251, 191, 36, 0.5);
+  box-shadow: 0 6px 20px var(--primary-glow);
+}
+
+.nav-item-primary:active {
+  transform: scale(0.96);
 }
 
 .nav-item-primary.active {
-  background: var(--primary-dark);
-  color: #000;
+  filter: brightness(0.92);
 }
 
-.nav-item-primary.active::before {
-  display: none;
-}
-
-/* Hide icons — labels only */
+/* Icons */
 .nav-icon {
-  display: none;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  transition: color var(--duration-fast) var(--ease-out), transform var(--duration-press) var(--ease-out);
+}
+
+.nav-item:active .nav-icon {
+  transform: scale(0.9);
 }
 
 /* Labels */
 .nav-label {
-  font-size: 11px;
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
   font-weight: var(--font-semibold);
   line-height: 1;
   letter-spacing: 0.5px;

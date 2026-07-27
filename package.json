@@ -23,6 +23,7 @@
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
     "mcp-handler": "^1.1.0",
+    "motion": "^12.42.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "recharts": "^3.6.0",

@@ -53,7 +53,7 @@
 }
 
 .summary-stat {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px 10px;
@@ -185,17 +185,22 @@
 /* ===== WORKOUT CARD ===== */
 .workout-card {
   position: relative;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: border-color var(--transition-base);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-press) var(--ease-out);
   overflow: hidden;
   /* margin-bottom now on .swipeable-card-wrap */
 }
 
 .workout-card:hover {
   border-color: var(--border-hover);
+}
+
+.workout-card:active {
+  transform: scale(0.99);
 }
 
 /* Timeline dot */

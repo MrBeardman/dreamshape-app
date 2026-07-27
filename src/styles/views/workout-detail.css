@@ -36,7 +36,7 @@
 .workout-detail-view .btn-back {
   padding: 0 14px;
   height: 34px;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
@@ -90,7 +90,7 @@
 }
 
 .meta-item {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 12px 8px;
@@ -124,7 +124,7 @@
 }
 
 .workout-detail-view .workout-exercise {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px;

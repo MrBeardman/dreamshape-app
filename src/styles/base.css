@@ -14,11 +14,42 @@ body {
   overscroll-behavior-x: none;
 }
 
+/* ===== DISPLAY TYPE =====
+   The codebase consistently names section/card/modal headings "*-title" —
+   hook the distinctive display face in globally instead of touching every
+   component stylesheet individually. */
+[class*="-title"] {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Stat numbers deserve tabular figures so they don't jiggle as digits change */
+[class*="-value"],
+[class*="-number"],
+[class*="-stat"] {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ===== APP CONTAINER ===== */
 .app {
   min-height: 100dvh;
   background-color: var(--bg-primary);
+  background-image: var(--ambient-glow);
+  background-repeat: no-repeat;
   overflow-x: hidden;
+  position: relative;
+}
+
+/* Grain sits above the ambient glow, below content — atmosphere, not decoration */
+.app::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: var(--grain);
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ===== BUTTONS ===== */
@@ -34,9 +65,13 @@ body {
   border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: transform var(--duration-press) var(--ease-out), background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
   text-decoration: none;
   white-space: nowrap;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
 .btn:disabled {
@@ -45,16 +80,18 @@ body {
 }
 
 .btn-primary {
-  background-color: var(--primary);
-  color: #000;
+  background: var(--primary-gradient);
+  color: #1a1400;
+  box-shadow: var(--shadow-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background-color: var(--primary-hover);
+  filter: brightness(1.06);
+  box-shadow: 0 6px 24px var(--primary-glow);
 }
 
 .btn-secondary {
-  background-color: var(--bg-tertiary);
+  background: var(--bg-raised);
   color: var(--text-primary);
   border: 1px solid var(--border);
 }
@@ -66,10 +103,10 @@ body {
 
 .btn-danger {
   background-color: var(--error);
-  color: #fff;
+  color: #1a0704;
 }
 
-.btn-danger:hover:not(:disabled) { background-color: #dc2626; }
+.btn-danger:hover:not(:disabled) { filter: brightness(1.1); }
 
 .btn-ghost {
   background-color: transparent;
@@ -98,6 +135,7 @@ body {
 .input:focus {
   outline: none;
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
 .input:disabled {
@@ -120,10 +158,11 @@ body {
 
 /* ===== CARDS ===== */
 .card {
-  background-color: var(--bg-tertiary);
+  background: var(--bg-raised);
   border-radius: var(--radius-lg);
   padding: 16px;
   border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ===== BADGES ===== */
@@ -139,8 +178,8 @@ body {
 }
 
 .badge-primary {
-  background-color: var(--primary);
-  color: #000;
+  background: var(--primary-gradient);
+  color: #1a1400;
 }
 
 .badge-success {
@@ -178,6 +217,7 @@ body {
 }
 
 .loading-logo {
+  font-family: var(--font-display);
   font-size: var(--text-3xl);
   font-weight: var(--font-extrabold);
   color: var(--primary);
@@ -208,6 +248,7 @@ body {
 }
 
 .empty-state-title {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-primary);
@@ -232,10 +273,16 @@ body {
   align-items: flex-end;
   justify-content: center;
   padding: 0 0 env(safe-area-inset-bottom);
+  animation: overlayFadeIn var(--duration-fast) var(--ease-out);
+}
+
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 .confirm-dialog {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border-hover);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: 28px 20px 20px;
@@ -244,6 +291,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-shadow: var(--shadow-xl);
+  animation: sheetSlideUp var(--duration-modal) var(--ease-drawer);
+}
+
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
 .confirm-title {

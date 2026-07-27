@@ -97,7 +97,7 @@
   }
 
   .sidebar-nav-item:hover {
-    background: var(--bg-tertiary);
+    background: var(--bg-raised);
     color: var(--text-primary);
   }
 
@@ -126,7 +126,7 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem;
-    background: var(--bg-tertiary);
+    background: var(--bg-raised);
     border-radius: var(--radius-md);
     cursor: pointer;
     transition: all var(--transition-base);

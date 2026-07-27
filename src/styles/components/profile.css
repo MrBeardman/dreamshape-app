@@ -25,12 +25,13 @@
 
 /* ===== USER CARD ===== */
 .profile-user-card {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 2rem 1.5rem;
   text-align: center;
   margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-md);
 }
 
 .profile-avatar-large {
@@ -145,7 +146,7 @@
 }
 
 .widget-card {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 0.875rem 0.5rem;
@@ -153,12 +154,18 @@
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
-  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .widget-card:hover {
   background: var(--bg-hover);
   transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.widget-card:active {
+  transform: scale(0.98);
 }
 
 .circle-progress {
@@ -187,11 +194,12 @@
 
 /* ===== STATS LIST ===== */
 .stats-list {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
   width: -webkit-fill-available;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-item {
@@ -237,7 +245,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   color: var(--text-primary);
@@ -268,71 +276,13 @@
   font-size: var(--text-lg);
 }
 
-/* ===== BUTTONS ===== */
-.btn {
-  padding: 0.625rem 1.25rem;
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  cursor: pointer;
-  transition: all var(--transition-base);
-  border: none;
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: #000;
-  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
-}
-
-.btn-primary:hover {
-  background: var(--primary-light);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
-}
-
-.btn-secondary {
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-}
-
-.btn-secondary:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-hover);
-}
-
-.btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: var(--text-xs);
-}
-
-/* ===== INPUT ===== */
-.input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  color: var(--text-primary);
-  font-size: var(--text-base);
-  font-family: var(--font-sans);
-  transition: all var(--transition-base);
-}
-
-.input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
-}
-
-.input::placeholder {
-  color: var(--text-tertiary);
-}
+/* .btn / .btn-primary / .btn-secondary / .input intentionally not redefined here —
+   this used to shadow the shared versions in base.css with older, flatter styling.
+   The global ones (gradient, glow, press feedback) apply as-is. */
 
 /* ===== CONSISTENCY CALENDAR ===== */
 .calendar-container {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
@@ -661,7 +611,7 @@
 
 /* ===== NUTRITION GOALS FORM ===== */
 .nutrition-goals-form {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -711,7 +661,7 @@
   gap: 0.75rem;
   padding: 1rem 1.25rem;
   border-top: 1px solid var(--border);
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border-bottom-left-radius: var(--radius-lg);
   border-bottom-right-radius: var(--radius-lg);
 }
@@ -721,7 +671,7 @@
 }
 
 .nutrition-goals-display {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -765,7 +715,7 @@
 
 /* ===== NUTRITION TODAY CARD ===== */
 .nutrition-today-card {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
@@ -826,7 +776,7 @@
 
 /* ===== HABITS PROFILE CARD ===== */
 .habits-profile-card {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
@@ -911,7 +861,7 @@
 
 /* ===== WEIGHT PROFILE CARD ===== */
 .weight-profile-card {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;

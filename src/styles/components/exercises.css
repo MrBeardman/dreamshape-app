@@ -33,7 +33,7 @@
 
 .filter-chip {
   padding: 6px 12px;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   color: var(--text-secondary);
@@ -63,7 +63,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 14px;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
@@ -128,7 +128,7 @@
 .history-tabs {
   display: flex;
   gap: 4px;
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   padding: 3px;
@@ -201,10 +201,11 @@
 }
 
 .run-card {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
 }
 
 .run-card-top {
@@ -262,15 +263,17 @@
    ========================================== */
 
 .run-stats-widget {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 24px;
   cursor: pointer;
-  transition: border-color var(--transition-base);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-press) var(--ease-out);
 }
 .run-stats-widget:hover { border-color: var(--border-hover); }
+.run-stats-widget:active { transform: scale(0.99); }
 
 .run-stats-top {
   display: flex;
@@ -357,7 +360,7 @@
 }
 
 .modal-sheet {
-  background: var(--bg-tertiary);
+  background: var(--bg-raised);
   border-top: 1px solid var(--border);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 20px);
