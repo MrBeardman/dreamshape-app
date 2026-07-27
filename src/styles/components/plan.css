@@ -99,7 +99,7 @@
 }
 
 .plan-badge-workout { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-.plan-badge-run     { background: rgba(34, 197, 94, 0.12);  color: #4ade80; }
+.plan-badge-run     { background: rgba(111, 180, 145, 0.12);  color: var(--success); }
 .plan-badge-rest    { background: rgba(156, 163, 175, 0.12); color: #9ca3af; }
 
 .plan-cycle-pos {
@@ -230,7 +230,7 @@
   width: 26px;
   height: 26px;
   background: var(--error-bg);
-  border: 1px solid rgba(239,68,68,0.2);
+  border: 1px solid rgba(193, 117, 104,0.2);
   border-radius: var(--radius-sm);
   color: var(--error);
   font-size: 16px;
@@ -284,8 +284,8 @@
   border-color: rgba(59,130,246,0.25);
 }
 .today-plan-run {
-  background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
-  border-color: rgba(34,197,94,0.25);
+  background: linear-gradient(135deg, rgba(111, 180, 145,0.15), rgba(111, 180, 145,0.05));
+  border-color: rgba(111, 180, 145,0.25);
 }
 .today-plan-rest {
   background: linear-gradient(135deg, rgba(156,163,175,0.1), rgba(156,163,175,0.04));
@@ -450,8 +450,8 @@
 
 .today-plan-done-btn {
   padding: 7px 14px;
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  background: rgba(111, 180, 145, 0.15);
+  border: 1px solid rgba(111, 180, 145, 0.3);
   border-radius: var(--radius-md);
   color: var(--success);
   font-size: var(--text-sm);
@@ -459,7 +459,7 @@
   cursor: pointer;
   transition: background var(--transition-fast);
 }
-.today-plan-done-btn:hover { background: rgba(34, 197, 94, 0.25); }
+.today-plan-done-btn:hover { background: rgba(111, 180, 145, 0.25); }
 
 .today-plan-skip-btn {
   padding: 7px 12px;
@@ -485,8 +485,8 @@
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  background: rgba(34, 197, 94, 0.06);
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: rgba(111, 180, 145, 0.06);
+  border: 1px solid rgba(111, 180, 145, 0.2);
   border-radius: var(--radius-md);
   margin-bottom: 12px;
   cursor: pointer;

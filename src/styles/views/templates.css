@@ -67,7 +67,7 @@
 
 .btn-remove:hover {
   background: var(--error-bg);
-  border-color: rgba(239, 68, 68, 0.3);
+  border-color: rgba(193, 117, 104, 0.3);
   color: var(--error);
 }
 

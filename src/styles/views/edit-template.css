@@ -238,7 +238,7 @@
   width: 28px;
   height: 28px;
   background: var(--error-bg);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(193, 117, 104, 0.2);
   border-radius: var(--radius-sm);
   color: var(--error);
   font-size: 1.1rem;

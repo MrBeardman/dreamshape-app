@@ -13,13 +13,14 @@
   --primary-glow:     rgba(245, 197, 24, 0.35);
 
   /* ===== SURFACES =====
-     Warm-tinted near-blacks (not neutral gray) so depth reads as "lit",
-     not just lighter opacity — each step nudges hue slightly warmer. */
-  --bg-primary:   #0c0b09;   /* App background */
-  --bg-secondary: #131210;   /* Slightly elevated */
-  --bg-tertiary:  #1c1a17;   /* Cards, panels */
-  --bg-hover:     #262320;   /* Hover states */
-  --bg-raised:    linear-gradient(180deg, #211f1b 0%, #1c1a17 100%); /* subtle bevel for cards */
+     Near-black with only a whisper of warmth — enough to feel "lit" rather
+     than neutral gray, without reading as brown. Kept close to --bg-secondary
+     rather than lightening much, which is what makes flyouts/menus look sleek. */
+  --bg-primary:   #0a0a09;   /* App background */
+  --bg-secondary: #121110;   /* Slightly elevated */
+  --bg-tertiary:  #161513;   /* Cards, panels */
+  --bg-hover:     #1f1d1a;   /* Hover states */
+  --bg-raised:    linear-gradient(180deg, #161513 0%, #110f0e 100%); /* subtle bevel for cards */
 
   /* Faint radial glow anchored top-center, used once behind the app shell for atmosphere */
   --ambient-glow: radial-gradient(ellipse 120% 60% at 50% -10%, rgba(245, 197, 24, 0.08), transparent 60%);
@@ -36,12 +37,16 @@
   --border:       rgba(255, 250, 240, 0.08);
   --border-hover: rgba(255, 250, 240, 0.16);
 
-  /* ===== SEMANTIC ===== */
-  --success:     #34d399;
-  --success-bg:  rgba(52, 211, 153, 0.1);
+  /* ===== SEMANTIC =====
+     Deeper, desaturated tones instead of stock traffic-light red/green —
+     reads as a considered palette rather than default UI-kit colors. */
+  --success:     #6fb491;
+  --success-rgb: 111, 180, 145;
+  --success-bg:  rgba(111, 180, 145, 0.12);
   --warning:     #f5c518;
-  --error:       #f97066;
-  --error-bg:    rgba(249, 112, 102, 0.1);
+  --error:       #c17568;
+  --error-rgb:   193, 117, 104;
+  --error-bg:    rgba(193, 117, 104, 0.12);
   --info:        #60a5fa;
 
   /* ===== SHADOWS =====

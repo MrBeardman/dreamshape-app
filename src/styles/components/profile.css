@@ -263,11 +263,11 @@
 
 .action-item-danger {
   color: var(--error);
-  border-color: rgba(239, 68, 68, 0.3);
+  border-color: rgba(193, 117, 104, 0.3);
 }
 
 .action-item-danger:hover {
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(193, 117, 104, 0.1);
   border-color: var(--error);
 }
 
@@ -451,8 +451,8 @@
   font-weight: 500;
 }
 
-.goals-volume-delta.positive { color: #10b981; }
-.goals-volume-delta.negative { color: #ef4444; }
+.goals-volume-delta.positive { color: #6fb491; }
+.goals-volume-delta.negative { color: #c17568; }
 
 .goals-card {
   background: var(--bg-secondary);
@@ -516,8 +516,8 @@
 }
 
 .goals-pr-badge.new {
-  background: rgba(16, 185, 129, 0.2);
-  color: #10b981;
+  background: rgba(111, 180, 145, 0.2);
+  color: #6fb491;
 }
 
 .goals-trend-row {
@@ -566,13 +566,13 @@
 }
 
 .goals-trend-pct.positive {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  background: rgba(111, 180, 145, 0.15);
+  color: #6fb491;
 }
 
 .goals-trend-pct.negative {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
+  background: rgba(193, 117, 104, 0.15);
+  color: #c17568;
 }
 
 .goals-empty {
@@ -710,8 +710,8 @@
   font-weight: 500;
 }
 
-.goals-volume-mini-delta.positive { color: #10b981; }
-.goals-volume-mini-delta.negative { color: #ef4444; }
+.goals-volume-mini-delta.positive { color: #6fb491; }
+.goals-volume-mini-delta.negative { color: #c17568; }
 
 /* ===== NUTRITION TODAY CARD ===== */
 .nutrition-today-card {
@@ -856,7 +856,7 @@
   text-align: center;
 }
 
-.habits-profile-item.done .habits-profile-check { color: #22c55e; }
+.habits-profile-item.done .habits-profile-check { color: #6fb491; }
 .habits-profile-item.undone .habits-profile-check { color: var(--text-tertiary); }
 
 /* ===== WEIGHT PROFILE CARD ===== */
@@ -900,8 +900,8 @@
   text-align: right;
 }
 
-.weight-profile-delta.negative { color: #22c55e; }
-.weight-profile-delta.positive { color: #ef4444; }
+.weight-profile-delta.negative { color: #6fb491; }
+.weight-profile-delta.positive { color: #c17568; }
 
 .weight-sparkline-svg {
   width: 100%;

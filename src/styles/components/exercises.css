@@ -94,7 +94,7 @@
   width: 28px;
   height: 28px;
   background: var(--error-bg);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(193, 117, 104, 0.25);
   border-radius: var(--radius-sm);
   color: var(--error);
   font-size: 18px;
@@ -106,7 +106,7 @@
   justify-content: center;
   transition: background var(--transition-fast);
 }
-.btn-remove-exercise:hover { background: rgba(239, 68, 68, 0.2); }
+.btn-remove-exercise:hover { background: rgba(193, 117, 104, 0.2); }
 
 .exercises-empty {
   text-align: center;
