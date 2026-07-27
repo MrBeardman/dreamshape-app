@@ -45,6 +45,19 @@ const exerciseLogSchema = z.object({
   notes: z.string().optional(),
 });
 
+const planDaySchema = z.object({
+  type: z.enum(["workout", "run", "rest"]),
+  templateId: z.string().optional(),
+  label: z.string().optional(),
+});
+
+const planCheckInSchema = z.object({
+  id: z.string().optional(),
+  date: z.string(),
+  cycleIndex: z.number().int(),
+  completed: z.boolean(),
+});
+
 function withIds<T extends { id?: string }>(items: T[]): (Omit<T, "id"> & { id: string })[] {
   return items.map((item) => ({ ...item, id: item.id ?? randomUUID() }));
 }
@@ -206,6 +219,18 @@ export function registerMcpTools(server: McpServer) {
   );
 
   server.registerTool(
+    "update_workout",
+    { title: "Update workout", description: "Update a logged workout's duration or date.", inputSchema: { workoutId: z.string(), duration: z.number().optional(), date: z.string().optional() } },
+    async ({ workoutId, ...rest }) =>
+      safe(async () => {
+        const userId = await getUserId(supabase);
+        const { data, error } = await supabase.from("workouts").update(rest).eq("id", workoutId).eq("user_id", userId).select().single();
+        if (error) return fail(error.message);
+        return ok(data);
+      })
+  );
+
+  server.registerTool(
     "delete_workout",
     { title: "Delete workout", description: "Delete a logged workout.", inputSchema: { workoutId: z.string() } },
     async ({ workoutId }) =>
@@ -220,7 +245,7 @@ export function registerMcpTools(server: McpServer) {
   // ─── Custom exercises ─────────────────────────────────────────────────────
   server.registerTool(
     "list_custom_exercises",
-    { title: "List custom exercises", description: "List user-created exercises (in addition to the 55 built-in ones).", inputSchema: {} },
+    { title: "List custom exercises", description: "List user-created exercises (in addition to the built-in library).", inputSchema: {} },
     async () =>
       safe(async () => {
         const userId = await getUserId(supabase);
@@ -262,15 +287,16 @@ export function registerMcpTools(server: McpServer) {
       })
   );
 
-  // ─── Nutrition logs ───────────────────────────────────────────────────────
+  // ─── Weight entries ───────────────────────────────────────────────────────
   server.registerTool(
-    "list_nutrition_logs",
-    { title: "List nutrition logs", description: "List logged days of nutrition entries. Optionally filter to a single date (YYYY-MM-DD).", inputSchema: { date: z.string().optional() } },
-    async ({ date }) =>
+    "list_weight_entries",
+    { title: "List weight entries", description: "List logged body-weight entries, oldest first. Optionally filter by date range.", inputSchema: { from: z.string().optional(), to: z.string().optional() } },
+    async ({ from, to }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        let query = supabase.from("nutrition_logs").select("*").eq("user_id", userId).order("date", { ascending: false });
-        if (date) query = query.eq("date", date);
+        let query = supabase.from("weight_entries").select("*").eq("user_id", userId).order("date", { ascending: true });
+        if (from) query = query.gte("date", from);
+        if (to) query = query.lte("date", to);
         const { data, error } = await query;
         if (error) return fail(error.message);
         return ok(data);
@@ -278,47 +304,15 @@ export function registerMcpTools(server: McpServer) {
   );
 
   server.registerTool(
-    "add_nutrition_entry",
-    {
-      title: "Log a meal entry",
-      description: "Add a food entry to a day's nutrition log, creating that day's log if it doesn't exist yet.",
-      inputSchema: {
-        date: z.string().describe("YYYY-MM-DD"),
-        meal: z.enum(["breakfast", "lunch", "dinner", "snacks"]),
-        foodName: z.string(),
-        brand: z.string().optional(),
-        foodId: z.string().optional().describe("Reference an existing custom food id instead of foodName, if known"),
-        grams: z.number(),
-        calories: z.number(),
-        protein: z.number(),
-        carbs: z.number(),
-        fat: z.number(),
-        sugar: z.number(),
-      },
-    },
-    async (input) =>
+    "log_weight_entry",
+    { title: "Log body weight", description: "Log (or overwrite) the body-weight entry for a given date (YYYY-MM-DD), in kg.", inputSchema: { date: z.string(), weight: z.number() } },
+    async ({ date, weight }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { data: existing } = await supabase.from("nutrition_logs").select("*").eq("user_id", userId).eq("date", input.date).maybeSingle();
-
-        const entry = {
-          id: randomUUID(),
-          foodId: input.foodId ?? randomUUID(),
-          foodName: input.foodName,
-          brand: input.brand,
-          grams: input.grams,
-          meal: input.meal,
-          calories: input.calories,
-          protein: input.protein,
-          carbs: input.carbs,
-          fat: input.fat,
-          sugar: input.sugar,
-        };
-
-        const entries = existing ? [...(existing.entries as unknown[]), entry] : [entry];
+        const { data: existing } = await supabase.from("weight_entries").select("id").eq("user_id", userId).eq("date", date).maybeSingle();
         const { data, error } = await supabase
-          .from("nutrition_logs")
-          .upsert({ id: existing?.id ?? randomUUID(), user_id: userId, date: input.date, entries }, { onConflict: "id" })
+          .from("weight_entries")
+          .upsert({ id: existing?.id ?? randomUUID(), user_id: userId, date, weight }, { onConflict: "id" })
           .select()
           .single();
         if (error) return fail(error.message);
@@ -327,88 +321,66 @@ export function registerMcpTools(server: McpServer) {
   );
 
   server.registerTool(
-    "delete_nutrition_entry",
-    {
-      title: "Delete a meal entry",
-      description: "Remove a single food entry from a day's nutrition log. Deletes the whole log if it becomes empty.",
-      inputSchema: { date: z.string(), entryId: z.string() },
-    },
-    async ({ date, entryId }) =>
+    "delete_weight_entry",
+    { title: "Delete weight entry", description: "Delete a logged weight entry.", inputSchema: { entryId: z.string() } },
+    async ({ entryId }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { data: existing, error: fetchError } = await supabase.from("nutrition_logs").select("*").eq("user_id", userId).eq("date", date).maybeSingle();
-        if (fetchError) return fail(fetchError.message);
-        if (!existing) return fail("No nutrition log found for that date");
-
-        const entries = (existing.entries as { id: string }[]).filter((e) => e.id !== entryId);
-        if (entries.length === 0) {
-          const { error } = await supabase.from("nutrition_logs").delete().eq("id", existing.id).eq("user_id", userId);
-          if (error) return fail(error.message);
-          return ok({ ok: true, deletedLog: true });
-        }
-        const { data, error } = await supabase.from("nutrition_logs").update({ entries }).eq("id", existing.id).eq("user_id", userId).select().single();
-        if (error) return fail(error.message);
-        return ok(data);
-      })
-  );
-
-  server.registerTool(
-    "delete_nutrition_log",
-    { title: "Delete a full day's nutrition log", description: "Delete an entire day's nutrition log.", inputSchema: { logId: z.string() } },
-    async ({ logId }) =>
-      safe(async () => {
-        const userId = await getUserId(supabase);
-        const { error } = await supabase.from("nutrition_logs").delete().eq("id", logId).eq("user_id", userId);
+        const { error } = await supabase.from("weight_entries").delete().eq("id", entryId).eq("user_id", userId);
         if (error) return fail(error.message);
         return ok({ ok: true });
       })
   );
 
-  // ─── Custom foods ─────────────────────────────────────────────────────────
+  // ─── Run logs ─────────────────────────────────────────────────────────────
   server.registerTool(
-    "list_custom_foods",
-    { title: "List custom foods", description: "List foods saved to the personal food library.", inputSchema: {} },
-    async () =>
+    "list_run_logs",
+    { title: "List run logs", description: "List logged runs, most recent first. Optionally filter by date range.", inputSchema: { from: z.string().optional(), to: z.string().optional() } },
+    async ({ from, to }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { data, error } = await supabase.from("custom_foods").select("*").eq("user_id", userId).order("name");
+        let query = supabase.from("run_logs").select("*").eq("user_id", userId).order("date", { ascending: false });
+        if (from) query = query.gte("date", from);
+        if (to) query = query.lte("date", to);
+        const { data, error } = await query;
         if (error) return fail(error.message);
         return ok(data);
       })
   );
 
   server.registerTool(
-    "create_custom_food",
+    "create_run_log",
     {
-      title: "Add custom food",
-      description: "Save a food to the personal food library, with macros per 100g.",
+      title: "Log a run",
+      description: "Log a completed run. averagePace (seconds/km) is computed from distance/duration if omitted.",
       inputSchema: {
-        name: z.string(),
-        brand: z.string().optional(),
-        barcode: z.string().optional(),
-        caloriesPer100g: z.number(),
-        proteinPer100g: z.number(),
-        carbsPer100g: z.number(),
-        fatPer100g: z.number(),
-        sugarPer100g: z.number(),
+        date: z.string().describe("ISO date-time"),
+        distance: z.number().describe("km, e.g. 5.02"),
+        duration: z.number().describe("Duration in seconds"),
+        averagePace: z.number().optional().describe("Seconds per km"),
+        paceIsManual: z.boolean().optional(),
+        averageHR: z.number().optional().describe("bpm"),
+        difficulty: z.number().int().min(1).max(10),
+        notes: z.string().optional(),
       },
     },
     async (input) =>
       safe(async () => {
         const userId = await getUserId(supabase);
+        const averagePace = input.averagePace ?? Math.round(input.duration / Math.max(input.distance, 0.01));
         const { data, error } = await supabase
-          .from("custom_foods")
+          .from("run_logs")
           .insert({
             id: randomUUID(),
             user_id: userId,
-            name: input.name,
-            brand: input.brand ?? null,
-            barcode: input.barcode ?? null,
-            calories_per100g: input.caloriesPer100g,
-            protein_per100g: input.proteinPer100g,
-            carbs_per100g: input.carbsPer100g,
-            fat_per100g: input.fatPer100g,
-            sugar_per100g: input.sugarPer100g,
+            date: input.date,
+            distance: input.distance,
+            duration: input.duration,
+            average_pace: averagePace,
+            pace_is_manual: input.paceIsManual ?? false,
+            average_hr: input.averageHR ?? null,
+            difficulty: input.difficulty,
+            notes: input.notes ?? null,
           })
           .select()
           .single();
@@ -418,58 +390,116 @@ export function registerMcpTools(server: McpServer) {
   );
 
   server.registerTool(
-    "delete_custom_food",
-    { title: "Delete custom food", description: "Remove a food from the personal food library.", inputSchema: { foodId: z.string() } },
-    async ({ foodId }) =>
+    "delete_run_log",
+    { title: "Delete run log", description: "Delete a logged run.", inputSchema: { runId: z.string() } },
+    async ({ runId }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { error } = await supabase.from("custom_foods").delete().eq("id", foodId).eq("user_id", userId);
+        const { error } = await supabase.from("run_logs").delete().eq("id", runId).eq("user_id", userId);
         if (error) return fail(error.message);
         return ok({ ok: true });
       })
   );
 
-  // ─── Food search (Open Food Facts) ────────────────────────────────────────
+  // ─── Training plan ────────────────────────────────────────────────────────
   server.registerTool(
-    "search_foods",
-    {
-      title: "Search foods",
-      description: "Search the Open Food Facts database for a food by name, to get macros per 100g for logging.",
-      inputSchema: { query: z.string() },
-    },
-    async ({ query }) =>
+    "get_active_training_plan",
+    { title: "Get active training plan", description: "Get the currently active training plan (cycle of workout/run/rest days), if any.", inputSchema: {} },
+    async () =>
       safe(async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
-        try {
-          const url =
-            `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}` +
-            `&search_simple=1&action=process&json=1&page_size=10&fields=product_name,brands,nutriments,code`;
-          const resp = await fetch(url, { signal: controller.signal });
-          if (!resp.ok) return fail(`Open Food Facts search failed: ${resp.status}`);
-          const data = (await resp.json()) as { products?: Record<string, unknown>[] };
-          const products = (data.products ?? [])
-            .map((p: Record<string, unknown>) => {
-              const n = (p.nutriments ?? {}) as Record<string, number>;
-              const name = (p.product_name as string) || "";
-              if (!name.trim()) return null;
-              const kcal = n["energy-kcal_100g"] ?? (n["energy_100g"] ? Math.round(n["energy_100g"] / 4.184) : 0);
-              return {
-                name: name.trim(),
-                brand: (p.brands as string) || undefined,
-                barcode: (p.code as string) || undefined,
-                caloriesPer100g: Math.max(0, Math.round(kcal)),
-                proteinPer100g: Math.round((n["proteins_100g"] ?? 0) * 10) / 10,
-                carbsPer100g: Math.round((n["carbohydrates_100g"] ?? 0) * 10) / 10,
-                fatPer100g: Math.round((n["fat_100g"] ?? 0) * 10) / 10,
-                sugarPer100g: Math.round((n["sugars_100g"] ?? 0) * 10) / 10,
-              };
-            })
-            .filter((p: unknown) => p !== null);
-          return ok(products);
-        } finally {
-          clearTimeout(timeout);
-        }
+        const userId = await getUserId(supabase);
+        const { data, error } = await supabase.from("training_plans").select("*").eq("user_id", userId).eq("is_active", true).maybeSingle();
+        if (error) return fail(error.message);
+        return ok(data);
+      })
+  );
+
+  server.registerTool(
+    "upsert_training_plan",
+    {
+      title: "Create or update the training plan",
+      description: "Create a new training plan or update an existing one by id. Only one plan is active at a time — creating/updating deactivates any other plan.",
+      inputSchema: {
+        planId: z.string().optional(),
+        name: z.string(),
+        days: z.array(planDaySchema),
+        startDate: z.string().optional(),
+        currentCycleIndex: z.number().int().optional(),
+        checkIns: z.array(planCheckInSchema).optional(),
+      },
+    },
+    async (input) =>
+      safe(async () => {
+        const userId = await getUserId(supabase);
+        const planId = input.planId ?? randomUUID();
+        await supabase.from("training_plans").update({ is_active: false }).eq("user_id", userId);
+        const { data, error } = await supabase
+          .from("training_plans")
+          .upsert(
+            {
+              id: planId,
+              user_id: userId,
+              name: input.name,
+              days: input.days,
+              start_date: input.startDate ?? new Date().toISOString().slice(0, 10),
+              is_active: true,
+              current_cycle_index: input.currentCycleIndex ?? 0,
+              check_ins: withIds(input.checkIns ?? []),
+            },
+            { onConflict: "id" }
+          )
+          .select()
+          .single();
+        if (error) return fail(error.message);
+        return ok(data);
+      })
+  );
+
+  server.registerTool(
+    "delete_training_plan",
+    { title: "Delete training plan", description: "Delete a training plan.", inputSchema: { planId: z.string() } },
+    async ({ planId }) =>
+      safe(async () => {
+        const userId = await getUserId(supabase);
+        const { error } = await supabase.from("training_plans").delete().eq("id", planId).eq("user_id", userId);
+        if (error) return fail(error.message);
+        return ok({ ok: true });
+      })
+  );
+
+  server.registerTool(
+    "check_in_plan_day",
+    {
+      title: "Check in today's plan day",
+      description: "Mark today's step in the active training plan as completed or skipped (once per day). Advances the cycle only when completed.",
+      inputSchema: { completed: z.boolean() },
+    },
+    async ({ completed }) =>
+      safe(async () => {
+        const userId = await getUserId(supabase);
+        const { data: plan, error: fetchError } = await supabase.from("training_plans").select("*").eq("user_id", userId).eq("is_active", true).maybeSingle();
+        if (fetchError) return fail(fetchError.message);
+        if (!plan) return fail("No active training plan");
+
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const checkIns = (plan.check_ins ?? []) as { date: string }[];
+        if (checkIns.some((ci) => ci.date === todayStr)) return fail("Already checked in today");
+
+        const days = plan.days as unknown[];
+        const cycleIndex = (plan.current_cycle_index as number) % days.length;
+        const newCheckIn = { id: randomUUID(), date: todayStr, cycleIndex, completed };
+        const updatedCheckIns = [...checkIns, newCheckIn];
+        const updatedIndex = completed ? (plan.current_cycle_index as number) + 1 : (plan.current_cycle_index as number);
+
+        const { data, error } = await supabase
+          .from("training_plans")
+          .update({ check_ins: updatedCheckIns, current_cycle_index: updatedIndex })
+          .eq("id", plan.id)
+          .eq("user_id", userId)
+          .select()
+          .single();
+        if (error) return fail(error.message);
+        return ok(data);
       })
   );
 }
