@@ -594,20 +594,25 @@
   grid-template-columns: 40px 1fr 1fr 40px 24px;
   gap: 6px;
   align-items: center;
-  padding: 4px 0;
+  padding: 6px 0;
+  margin: 3px 0;
+  border-radius: var(--radius-sm);
 }
 
 .workout-view .set-row.completed {
-  background: rgba(111, 180, 145, 0.07);
-  border-radius: var(--radius-sm);
-  outline: 1px solid rgba(111, 180, 145, 0.18);
+  background: rgba(111, 180, 145, 0.08);
+  outline: 1px solid rgba(111, 180, 145, 0.22);
   outline-offset: -1px;
 }
 
-.workout-view .set-row.completed .set-input,
-.workout-view .set-row.completed .set-number-badge {
-  opacity: 0.5;
+.workout-view .set-row.completed .set-input {
+  opacity: 0.55;
 }
+
+/* .set-number-badge is intentionally NOT dimmed when completed — it's the only
+   thing identifying warmup vs. working set, and halving its already-faint tinted
+   background let the green completed-row tint show through underneath it,
+   compositing into a muddy blue-green blur instead of two distinct colors. */
 
 .set-number-badge {
   width: 40px;
@@ -627,9 +632,9 @@
 }
 
 .set-number-badge.warmup {
-  background: rgba(59, 130, 246, 0.1);
-  border-color: rgba(59, 130, 246, 0.25);
-  color: #5b9af8;
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #7db4fa;
 }
 
 .set-input {
