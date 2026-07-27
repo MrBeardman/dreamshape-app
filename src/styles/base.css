@@ -40,6 +40,14 @@ body {
   position: relative;
 }
 
+/* The floating "resume workout" bar (.workout-minimized-bar) is fixed-positioned
+   above the bottom nav, on top of whatever view is currently showing. Without this,
+   the last item in a scrollable view (e.g. the Dashboard's "Full History" link) can
+   render directly underneath it and become unclickable. */
+.app.has-minimized-bar {
+  --view-padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px) + 80px + 16px);
+}
+
 /* Grain sits above the ambient glow, below content — atmosphere, not decoration */
 .app::before {
   content: '';

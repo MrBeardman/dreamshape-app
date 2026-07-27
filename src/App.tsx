@@ -712,7 +712,7 @@ function App() {
 
   return (
     <>
-    <div className="app">
+    <div className={`app${workoutMinimized && activeWorkout ? ' has-minimized-bar' : ''}`}>
       {authLoading ? (
         <div className="loading-screen">
           <h1 className="loading-logo">💪 DreamShape</h1>
