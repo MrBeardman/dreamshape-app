@@ -259,15 +259,15 @@ export function registerMcpTools(server: McpServer) {
     "create_custom_exercise",
     {
       title: "Add custom exercise",
-      description: "Add a new exercise to the personal exercise library.",
-      inputSchema: { name: z.string(), muscleGroup: z.string(), equipment: z.string() },
+      description: "Add a new exercise to the personal exercise library. trackingMode 'time' is for holds like planks — reps is then read as seconds held instead of rep count.",
+      inputSchema: { name: z.string(), muscleGroup: z.string(), equipment: z.string(), trackingMode: z.enum(["weight-reps", "time"]).optional() },
     },
-    async ({ name, muscleGroup, equipment }) =>
+    async ({ name, muscleGroup, equipment, trackingMode }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
         const { data, error } = await supabase
           .from("custom_exercises")
-          .insert({ user_id: userId, name, muscle_group: muscleGroup, equipment })
+          .insert({ user_id: userId, name, muscle_group: muscleGroup, equipment, tracking_mode: trackingMode ?? null })
           .select()
           .single();
         if (error) return fail(error.message);

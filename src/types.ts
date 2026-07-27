@@ -1,9 +1,16 @@
+// How a set's numbers are captured. Missing/undefined means 'weight-reps' (the
+// original, still the default). 'time' repurposes the existing `reps` field on
+// Set to mean seconds held instead of rep count, and hides weight entirely —
+// no schema change needed, just a different UI over the same Set shape.
+export type ExerciseTrackingMode = 'weight-reps' | 'time'
+
 export interface Exercise {
   id: string
   name: string
   equipment: string
   muscleGroup: string
   notes?: string
+  trackingMode?: ExerciseTrackingMode
 }
 
 export interface WorkoutTemplate {

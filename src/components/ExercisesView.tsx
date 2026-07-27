@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import { DEFAULT_EXERCISES } from '../data/defaultExercises'
-import { estimateOneRepMax } from '../lib/exerciseStats'
+import { estimateOneRepMax, getBestHoldTime } from '../lib/exerciseStats'
 import type { WorkoutLog } from '../types'
 
 interface ExerciseEntry {
   name: string
   muscleGroup: string
   equipment: string
+  trackingMode?: 'weight-reps' | 'time'
 }
 
 interface ExercisesViewProps {
@@ -26,6 +27,7 @@ export default function ExercisesView({ exerciseDatabase, workoutLogs, onAddToDa
   const [newName, setNewName] = useState('')
   const [newMuscle, setNewMuscle] = useState('Chest')
   const [newEquipment, setNewEquipment] = useState('Barbell')
+  const [newTrackingMode, setNewTrackingMode] = useState<'weight-reps' | 'time'>('weight-reps')
 
   const filtered = useMemo(() => {
     return exerciseDatabase.filter(ex => {
@@ -39,10 +41,11 @@ export default function ExercisesView({ exerciseDatabase, workoutLogs, onAddToDa
     const name = newName.trim()
     if (!name) return
     if (exerciseDatabase.some(e => e.name.toLowerCase() === name.toLowerCase())) return
-    onAddToDatabase({ name, muscleGroup: newMuscle, equipment: newEquipment })
+    onAddToDatabase({ name, muscleGroup: newMuscle, equipment: newEquipment, trackingMode: newTrackingMode })
     setNewName('')
     setNewMuscle('Chest')
     setNewEquipment('Barbell')
+    setNewTrackingMode('weight-reps')
     setShowAdd(false)
   }
 
@@ -81,7 +84,9 @@ export default function ExercisesView({ exerciseDatabase, workoutLogs, onAddToDa
         )}
         {filtered.map(ex => {
           const isCustom = !DEFAULT_NAMES.has(ex.name)
-          const oneRM = estimateOneRepMax(workoutLogs, ex.name)
+          const isTimeMode = ex.trackingMode === 'time'
+          const oneRM = isTimeMode ? null : estimateOneRepMax(workoutLogs, ex.name)
+          const bestHold = isTimeMode ? getBestHoldTime(workoutLogs, ex.name) : null
           return (
             <div key={ex.name} className="exercise-row">
               <div className="exercise-row-info">
@@ -89,6 +94,7 @@ export default function ExercisesView({ exerciseDatabase, workoutLogs, onAddToDa
                 <span className="exercise-row-meta">
                   {ex.muscleGroup} · {ex.equipment}
                   {oneRM !== null && <span className="exercise-row-1rm"> · ~{oneRM} kg 1RM</span>}
+                  {bestHold !== null && <span className="exercise-row-1rm"> · {bestHold}s best hold</span>}
                 </span>
               </div>
               {isCustom && (
@@ -142,6 +148,26 @@ export default function ExercisesView({ exerciseDatabase, workoutLogs, onAddToDa
                   <option key={eq} value={eq}>{eq}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Track by</label>
+              <div className="tracking-mode-toggle">
+                <button
+                  type="button"
+                  className={`tracking-mode-btn ${newTrackingMode === 'weight-reps' ? 'active' : ''}`}
+                  onClick={() => setNewTrackingMode('weight-reps')}
+                >
+                  Weight &amp; Reps
+                </button>
+                <button
+                  type="button"
+                  className={`tracking-mode-btn ${newTrackingMode === 'time' ? 'active' : ''}`}
+                  onClick={() => setNewTrackingMode('time')}
+                >
+                  Time
+                </button>
+              </div>
             </div>
 
             <div className="modal-sheet-actions">

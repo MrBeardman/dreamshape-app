@@ -6,6 +6,7 @@ interface ExerciseDbEntry {
   name: string
   muscleGroup: string
   equipment: string
+  trackingMode?: 'weight-reps' | 'time'
 }
 
 interface WorkoutViewProps {
@@ -30,9 +31,9 @@ interface WorkoutViewProps {
   onSetWorkoutNotes: (notes: string) => void
   onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
   onToggleSetType: (exerciseIndex: number, setIndex: number) => void
-  onCreateAndAddExercise: (name: string, muscleGroup: string, equipment: string) => void
+  onCreateAndAddExercise: (name: string, muscleGroup: string, equipment: string, trackingMode?: 'weight-reps' | 'time') => void
   onSwitchExercise: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
-  onCreateAndSwitchExercise: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
+  onCreateAndSwitchExercise: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string, trackingMode?: 'weight-reps' | 'time') => void
   onViewExerciseHistory?: (exerciseName: string) => void
   onMinimize: () => void
 }
@@ -72,6 +73,7 @@ export default function WorkoutView({
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newExMuscle, setNewExMuscle] = useState('Other')
   const [newExEquip, setNewExEquip] = useState('Barbell')
+  const [newExTrackingMode, setNewExTrackingMode] = useState<'weight-reps' | 'time'>('weight-reps')
   const addExerciseRef = useRef<HTMLDivElement>(null)
 
   // When the create form expands, scroll it fully into view so keyboard doesn't cover it
@@ -136,20 +138,22 @@ export default function WorkoutView({
   }
 
   const getPersonalRecord = (exerciseName: string): number => {
-    let maxWeight = 0
-    
+    const isTimeMode = exerciseDatabase.find(e => e.name === exerciseName)?.trackingMode === 'time'
+    let best = 0
+
     workoutLogs.forEach(workout => {
       const exercise = workout.exercises.find(e => e.exerciseName === exerciseName)
       if (exercise) {
         exercise.sets.forEach(set => {
-          if (set.weight > maxWeight) {
-            maxWeight = set.weight
+          const value = isTimeMode ? set.reps : set.weight
+          if (value > best) {
+            best = value
           }
         })
       }
     })
-    
-    return maxWeight
+
+    return best
   }
 
   const handleSaveWorkoutNotes = () => {
@@ -347,23 +351,32 @@ export default function WorkoutView({
                             >
                               {EQUIPMENT_OPTIONS.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                             </select>
+                            <select
+                              className="rest-select"
+                              value={newExTrackingMode}
+                              onChange={e => setNewExTrackingMode(e.target.value as 'weight-reps' | 'time')}
+                            >
+                              <option value="weight-reps">Weight &amp; Reps</option>
+                              <option value="time">Time</option>
+                            </select>
                           </div>
                           <div className="create-exercise-actions">
                             <button
                               className="btn-notes-cancel"
-                              onClick={() => { setShowCreateForm(false); setNewExMuscle('Other'); setNewExEquip('Barbell') }}
+                              onClick={() => { setShowCreateForm(false); setNewExMuscle('Other'); setNewExEquip('Barbell'); setNewExTrackingMode('weight-reps') }}
                             >
                               Cancel
                             </button>
                             <button
                               className="btn-notes-save"
                               onClick={() => {
-                                onCreateAndAddExercise(exerciseInput.trim(), newExMuscle, newExEquip)
+                                onCreateAndAddExercise(exerciseInput.trim(), newExMuscle, newExEquip, newExTrackingMode)
                                 setExerciseInput('')
                                 setShowSuggestions(false)
                                 setShowCreateForm(false)
                                 setNewExMuscle('Other')
                                 setNewExEquip('Barbell')
+                                setNewExTrackingMode('weight-reps')
                               }}
                             >
                               Add to Workout

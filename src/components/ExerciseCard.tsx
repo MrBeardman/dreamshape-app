@@ -18,9 +18,9 @@ interface ExerciseCardProps {
   onSetExerciseNotes: (exerciseIndex: number, notes: string) => void
   onToggleSetType: (exerciseIndex: number, setIndex: number) => void
   formatRestTime: (seconds: number) => string
-  exerciseDatabase?: Array<{ name: string; muscleGroup: string; equipment: string }>
+  exerciseDatabase?: Array<{ name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }>
   onSwitchExercise?: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
-  onCreateAndSwitchExercise?: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => void
+  onCreateAndSwitchExercise?: (exerciseIndex: number, name: string, muscleGroup: string, equipment: string, trackingMode?: 'weight-reps' | 'time') => void
   onViewExerciseHistory?: (exerciseName: string) => void
   isFirst?: boolean
   isLast?: boolean
@@ -63,11 +63,17 @@ export default function ExerciseCard({
   const [switchShowCreate, setSwitchShowCreate] = useState(false)
   const [switchNewMuscle, setSwitchNewMuscle] = useState('Other')
   const [switchNewEquip, setSwitchNewEquip] = useState('Barbell')
+  const [switchNewTrackingMode, setSwitchNewTrackingMode] = useState<'weight-reps' | 'time'>('weight-reps')
   const [showAllExercises, setShowAllExercises] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Other']
   const EQUIPMENT_OPTIONS = ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Other']
+
+  const currentExerciseDef = exerciseDatabase?.find(e => e.name === exercise.exerciseName)
+  const isTimeMode = currentExerciseDef?.trackingMode === 'time'
+  // Assisted (negative-weight) machines only make sense for bodyweight movements
+  const showWeightSignToggle = !isTimeMode && currentExerciseDef?.equipment === 'Bodyweight'
 
   // Close context menu when clicking outside
   useEffect(() => {
@@ -113,12 +119,13 @@ export default function ExerciseCard({
   }
 
   const handleCreateAndSwitch = () => {
-    onCreateAndSwitchExercise?.(exerciseIndex, switchInput.trim(), switchNewMuscle, switchNewEquip)
+    onCreateAndSwitchExercise?.(exerciseIndex, switchInput.trim(), switchNewMuscle, switchNewEquip, switchNewTrackingMode)
     setShowSwitchPanel(false)
     setSwitchInput('')
     setSwitchShowCreate(false)
     setSwitchNewMuscle('Other')
     setSwitchNewEquip('Barbell')
+    setSwitchNewTrackingMode('weight-reps')
   }
 
   const closeSwitchPanel = () => {
@@ -127,6 +134,7 @@ export default function ExerciseCard({
     setSwitchShowCreate(false)
     setSwitchNewMuscle('Other')
     setSwitchNewEquip('Barbell')
+    setSwitchNewTrackingMode('weight-reps')
     setShowAllExercises(false)
   }
 
@@ -136,9 +144,14 @@ export default function ExerciseCard({
     setShowNotesMenu(false)
   }
 
+  const handleToggleWeightSign = (setIndex: number) => {
+    onUpdateSet(exerciseIndex, setIndex, 'weight', -exercise.sets[setIndex].weight)
+  }
+
   const handleToggleSet = (setIndex: number) => {
     const set = exercise.sets[setIndex]
-    if (!set.completed && set.weight > 0 && pr > 0 && set.weight > pr) {
+    const value = isTimeMode ? set.reps : set.weight
+    if (!set.completed && value > 0 && pr > 0 && value > pr) {
       setPrFlashSetId(set.id)
       setTimeout(() => setPrFlashSetId(null), 2500)
     }
@@ -166,7 +179,7 @@ export default function ExerciseCard({
           <h3 className="exercise-title">{exercise.exerciseName}</h3>
         </div>
         <div className="exercise-header-actions">
-          {pr > 0 && <span className="pr-badge">PR: {pr} kg</span>}
+          {pr > 0 && <span className="pr-badge">PR: {isTimeMode ? `${pr}s` : `${pr} kg`}</span>}
           <div className="exercise-menu-container" ref={menuRef}>
             <button
               className="btn-exercise-menu"
@@ -359,6 +372,14 @@ export default function ExerciseCard({
                       >
                         {EQUIPMENT_OPTIONS.map(eq => <option key={eq} value={eq}>{eq}</option>)}
                       </select>
+                      <select
+                        className="rest-select"
+                        value={switchNewTrackingMode}
+                        onChange={(e) => setSwitchNewTrackingMode(e.target.value as 'weight-reps' | 'time')}
+                      >
+                        <option value="weight-reps">Weight &amp; Reps</option>
+                        <option value="time">Time</option>
+                      </select>
                     </div>
                     <div className="create-exercise-actions">
                       <button
@@ -419,14 +440,20 @@ export default function ExerciseCard({
 
       {lastWorkoutSets && lastWorkoutSets.length > 0 && (
         <div className="last-session-hint">
-          Last: {lastWorkoutSets.map(s => `${s.weight}×${s.reps}`).join('  ·  ')}
+          Last: {lastWorkoutSets.map(s => isTimeMode ? `${s.reps}s` : `${s.weight}×${s.reps}`).join('  ·  ')}
         </div>
       )}
 
-      <div className="sets-header">
+      <div className={`sets-header ${isTimeMode ? 'time-mode' : ''}`}>
         <span className="set-col">Set</span>
-        <span className="kg-col">kg</span>
-        <span className="reps-col">Reps</span>
+        {isTimeMode ? (
+          <span className="time-col">Sec</span>
+        ) : (
+          <>
+            <span className="kg-col">kg</span>
+            <span className="reps-col">Reps</span>
+          </>
+        )}
         <span className="check-col">✓</span>
         <span></span>{/* spacer — aligns with remove-set-btn column */}
       </div>
@@ -439,7 +466,7 @@ export default function ExerciseCard({
 
         return (
           <div key={set.id} style={{ position: 'relative' }}>
-            <div className={`set-row ${set.completed ? 'completed' : ''}`}>
+            <div className={`set-row ${set.completed ? 'completed' : ''} ${isTimeMode ? 'time-mode' : ''}`}>
               <button
                 className={`set-number-badge ${setType}`}
                 onClick={(e) => { e.stopPropagation(); onToggleSetType(exerciseIndex, setIndex) }}
@@ -448,25 +475,51 @@ export default function ExerciseCard({
                 {setType === 'warmup' ? 'W' : workingNumber}
               </button>
 
-              <input
-                type="number"
-                inputMode="decimal"
-                className="set-input"
-                value={set.weight || ''}
-                onChange={(e) => { e.stopPropagation(); onUpdateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value)) }}
-                onClick={(e) => e.stopPropagation()}
-                placeholder={lastWorkoutSets?.[setIndex]?.weight ? String(lastWorkoutSets[setIndex].weight) : '0'}
-              />
+              {isTimeMode ? (
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  className="set-input"
+                  value={set.reps || ''}
+                  onChange={(e) => { e.stopPropagation(); onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value)) }}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder={lastWorkoutSets?.[setIndex]?.reps ? String(lastWorkoutSets[setIndex].reps) : '0'}
+                />
+              ) : (
+                <>
+                  <div className={`weight-input-wrap ${showWeightSignToggle ? 'with-sign-toggle' : ''}`}>
+                    {showWeightSignToggle && (
+                      <button
+                        type="button"
+                        className="weight-sign-toggle"
+                        onClick={(e) => { e.stopPropagation(); handleToggleWeightSign(setIndex) }}
+                        title="Flip sign (for assisted/negative weight)"
+                      >
+                        ±
+                      </button>
+                    )}
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      className="set-input"
+                      value={set.weight || ''}
+                      onChange={(e) => { e.stopPropagation(); onUpdateSet(exerciseIndex, setIndex, 'weight', Number(e.target.value)) }}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder={lastWorkoutSets?.[setIndex]?.weight ? String(lastWorkoutSets[setIndex].weight) : '0'}
+                    />
+                  </div>
 
-              <input
-                type="number"
-                inputMode="numeric"
-                className="set-input"
-                value={set.reps || ''}
-                onChange={(e) => { e.stopPropagation(); onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value)) }}
-                onClick={(e) => e.stopPropagation()}
-                placeholder={lastWorkoutSets?.[setIndex]?.reps ? String(lastWorkoutSets[setIndex].reps) : '0'}
-              />
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    className="set-input"
+                    value={set.reps || ''}
+                    onChange={(e) => { e.stopPropagation(); onUpdateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value)) }}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder={lastWorkoutSets?.[setIndex]?.reps ? String(lastWorkoutSets[setIndex].reps) : '0'}
+                  />
+                </>
+              )}
 
               <button
                 className={`check-btn ${set.completed ? 'completed' : ''}`}

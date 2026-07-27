@@ -55,7 +55,7 @@ export class SyncService {
     profile: UserProfile | null
     templates: WorkoutTemplate[]
     workouts: WorkoutLog[]
-    exercises: Array<{ name: string; muscleGroup: string; equipment: string }>
+    exercises: Array<{ name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }>
     weightEntries: WeightEntry[]
     runLogs: RunLog[]
     activePlan: TrainingPlan | null
@@ -100,6 +100,7 @@ export class SyncService {
         name: e.name,
         muscleGroup: e.muscle_group,
         equipment: e.equipment,
+        trackingMode: (e.tracking_mode ?? undefined) as 'weight-reps' | 'time' | undefined,
       }))
 
       const weightEntries: WeightEntry[] = (weightRes.data || []).map(e => ({
@@ -232,13 +233,14 @@ export class SyncService {
   // ============================================
   // CUSTOM EXERCISES
   // ============================================
-  async createCustomExercise(exercise: { name: string; muscleGroup: string; equipment: string }): Promise<void> {
+  async createCustomExercise(exercise: { name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }): Promise<void> {
     try {
       await supabase.from('custom_exercises').insert({
         user_id: this.userId,
         name: exercise.name,
         muscle_group: exercise.muscleGroup,
         equipment: exercise.equipment,
+        tracking_mode: exercise.trackingMode ?? null,
       })
     } catch (error) {
       if (!(error as any)?.message?.includes('duplicate')) {
@@ -318,7 +320,7 @@ export class SyncService {
     try { return JSON.parse(localStorage.getItem('dreamshape_workouts') || '[]') } catch { return [] }
   }
 
-  private getLocalExercises(): Array<{ name: string; muscleGroup: string; equipment: string }> {
+  private getLocalExercises(): Array<{ name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }> {
     try { return JSON.parse(localStorage.getItem('dreamshape_exercises') || '[]') } catch { return [] }
   }
 

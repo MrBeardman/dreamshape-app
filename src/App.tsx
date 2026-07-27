@@ -42,7 +42,7 @@ function App() {
     try { return JSON.parse(localStorage.getItem(WORKOUTS_KEY) || '[]') } catch { return [] }
   })
 
-  const [exerciseDatabase, setExerciseDatabase] = useState<Array<{ name: string; muscleGroup: string; equipment: string }>>(() => {
+  const [exerciseDatabase, setExerciseDatabase] = useState<Array<{ name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }>>(() => {
     try {
       const saved = localStorage.getItem(EXERCISES_KEY)
       return saved ? JSON.parse(saved) : DEFAULT_EXERCISES
@@ -282,7 +282,7 @@ function App() {
   // EXERCISES
   // ============================================
 
-  const addExerciseToDatabase = async (exercise: { name: string; muscleGroup: string; equipment: string }) => {
+  const addExerciseToDatabase = async (exercise: { name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }) => {
     setExerciseDatabase(prev => [...prev, exercise])
     if (syncService) {
       setIsSyncing(true)
@@ -417,8 +417,8 @@ function App() {
     setActiveWorkout({ ...activeWorkout, exercises: [...activeWorkout.exercises, newExercise] })
   }
 
-  const createAndAddExerciseToWorkout = async (name: string, muscleGroup: string, equipment: string) => {
-    await addExerciseToDatabase({ name, muscleGroup, equipment })
+  const createAndAddExerciseToWorkout = async (name: string, muscleGroup: string, equipment: string, trackingMode?: 'weight-reps' | 'time') => {
+    await addExerciseToDatabase({ name, muscleGroup, equipment, trackingMode })
     addExerciseToWorkout(name, muscleGroup, equipment)
   }
 
@@ -437,8 +437,8 @@ function App() {
     setActiveWorkout({ ...activeWorkout, exercises: updatedExercises })
   }
 
-  const createAndSwitchExerciseInWorkout = async (exerciseIndex: number, name: string, muscleGroup: string, equipment: string) => {
-    await addExerciseToDatabase({ name, muscleGroup, equipment })
+  const createAndSwitchExerciseInWorkout = async (exerciseIndex: number, name: string, muscleGroup: string, equipment: string, trackingMode?: 'weight-reps' | 'time') => {
+    await addExerciseToDatabase({ name, muscleGroup, equipment, trackingMode })
     switchExerciseInWorkout(exerciseIndex, name, muscleGroup, equipment)
   }
 
@@ -914,6 +914,7 @@ function App() {
     {exerciseHistoryTarget && (
       <ExerciseProgressSheet
         exerciseName={exerciseHistoryTarget}
+        trackingMode={exerciseDatabase.find(e => e.name === exerciseHistoryTarget)?.trackingMode}
         workoutLogs={workoutLogs}
         onClose={() => setExerciseHistoryTarget(null)}
       />

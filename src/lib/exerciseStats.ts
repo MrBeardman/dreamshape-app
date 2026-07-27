@@ -16,9 +16,26 @@ export function estimateOneRepMax(workoutLogs: WorkoutLog[], exerciseName: strin
   return best > 0 ? Math.round(best * 10) / 10 : null
 }
 
+// Longest completed hold, in seconds — the PR-equivalent for time-tracked
+// exercises (Plank etc.), where Set.reps is repurposed to mean duration.
+export function getBestHoldTime(workoutLogs: WorkoutLog[], exerciseName: string): number | null {
+  let best = 0
+  for (const workout of workoutLogs) {
+    const exercise = workout.exercises.find(e => e.exerciseName === exerciseName)
+    if (!exercise) continue
+    for (const set of exercise.sets) {
+      if ((set.type ?? 'working') !== 'working') continue
+      if (!set.completed || set.reps <= 0) continue
+      if (set.reps > best) best = set.reps
+    }
+  }
+  return best > 0 ? best : null
+}
+
 export interface ExerciseSession {
   date: string
   maxWeight: number
+  maxDuration: number
   totalVolume: number
   totalSets: number
   sets: Array<{ weight: number; reps: number; type?: string }>
@@ -37,11 +54,13 @@ export function getExerciseHistory(workoutLogs: WorkoutLog[], exerciseName: stri
     const setsToScore = workingSets.length > 0 ? workingSets : exercise.sets
 
     const maxWeight = Math.max(...setsToScore.map(s => s.weight))
+    const maxDuration = Math.max(...setsToScore.map(s => s.reps))
     const totalVolume = setsToScore.reduce((sum, s) => sum + s.weight * s.reps, 0)
 
     sessions.push({
       date: workout.date.split('T')[0],
       maxWeight,
+      maxDuration,
       totalVolume,
       totalSets: exercise.sets.length,
       sets: exercise.sets.map(s => ({ weight: s.weight, reps: s.reps, type: s.type })),

@@ -20,6 +20,7 @@ interface ExerciseDbEntry {
   name: string
   muscleGroup: string
   equipment: string
+  trackingMode?: 'weight-reps' | 'time'
 }
 
 interface CreateTemplateViewProps {

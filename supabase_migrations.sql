@@ -60,3 +60,9 @@ create policy "Users can manage their own training plans"
 -- Run these if you already created the training_plans table above
 alter table training_plans add column if not exists current_cycle_index integer default 0;
 alter table training_plans add column if not exists check_ins jsonb default '[]';
+
+-- Exercise tracking mode: how a set's numbers are captured for a given exercise.
+-- Null/omitted means 'weight-reps' (the original default). 'time' repurposes the
+-- existing reps column on a set to mean seconds held instead of rep count.
+alter table custom_exercises add column if not exists tracking_mode text
+  check (tracking_mode in ('weight-reps', 'time'));

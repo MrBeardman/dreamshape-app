@@ -585,8 +585,13 @@
 .workout-view .set-col,
 .workout-view .kg-col,
 .workout-view .reps-col,
+.workout-view .time-col,
 .workout-view .check-col {
   text-align: center;
+}
+
+.workout-view .sets-header.time-mode {
+  grid-template-columns: 40px 1fr 40px 24px;
 }
 
 .workout-view .set-row {
@@ -597,6 +602,10 @@
   padding: 6px 8px;
   margin: 3px 0;
   border-radius: var(--radius-sm);
+}
+
+.workout-view .set-row.time-mode {
+  grid-template-columns: 40px 1fr 40px 24px;
 }
 
 .workout-view .set-row.completed {
@@ -659,6 +668,43 @@
 }
 
 .set-input::placeholder { color: var(--text-tertiary); }
+
+/* Assisted/negative weight toggle — mobile numeric keypads have no "-" key at all,
+   so this is the only way to enter a negative (assisted-machine) weight value. */
+.weight-input-wrap {
+  position: relative;
+}
+
+.weight-input-wrap.with-sign-toggle .set-input {
+  padding-left: 16px;
+}
+
+.weight-sign-toggle {
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  transition: color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
+}
+
+.weight-sign-toggle:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
 
 .check-btn {
   width: 40px;

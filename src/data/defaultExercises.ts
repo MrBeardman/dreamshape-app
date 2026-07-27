@@ -56,7 +56,7 @@ export const DEFAULT_EXERCISES = [
   { name: 'Hip Thrust (Barbell)', muscleGroup: 'Legs', equipment: 'Barbell' },
   
   // Core
-  { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight' },
+  { name: 'Plank', muscleGroup: 'Core', equipment: 'Bodyweight', trackingMode: 'time' as const },
   { name: 'Crunches', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { name: 'Russian Twists', muscleGroup: 'Core', equipment: 'Bodyweight' },
   { name: 'Hanging Leg Raise', muscleGroup: 'Core', equipment: 'Bodyweight' },
