@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { createAdminClient, getUserId } from "../supabase/admin";
+import { createAdminClient, getUserId } from "../supabase/admin.js";
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 

@@ -1,4 +1,4 @@
-import { sign, type RegisteredClient } from "../_lib/mcp/oauth";
+import { sign, type RegisteredClient } from "../_lib/mcp/oauth.js";
 
 // RFC 7591 Dynamic Client Registration. Since there's only ever one real user, there's
 // nothing to persist per-client — the returned client_id is itself a signed token

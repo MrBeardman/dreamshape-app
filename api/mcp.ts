@@ -1,5 +1,5 @@
 import { createMcpHandler, withMcpAuth } from "mcp-handler";
-import { registerMcpTools } from "./_lib/mcp/tools";
+import { registerMcpTools } from "./_lib/mcp/tools.js";
 
 const handler = createMcpHandler(
   (server) => registerMcpTools(server),

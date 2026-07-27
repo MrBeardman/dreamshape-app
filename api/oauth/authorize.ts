@@ -1,4 +1,4 @@
-import { sign, verify, timingSafeStringCompare, type AuthCode, type RegisteredClient } from "../_lib/mcp/oauth";
+import { sign, verify, timingSafeStringCompare, type AuthCode, type RegisteredClient } from "../_lib/mcp/oauth.js";
 
 // Authorization step of the OAuth flow claude.ai runs to obtain an MCP access token.
 // Dreamshape is a client-side SPA with no server-readable session (the Supabase session
