@@ -137,9 +137,17 @@ export default function HabitManagementView({ habits, templates, onSaveHabit, on
   if (editing !== null) {
     return (
       <div className="create-view">
-        <div className="create-header">
-          <button className="btn-back" onClick={() => setEditing(null)}>← Back</button>
-          <h2>{editing === 'new' ? 'New Habit' : 'Edit Habit'}</h2>
+        <div className="create-header habit-editor-header">
+          <div>
+            <button className="btn-back" onClick={() => setEditing(null)}>← Back</button>
+            <h2>{editing === 'new' ? 'New Habit' : 'Edit Habit'}</h2>
+          </div>
+          {editing !== 'new' && (
+            <label className="ios-toggle">
+              <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
+              <span className="ios-toggle-track"><span className="ios-toggle-thumb" /></span>
+            </label>
+          )}
         </div>
 
         <div className="form-group">
@@ -210,7 +218,12 @@ export default function HabitManagementView({ habits, templates, onSaveHabit, on
 
         <div className="form-group">
           <label>Time of day (optional)</label>
-          <input type="time" className="input" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)} />
+          <div className="habit-time-row">
+            <input type="time" className="input" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)} />
+            {timeOfDay && (
+              <button type="button" className="habit-time-clear-btn" onClick={() => setTimeOfDay('')} aria-label="Clear time">×</button>
+            )}
+          </div>
         </div>
 
         <div className="form-group">
@@ -220,15 +233,6 @@ export default function HabitManagementView({ habits, templates, onSaveHabit, on
             {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
-
-        {editing !== 'new' && (
-          <div className="form-group">
-            <label className="habit-active-toggle">
-              <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} />
-              Active
-            </label>
-          </div>
-        )}
 
         <div className="plan-editor-footer">
           {editing !== 'new' && (
@@ -273,7 +277,7 @@ export default function HabitManagementView({ habits, templates, onSaveHabit, on
             <div className="plan-day-row-actions">
               <button className="plan-day-move" onClick={() => moveHabit(idx, -1)} disabled={idx === 0}>↑</button>
               <button className="plan-day-move" onClick={() => moveHabit(idx, 1)} disabled={idx === habits.length - 1}>↓</button>
-              <button className="btn-edit" onClick={() => openEditor(habit)}>Edit</button>
+              <button className="plan-day-move habit-edit-icon-btn" onClick={() => openEditor(habit)} aria-label="Edit habit">✏️</button>
               <button className="plan-day-remove" onClick={() => onDeleteHabit(habit.id)}>×</button>
             </div>
           </div>

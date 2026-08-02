@@ -320,13 +320,93 @@
 
 .habit-interval-input { width: 64px; }
 
-.habit-active-toggle {
+.habit-time-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
+}
+.habit-time-row .input { flex: 1; }
+
+.habit-time-clear-btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  background: var(--error-bg);
+  border: 1px solid rgba(193, 117, 104, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--error);
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.habit-edit-icon-btn { font-size: 14px; }
+
+/* ===== HEADER TOGGLE (Edit Habit) ===== */
+.habit-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Standard accessible iOS-style toggle switch: real checkbox visually
+   hidden but still focusable/keyboard-operable, track+thumb driven by
+   the :checked sibling selector. */
+.ios-toggle {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ios-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ios-toggle-track {
+  width: 46px;
+  height: 26px;
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  display: block;
+  position: relative;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.ios-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.ios-toggle input:checked ~ .ios-toggle-track {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.ios-toggle input:checked ~ .ios-toggle-track .ios-toggle-thumb {
+  transform: translateX(20px);
+}
+
+.ios-toggle input:focus-visible ~ .ios-toggle-track {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 /* ===== LINKED HABIT CHECKBOX (FinishWorkoutModal) ===== */
