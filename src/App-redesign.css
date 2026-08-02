@@ -19,7 +19,7 @@
 @import './styles/components/workout.css';
 @import './styles/components/progress-sheet.css';
 @import './styles/components/exercises.css';
-@import './styles/components/plan.css';
+@import './styles/components/habits.css';
 
 /* View Styles */
 @import './styles/views/templates.css';

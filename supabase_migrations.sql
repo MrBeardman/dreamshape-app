@@ -66,3 +66,34 @@ alter table training_plans add column if not exists check_ins jsonb default '[]'
 -- existing reps column on a set to mean seconds held instead of rep count.
 alter table custom_exercises add column if not exists tracking_mode text
   check (tracking_mode in ('weight-reps', 'time'));
+
+-- Habits table (replaces training_plans — that table/data is left in place, just unused)
+create table if not exists habits (
+  id                  uuid primary key,
+  user_id             uuid references auth.users(id) on delete cascade not null,
+  name                text not null,
+  icon                text,
+  recurrence          jsonb not null,   -- { type: 'daily'|'weekdays'|'interval', weekdays?, intervalDays?, anchorDate? }
+  time_of_day         text,             -- 'HH:MM' 24h, nullable — display/sort only
+  linked_template_id  uuid,             -- optional workout template id, soft reference (no FK)
+  is_active           boolean default true,
+  sort_order          integer default 0,
+  created_at          timestamp with time zone default now()
+);
+alter table habits enable row level security;
+create policy "Users can manage their own habits"
+  on habits for all using (auth.uid() = user_id);
+
+-- Habit completions table (one row per habit per calendar day)
+create table if not exists habit_completions (
+  id         uuid primary key,
+  user_id    uuid references auth.users(id) on delete cascade not null,
+  habit_id   uuid references habits(id) on delete cascade not null,
+  date       text not null,             -- YYYY-MM-DD
+  status     text not null check (status in ('done', 'failed')),
+  created_at timestamp with time zone default now(),
+  unique (habit_id, date)
+);
+alter table habit_completions enable row level security;
+create policy "Users can manage their own habit completions"
+  on habit_completions for all using (auth.uid() = user_id);

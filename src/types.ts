@@ -65,29 +65,34 @@ export interface RunLog {
   notes?: string
 }
 
-export type PlanDayType = 'workout' | 'run' | 'rest'
+export type HabitRecurrenceType = 'daily' | 'weekdays' | 'interval'
 
-export interface PlanDay {
-  type: PlanDayType
-  templateId?: string  // only when type === 'workout'
-  label?: string       // optional custom label
+export interface HabitRecurrence {
+  type: HabitRecurrenceType
+  weekdays?: number[]   // type === 'weekdays' only. Date.getDay() convention: 0=Sun..6=Sat
+  intervalDays?: number // type === 'interval' only, e.g. 3 = every 3rd day
+  anchorDate?: string   // type === 'interval' only, YYYY-MM-DD "day 0" the interval counts from
 }
 
-export interface PlanCheckIn {
-  id: string
-  date: string         // YYYY-MM-DD — calendar date this was logged
-  cycleIndex: number   // which day in the cycle (for history display)
-  completed: boolean   // true = done, false = skipped
-}
-
-export interface TrainingPlan {
+export interface Habit {
   id: string
   name: string
-  days: PlanDay[]
-  currentCycleIndex: number  // which day in the cycle is pending next
-  checkIns: PlanCheckIn[]    // full history of completions + skips
-  isActive: boolean
-  startDate?: string         // kept for display ("started X weeks ago")
+  icon?: string
+  recurrence: HabitRecurrence
+  timeOfDay?: string          // 'HH:MM' 24h — display/sort only, no notifications
+  linkedTemplateId?: string   // optional WorkoutTemplate.id, soft reference
+  isActive: boolean           // false = archived: hidden from "due today", kept for history
+  sortOrder: number
+  createdAt: string           // ISO timestamp — also the earliest date the habit can be "due"
+}
+
+export type HabitCompletionStatus = 'done' | 'failed'
+
+export interface HabitCompletion {
+  id: string
+  habitId: string
+  date: string   // YYYY-MM-DD
+  status: HabitCompletionStatus
 }
 
 export interface UserProfile {

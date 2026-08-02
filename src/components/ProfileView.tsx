@@ -3,14 +3,17 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
-import type { UserProfile, WorkoutLog, WeightEntry, TrainingPlan } from '../types'
-import { getPlanStreak } from './PlanSection'
+import type { UserProfile, WorkoutLog, WeightEntry, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
+import { getDayCompletionRatio, getHabitsDueOn, getHabitStatus, getHabitStreak, nextHabitStatus } from '../lib/habits'
 
 interface ProfileViewProps {
   userProfile: UserProfile
   workoutLogs: WorkoutLog[]
   weightEntries: WeightEntry[]
-  activePlan: TrainingPlan | null
+  habits: Habit[]
+  habitCompletions: HabitCompletion[]
+  onSetHabitStatus: (habitId: string, date: string, status: HabitCompletionStatus | 'pending') => void
+  onManageHabits: () => void
   onUpdateProfile: (profile: UserProfile) => void
   onSignOut: () => void
 }
@@ -19,7 +22,10 @@ export default function ProfileView({
   userProfile,
   workoutLogs,
   weightEntries,
-  activePlan,
+  habits,
+  habitCompletions,
+  onSetHabitStatus,
+  onManageHabits,
   onUpdateProfile,
   onSignOut,
 }: ProfileViewProps) {
@@ -234,14 +240,9 @@ export default function ProfileView({
       date.setDate(today.getDate() - (83 - i))
       date.setHours(0, 0, 0, 0)
       const dateStr = date.toISOString().split('T')[0]
-      const workout = workoutLogs.find(log => {
-        const logDate = new Date(log.date)
-        logDate.setHours(0, 0, 0, 0)
-        return logDate.getTime() === date.getTime()
-      }) ?? null
-      return { date: dateStr, workout, isToday: date.getTime() === todayTime }
+      return { date: dateStr, ...getDayCompletionRatio(habits, habitCompletions, dateStr), isToday: date.getTime() === todayTime }
     })
-  }, [workoutLogs])
+  }, [habits, habitCompletions])
 
   const monthCalendarData = useMemo(() => {
     const today = new Date()
@@ -253,22 +254,28 @@ export default function ProfileView({
     let startDow = firstDay.getDay() - 1
     if (startDow < 0) startDow = 6
     const daysInMonth = new Date(year, month + 1, 0).getDate()
-    type Cell = { date: string; dayNum: number; workout: WorkoutLog | null; isToday: boolean } | null
+    type Cell = { date: string; dayNum: number; due: number; done: number; ratio: number | null; isToday: boolean } | null
     const cells: Cell[] = []
     for (let i = 0; i < startDow; i++) cells.push(null)
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d)
       date.setHours(0, 0, 0, 0)
       const dateStr = date.toISOString().split('T')[0]
-      const workout = workoutLogs.find(log => {
-        const logDate = new Date(log.date)
-        logDate.setHours(0, 0, 0, 0)
-        return logDate.getTime() === date.getTime()
-      }) ?? null
-      cells.push({ date: dateStr, dayNum: d, workout, isToday: date.getTime() === todayTime })
+      cells.push({ date: dateStr, dayNum: d, ...getDayCompletionRatio(habits, habitCompletions, dateStr), isToday: date.getTime() === todayTime })
     }
     return cells
-  }, [workoutLogs])
+  }, [habits, habitCompletions])
+
+  const habitStreak = useMemo(() => getHabitStreak(habits, habitCompletions), [habits, habitCompletions])
+
+  const ratioClass = (ratio: number | null): string => {
+    if (ratio === null) return 'none'
+    if (ratio === 0) return '0'
+    if (ratio < 0.5) return '1'
+    if (ratio < 0.75) return '2'
+    if (ratio < 1) return '3'
+    return '4'
+  }
 
   const totalVolume = getTotalVolume()
   const totalHours = getTotalDuration()
@@ -424,45 +431,6 @@ export default function ProfileView({
         </div>
       </div>
 
-      {/* Plan streak */}
-      {activePlan && (() => {
-        const streak = getPlanStreak(activePlan.checkIns)
-        const total = activePlan.checkIns.length
-        const completed = activePlan.checkIns.filter(c => c.completed).length
-        return (
-          <div className="plan-streak-profile">
-            <div className="plan-streak-profile-top">
-              <span className="plan-streak-profile-name">{activePlan.name}</span>
-              <span className="plan-streak-profile-streak">
-                {streak > 0 ? `🔥 ${streak} day streak` : 'No current streak'}
-              </span>
-            </div>
-            {total > 0 && (
-              <div className="plan-history-dots">
-                {[...activePlan.checkIns]
-                  .sort((a, b) => b.date.localeCompare(a.date))
-                  .slice(0, 20)
-                  .reverse()
-                  .map(ci => (
-                    <div
-                      key={ci.id}
-                      className={`plan-history-dot ${ci.completed ? 'done' : 'skipped'}`}
-                      title={`${ci.date}: ${ci.completed ? '✓' : '✗'}`}
-                    />
-                  ))}
-              </div>
-            )}
-            <div className="plan-streak-stats">
-              <span>{completed} completed</span>
-              <span>·</span>
-              <span>{total - completed} skipped</span>
-              <span>·</span>
-              <span>{total > 0 ? Math.round((completed / total) * 100) : 0}% adherence</span>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* Progress charts */}
       <div className="profile-section">
         <h3 className="section-title">Progress</h3>
@@ -471,7 +439,10 @@ export default function ProfileView({
         <div className="chart-card">
           <div className="chart-header-row">
             <div>
-              <h4 className="chart-title">Workout Calendar</h4>
+              <h4 className="chart-title">
+                Habit Calendar
+                {habitStreak > 0 && <span className="habit-cal-streak-badge">🔥 {habitStreak}</span>}
+              </h4>
               <p className="chart-subtitle">
                 {calPeriod === 'week' && 'This week'}
                 {calPeriod === 'month' && `${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
@@ -499,8 +470,9 @@ export default function ProfileView({
                   {calendarData.map((day) => (
                     <div
                       key={day.date}
-                      className={['heatmap-day', day.workout ? 'active' : '', day.isToday ? 'today' : '', selectedDate === day.date ? 'selected' : ''].filter(Boolean).join(' ')}
-                      onClick={() => { if (day.workout) setSelectedDate(selectedDate === day.date ? null : day.date) }}
+                      className={['heatmap-day', `habit-cal-day--${ratioClass(day.ratio)}`, day.isToday ? 'today' : '', selectedDate === day.date ? 'selected' : ''].filter(Boolean).join(' ')}
+                      title={day.due > 0 ? `${day.done}/${day.due} habits done` : 'No habits scheduled'}
+                      onClick={() => { if (day.due > 0) setSelectedDate(selectedDate === day.date ? null : day.date) }}
                     />
                   ))}
                 </div>
@@ -523,12 +495,12 @@ export default function ProfileView({
                 return (
                   <div
                     key={day.date}
-                    className={['week-cal-cell', day.workout ? 'active' : '', day.isToday ? 'today' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ')}
-                    onClick={() => { if (day.workout) setSelectedDate(isSelected ? null : day.date) }}
+                    className={['week-cal-cell', `habit-cal-day--${ratioClass(day.ratio)}`, day.isToday ? 'today' : '', isSelected ? 'selected' : ''].filter(Boolean).join(' ')}
+                    onClick={() => { if (day.due > 0) setSelectedDate(isSelected ? null : day.date) }}
                   >
                     <span className="week-cal-day">{d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                     <span className="week-cal-num">{d.getDate()}</span>
-                    {day.workout && <span className="week-cal-dot" />}
+                    {day.due > 0 && <span className="week-cal-dot" />}
                   </div>
                 )
               })}
@@ -545,10 +517,11 @@ export default function ProfileView({
                   cell ? (
                     <div
                       key={cell.date}
-                      className={['month-cal-cell', cell.workout ? 'active' : '', cell.isToday ? 'today' : '', selectedDate === cell.date ? 'selected' : ''].filter(Boolean).join(' ')}
-                      onClick={() => { if (cell.workout) setSelectedDate(selectedDate === cell.date ? null : cell.date) }}
+                      className={['month-cal-cell', `habit-cal-day--${ratioClass(cell.ratio)}`, cell.isToday ? 'today' : '', selectedDate === cell.date ? 'selected' : ''].filter(Boolean).join(' ')}
+                      onClick={() => { if (cell.due > 0) setSelectedDate(selectedDate === cell.date ? null : cell.date) }}
                     >
-                      {cell.dayNum}
+                      <span>{cell.dayNum}</span>
+                      {cell.due > 0 && <span className="month-cal-cell-ratio">{cell.done}/{cell.due}</span>}
                     </div>
                   ) : (
                     <div key={`pad-${i}`} className="month-cal-cell empty" />
@@ -559,14 +532,8 @@ export default function ProfileView({
           )}
 
           {selectedDate && (() => {
-            const w = workoutLogs.find(log => {
-              const logDate = new Date(log.date)
-              logDate.setHours(0, 0, 0, 0)
-              return logDate.toISOString().split('T')[0] === selectedDate
-            })
-            if (!w) return null
-            const vol = w.exercises.reduce((sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0)
-            const dur = Math.floor(w.duration / 60)
+            const dueHabits = getHabitsDueOn(habits, selectedDate)
+            if (dueHabits.length === 0) return null
             return (
               <div className="calendar-day-detail">
                 <div className="day-detail-header">
@@ -575,17 +542,21 @@ export default function ProfileView({
                   </span>
                   <button className="day-detail-close" onClick={() => setSelectedDate(null)}>×</button>
                 </div>
-                <div className="day-detail-name">{w.templateName}</div>
-                <div className="day-detail-meta">
-                  <span>{dur} min</span>
-                  <span>{(vol / 1000).toFixed(1)}t volume</span>
-                  <span>{w.exercises.length} exercises</span>
-                </div>
-                <div className="day-detail-exercises">
-                  {w.exercises.slice(0, 5).map(ex => (
-                    <span key={ex.exerciseId} className="day-detail-exercise-tag">{ex.exerciseName}</span>
-                  ))}
-                  {w.exercises.length > 5 && <span className="day-detail-exercise-tag muted">+{w.exercises.length - 5} more</span>}
+                <div className="habit-day-detail-list">
+                  {dueHabits.map(habit => {
+                    const status = getHabitStatus(habitCompletions, habit.id, selectedDate)
+                    return (
+                      <button
+                        key={habit.id}
+                        className={`habit-day-detail-row habit-day-detail-row--${status}`}
+                        onClick={() => onSetHabitStatus(habit.id, selectedDate, nextHabitStatus(status))}
+                      >
+                        <span className="habit-day-detail-glyph">{status === 'done' ? '✓' : status === 'failed' ? '✗' : '—'}</span>
+                        <span className="habit-day-detail-icon">{habit.icon || '•'}</span>
+                        <span className="habit-day-detail-name">{habit.name}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             )
@@ -679,6 +650,10 @@ export default function ProfileView({
       <div className="profile-section">
         <h3 className="section-title">Data & Settings</h3>
         <div className="action-list">
+          <button className="action-item" onClick={onManageHabits}>
+            <span>Manage Habits</span>
+            <span className="action-arrow">→</span>
+          </button>
           <button
             className="action-item"
             onClick={async () => {

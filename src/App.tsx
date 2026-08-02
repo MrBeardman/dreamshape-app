@@ -5,7 +5,8 @@ import SyncIndicator from './components/SyncIndicator'
 import AuthView from './components/AuthView'
 import type { User } from '@supabase/supabase-js'
 import './App-redesign.css'
-import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, WeightEntry, RunLog, TrainingPlan } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from './types'
+import { nextHabitStatus, getHabitStatus, todayISO } from './lib/habits'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
 import WorkoutDetailView from './components/WorkoutDetailView'
@@ -20,6 +21,7 @@ import SidebarNav from './components/SidebarNav'
 import ProfileView from './components/ProfileView'
 import ExercisesView from './components/ExercisesView'
 import ExerciseProgressSheet from './components/ExerciseProgressSheet'
+import HabitManagementView from './components/HabitManagementView'
 import { useConfirm } from './hooks/useConfirm'
 import { useWorkoutTimer } from './hooks/useWorkoutTimer'
 import { requestNotificationPermission, scheduleRestNotification, cancelRestNotification } from './lib/notifications'
@@ -31,7 +33,8 @@ const ACTIVE_WORKOUT_KEY = 'dreamshape_active_workout'
 const ORIGINAL_EXERCISES_KEY = 'dreamshape_original_exercises'
 const WEIGHT_KEY = 'dreamshape_weight'
 const RUNS_KEY = 'dreamshape_runs'
-const PLAN_KEY = 'dreamshape_plan'
+const HABITS_KEY = 'dreamshape_habits'
+const HABIT_COMPLETIONS_KEY = 'dreamshape_habit_completions'
 
 function App() {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>(() => {
@@ -57,8 +60,12 @@ function App() {
     try { return JSON.parse(localStorage.getItem(RUNS_KEY) || '[]') } catch { return [] }
   })
 
-  const [activePlan, setActivePlan] = useState<TrainingPlan | null>(() => {
-    try { return JSON.parse(localStorage.getItem(PLAN_KEY) || 'null') } catch { return null }
+  const [habits, setHabits] = useState<Habit[]>(() => {
+    try { return JSON.parse(localStorage.getItem(HABITS_KEY) || '[]') } catch { return [] }
+  })
+
+  const [habitCompletions, setHabitCompletions] = useState<HabitCompletion[]>(() => {
+    try { return JSON.parse(localStorage.getItem(HABIT_COMPLETIONS_KEY) || '[]') } catch { return [] }
   })
 
   const [user, setUser] = useState<User | null>(null)
@@ -73,6 +80,7 @@ function App() {
   })
 
   const [isCreating, setIsCreating] = useState(false)
+  const [isManagingHabits, setIsManagingHabits] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<WorkoutTemplate | null>(null)
   const [currentView, setCurrentView] = useState<'dashboard' | 'exercises' | 'start' | 'history' | 'profile'>('dashboard')
   const [selectedWorkout, setSelectedWorkout] = useState<WorkoutLog | null>(null)
@@ -101,7 +109,8 @@ function App() {
   useEffect(() => { localStorage.setItem('dreamshape_profile', JSON.stringify(userProfile)) }, [userProfile])
   useEffect(() => { localStorage.setItem(WEIGHT_KEY, JSON.stringify(weightEntries)) }, [weightEntries])
   useEffect(() => { localStorage.setItem(RUNS_KEY, JSON.stringify(runLogs)) }, [runLogs])
-  useEffect(() => { localStorage.setItem(PLAN_KEY, JSON.stringify(activePlan)) }, [activePlan])
+  useEffect(() => { localStorage.setItem(HABITS_KEY, JSON.stringify(habits)) }, [habits])
+  useEffect(() => { localStorage.setItem(HABIT_COMPLETIONS_KEY, JSON.stringify(habitCompletions)) }, [habitCompletions])
 
   useEffect(() => {
     if (activeWorkout) localStorage.setItem(ACTIVE_WORKOUT_KEY, JSON.stringify(activeWorkout))
@@ -158,10 +167,11 @@ function App() {
       setRunLogs(data.runLogs)
       localStorage.setItem(RUNS_KEY, JSON.stringify(data.runLogs))
 
-      if (data.activePlan !== undefined) {
-        setActivePlan(data.activePlan)
-        localStorage.setItem(PLAN_KEY, JSON.stringify(data.activePlan))
-      }
+      setHabits(data.habits)
+      localStorage.setItem(HABITS_KEY, JSON.stringify(data.habits))
+
+      setHabitCompletions(data.habitCompletions)
+      localStorage.setItem(HABIT_COMPLETIONS_KEY, JSON.stringify(data.habitCompletions))
 
       setLastSyncTime(new Date())
     } catch (error) {
@@ -666,45 +676,60 @@ function App() {
   }
 
   // ============================================
-  // TRAINING PLAN
+  // HABITS
   // ============================================
 
-  const savePlan = async (plan: TrainingPlan) => {
-    setActivePlan(plan)
+  const saveHabit = async (habit: Habit) => {
+    const exists = habits.some(h => h.id === habit.id)
+    setHabits(prev => exists ? prev.map(h => h.id === habit.id ? habit : h) : [...prev, habit])
     if (syncService) {
       setIsSyncing(true)
-      try { await syncService.upsertPlan(plan); setLastSyncTime(new Date()) }
-      catch (error) { console.error('Failed to sync plan:', error) }
+      try {
+        await (exists ? syncService.updateHabit(habit) : syncService.createHabit(habit))
+        setLastSyncTime(new Date())
+      }
+      catch (error) { console.error('Failed to sync habit:', error) }
       finally { setIsSyncing(false) }
     }
   }
 
-  const deletePlan = async () => {
-    if (!activePlan) return
-    const id = activePlan.id
-    setActivePlan(null)
+  const deleteHabitHandler = async (habitId: string) => {
+    if (await showConfirm({ title: 'Delete Habit?', message: 'This will also delete its full completion history. This cannot be undone.', confirmLabel: 'Delete', danger: true })) {
+      setHabits(prev => prev.filter(h => h.id !== habitId))
+      setHabitCompletions(prev => prev.filter(c => c.habitId !== habitId))
+      if (syncService) {
+        try { await syncService.deleteHabit(habitId) }
+        catch (error) { console.error('Failed to delete habit:', error) }
+      }
+    }
+  }
+
+  const reorderHabitsHandler = async (reordered: Habit[]) => {
+    setHabits(reordered)
     if (syncService) {
-      try { await syncService.deletePlan(id) }
-      catch (error) { console.error('Failed to delete plan:', error) }
+      try { await syncService.reorderHabits(reordered) }
+      catch (error) { console.error('Failed to reorder habits:', error) }
     }
   }
 
-  const checkInPlanDay = async (completed: boolean) => {
-    if (!activePlan) return
-    const todayStr = new Date().toISOString().split('T')[0]
-    if (activePlan.checkIns.some(ci => ci.date === todayStr)) return
-    const cycleIndex = activePlan.currentCycleIndex % activePlan.days.length
-    const checkIn = { id: crypto.randomUUID(), date: todayStr, cycleIndex, completed }
-    const updatedPlan: TrainingPlan = {
-      ...activePlan,
-      checkIns: [...activePlan.checkIns, checkIn],
-      currentCycleIndex: completed ? activePlan.currentCycleIndex + 1 : activePlan.currentCycleIndex,
+  const setHabitStatus = async (habitId: string, date: string, status: HabitCompletionStatus | 'pending') => {
+    setHabitCompletions(prev => {
+      const withoutExisting = prev.filter(c => !(c.habitId === habitId && c.date === date))
+      if (status === 'pending') return withoutExisting
+      return [...withoutExisting, { id: crypto.randomUUID(), habitId, date, status }]
+    })
+    if (syncService) {
+      setIsSyncing(true)
+      try { await syncService.setHabitCompletion(habitId, date, status); setLastSyncTime(new Date()) }
+      catch (error) { console.error('Failed to sync habit completion:', error) }
+      finally { setIsSyncing(false) }
     }
-    await savePlan(updatedPlan)
   }
 
-  const completePlanDay = () => checkInPlanDay(true)
-  const skipPlanDay = () => checkInPlanDay(false)
+  const cycleHabitStatus = (habitId: string, date: string = todayISO()) => {
+    const current = getHabitStatus(habitCompletions, habitId, date)
+    setHabitStatus(habitId, date, nextHabitStatus(current))
+  }
 
   // ============================================
   // RENDER
@@ -722,7 +747,7 @@ function App() {
         <AuthView onAuthSuccess={() => { }} />
       ) : (
         <>
-          {!activeWorkout && !selectedWorkout && !isCreating && (
+          {!activeWorkout && !selectedWorkout && !isCreating && !isManagingHabits && (
             <SidebarNav currentView={currentView} onNavigate={setCurrentView} userName={userProfile.name} userProfile={userProfile} />
           )}
 
@@ -773,12 +798,13 @@ function App() {
                         duration={Math.floor((Date.now() - activeWorkout.startTime) / 1000)}
                         workoutLogs={workoutLogs}
                         exerciseDatabase={exerciseDatabase}
-                        activePlan={activePlan}
+                        habits={habits}
+                        habitCompletions={habitCompletions}
                         onUpdateTemplate={handleUpdateTemplate}
                         onSaveAsNewTemplate={handleSaveAsNewTemplate}
                         onJustFinish={handleJustFinish}
                         onCancel={() => setShowFinishModal(false)}
-                        onCompleteDay={completePlanDay}
+                        onCompleteLinkedHabit={(habitId) => setHabitStatus(habitId, todayISO(), 'done')}
                       />
                     )
                   })()}
@@ -790,14 +816,15 @@ function App() {
                   onDelete={deleteWorkout}
                   onUpdateDuration={updateWorkoutDuration}
                 />
-              ) : !isCreating ? (
+              ) : !isCreating && !isManagingHabits ? (
                 <>
                   {currentView === 'dashboard' && (
                     <DashboardView
                       templates={templates}
                       workoutLogs={workoutLogs}
                       runLogs={runLogs}
-                      activePlan={activePlan}
+                      habits={habits}
+                      habitCompletions={habitCompletions}
                       userProfile={userProfile}
                       exerciseDatabase={exerciseDatabase}
                       onStartWorkout={startWorkout}
@@ -805,8 +832,8 @@ function App() {
                       onAddRun={addRunLog}
                       onViewAllTemplates={() => setCurrentView('start')}
                       onViewHistory={() => setCurrentView('history')}
-                      onCompleteDay={completePlanDay}
-                      onSkipDay={skipPlanDay}
+                      onCycleHabitStatus={(habitId) => cycleHabitStatus(habitId)}
+                      onManageHabits={() => setIsManagingHabits(true)}
                     />
                   )}
 
@@ -837,15 +864,10 @@ function App() {
                     <TemplatesView
                       templates={templates}
                       workoutLogs={workoutLogs}
-                      activePlan={activePlan}
                       onCreateTemplate={() => { setSelectedTemplate(null); setIsCreating(true) }}
                       onEditTemplate={editTemplate}
                       onDeleteTemplate={deleteTemplate}
                       onStartWorkout={startWorkout}
-                      onSavePlan={savePlan}
-                      onDeletePlan={deletePlan}
-                      onCompleteDay={completePlanDay}
-                      onSkipDay={skipPlanDay}
                     />
                   )}
 
@@ -854,7 +876,10 @@ function App() {
                       userProfile={userProfile}
                       workoutLogs={workoutLogs}
                       weightEntries={weightEntries}
-                      activePlan={activePlan}
+                      habits={habits}
+                      habitCompletions={habitCompletions}
+                      onSetHabitStatus={setHabitStatus}
+                      onManageHabits={() => setIsManagingHabits(true)}
                       onUpdateProfile={handleUpdateProfile}
                       onSignOut={handleSignOut}
                     />
@@ -862,13 +887,22 @@ function App() {
 
                   <BottomNav currentView={currentView} onNavigate={setCurrentView} />
                 </>
-              ) : (
+              ) : isCreating ? (
                 <CreateTemplateView
                   exerciseDatabase={exerciseDatabase}
                   templateToEdit={selectedTemplate}
                   onSave={saveTemplate}
                   onCancel={() => { setIsCreating(false); setSelectedTemplate(null) }}
                   onAddToDatabase={addExerciseToDatabase}
+                />
+              ) : (
+                <HabitManagementView
+                  habits={habits}
+                  templates={templates}
+                  onSaveHabit={saveHabit}
+                  onDeleteHabit={deleteHabitHandler}
+                  onReorderHabits={reorderHabitsHandler}
+                  onBack={() => setIsManagingHabits(false)}
                 />
               )}
             </div>
