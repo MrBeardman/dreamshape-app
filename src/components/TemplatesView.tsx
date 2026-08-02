@@ -1,32 +1,21 @@
-import type { WorkoutTemplate, WorkoutLog, TrainingPlan } from '../types'
-import PlanSection from './PlanSection'
+import type { WorkoutTemplate, WorkoutLog } from '../types'
 
 interface TemplatesViewProps {
   templates: WorkoutTemplate[]
   workoutLogs: WorkoutLog[]
-  activePlan: TrainingPlan | null
   onCreateTemplate: () => void
   onEditTemplate: (template: WorkoutTemplate) => void
   onDeleteTemplate: (id: string) => void
   onStartWorkout: (template: WorkoutTemplate) => void
-  onSavePlan: (plan: TrainingPlan) => void
-  onDeletePlan: () => void
-  onCompleteDay: () => void
-  onSkipDay: () => void
 }
 
 export default function TemplatesView({
   templates,
   workoutLogs,
-  activePlan,
   onCreateTemplate,
   onEditTemplate,
   onDeleteTemplate,
   onStartWorkout,
-  onSavePlan,
-  onDeletePlan,
-  onCompleteDay,
-  onSkipDay,
 }: TemplatesViewProps) {
   const getAvgDuration = (templateName: string): number | null => {
     const logs = workoutLogs.filter(w => w.templateName === templateName && w.duration > 60)
@@ -36,18 +25,6 @@ export default function TemplatesView({
 
   return (
     <div className="main-view">
-      {/* Training Plan section */}
-      <div className="templates-plan-section">
-        <PlanSection
-          activePlan={activePlan}
-          templates={templates}
-          onSavePlan={onSavePlan}
-          onDeletePlan={onDeletePlan}
-          onCompleteDay={onCompleteDay}
-          onSkipDay={onSkipDay}
-        />
-      </div>
-
       <div className="quick-start">
         <h2>My Templates ({templates.length})</h2>
         <button className="btn-primary" onClick={onCreateTemplate}>

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog, TrainingPlan } from '../types'
-import { getTodayPlanDay, getPlanStreak } from './PlanSection'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog, Habit, HabitCompletion } from '../types'
+import { getHabitsDueOn, getHabitStatus, getHabitStreak, todayISO } from '../lib/habits'
 import LogRunModal from './LogRunModal'
 
 interface ExerciseDbEntry {
@@ -14,7 +14,8 @@ interface DashboardViewProps {
   templates: WorkoutTemplate[]
   workoutLogs: WorkoutLog[]
   runLogs: RunLog[]
-  activePlan: TrainingPlan | null
+  habits: Habit[]
+  habitCompletions: HabitCompletion[]
   userProfile: UserProfile
   exerciseDatabase: ExerciseDbEntry[]
   onStartWorkout: (template: WorkoutTemplate) => void
@@ -22,8 +23,8 @@ interface DashboardViewProps {
   onAddRun: (run: RunLog) => void
   onViewAllTemplates: () => void
   onViewHistory: () => void
-  onCompleteDay: () => void
-  onSkipDay: () => void
+  onCycleHabitStatus: (habitId: string) => void
+  onManageHabits: () => void
 }
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core'] as const
@@ -34,13 +35,12 @@ function formatPace(secondsPerKm: number): string {
   return `${mins}:${String(secs).padStart(2, '0')} /km`
 }
 
-const DAY_TYPE_ICONS: Record<string, string> = { workout: '🏋️', run: '🏃', rest: '😴' }
-
 export default function DashboardView({
   templates,
   workoutLogs,
   runLogs,
-  activePlan,
+  habits,
+  habitCompletions,
   userProfile,
   exerciseDatabase,
   onStartWorkout,
@@ -48,10 +48,23 @@ export default function DashboardView({
   onAddRun,
   onViewAllTemplates,
   onViewHistory,
-  onCompleteDay,
-  onSkipDay,
+  onCycleHabitStatus,
+  onManageHabits,
 }: DashboardViewProps) {
   const [showLogRun, setShowLogRun] = useState(false)
+
+  const todayStr = todayISO()
+
+  const dueToday = useMemo(() => getHabitsDueOn(habits, todayStr), [habits, todayStr])
+  const timedHabits = useMemo(
+    () => dueToday.filter(h => h.timeOfDay).sort((a, b) => (a.timeOfDay || '').localeCompare(b.timeOfDay || '')),
+    [dueToday]
+  )
+  const anytimeHabits = useMemo(
+    () => dueToday.filter(h => !h.timeOfDay).sort((a, b) => a.sortOrder - b.sortOrder),
+    [dueToday]
+  )
+  const habitStreak = useMemo(() => getHabitStreak(habits, habitCompletions, todayStr), [habits, habitCompletions, todayStr])
 
   const muscleGroupCoverage = useMemo(() => {
     const exToGroup: Record<string, string> = {}
@@ -114,47 +127,42 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* Today's plan / training step */}
-      {activePlan && (() => {
-        const { day, cycleIndex } = getTodayPlanDay(activePlan)
-        const template = day.type === 'workout' ? templates.find(t => t.id === day.templateId) : null
-        const label = day.type === 'workout' ? (template?.name ?? 'Workout') : day.type === 'run' ? 'Run' : 'Rest'
-        const streak = getPlanStreak(activePlan.checkIns)
-        const todayStr = new Date().toISOString().split('T')[0]
-        const todayCheckIn = activePlan.checkIns.find(ci => ci.date === todayStr)
-        return (
-          <div className={`today-plan-card today-plan-${day.type}`}>
-            <div className="today-plan-meta">
-              <span className="today-plan-label">Training Plan · Step {cycleIndex + 1}/{activePlan.days.length}</span>
-              {streak > 0 && <span className="today-plan-streak">🔥 {streak} streak</span>}
-            </div>
-            <div className="today-plan-main">
-              <span className="today-plan-icon">{DAY_TYPE_ICONS[day.type]}</span>
-              <span className="today-plan-session">{label}</span>
-            </div>
-            {!todayCheckIn ? (
-              <div className="today-plan-actions">
-                {day.type === 'workout' && template && (
-                  <button className="today-plan-start-btn" onClick={() => onStartWorkout(template)}>
-                    Start workout →
-                  </button>
-                )}
-                {day.type === 'run' && (
-                  <button className="today-plan-start-btn" onClick={() => setShowLogRun(true)}>
-                    Log run →
-                  </button>
-                )}
-                <button className="today-plan-done-btn" onClick={onCompleteDay}>✓ Done</button>
-                <button className="today-plan-skip-btn" onClick={onSkipDay}>Skip</button>
-              </div>
-            ) : (
-              <div className="today-plan-checked">
-                {todayCheckIn.completed ? '✓ Completed today' : '✗ Skipped — same step tomorrow'}
-              </div>
+      {/* Today's habits */}
+      <div className="habits-today-card">
+        <div className="habits-today-header">
+          <span className="habits-today-title">Today's Habits</span>
+          <div className="habits-today-header-actions">
+            {habitStreak > 0 && <span className="habits-today-streak">🔥 {habitStreak}</span>}
+            <button className="habits-manage-link" onClick={onManageHabits} aria-label="Manage habits">⚙️</button>
+          </div>
+        </div>
+
+        {habits.length === 0 ? (
+          <div className="habits-empty-card" onClick={onManageHabits}>
+            <span>Set up your first habit →</span>
+          </div>
+        ) : dueToday.length === 0 ? (
+          <p className="habits-empty-text">No habits due today.</p>
+        ) : (
+          <div className="habits-today-list">
+            {timedHabits.length > 0 && (
+              <>
+                {timedHabits.map(habit => (
+                  <HabitRow key={habit.id} habit={habit} status={getHabitStatus(habitCompletions, habit.id, todayStr)} onToggle={() => onCycleHabitStatus(habit.id)} />
+                ))}
+              </>
+            )}
+            {anytimeHabits.length > 0 && (
+              <>
+                {timedHabits.length > 0 && <span className="habits-section-label">Anytime</span>}
+                {anytimeHabits.map(habit => (
+                  <HabitRow key={habit.id} habit={habit} status={getHabitStatus(habitCompletions, habit.id, todayStr)} onToggle={() => onCycleHabitStatus(habit.id)} />
+                ))}
+              </>
             )}
           </div>
-        )
-      })()}
+        )}
+      </div>
 
       {/* Start actions */}
       <div className="start-action-row">
@@ -265,6 +273,26 @@ export default function DashboardView({
         <span className="home-history-link-text">Full History</span>
         <span className="home-history-link-arrow">→</span>
       </button>
+    </div>
+  )
+}
+
+function formatTimeOfDay(time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const hour12 = h % 12 === 0 ? 12 : h % 12
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`
+}
+
+function HabitRow({ habit, status, onToggle }: { habit: Habit; status: 'done' | 'failed' | 'pending'; onToggle: () => void }) {
+  return (
+    <div className="habit-row">
+      <button className={`habit-row-status habit-row-status--${status}`} onClick={onToggle} aria-label={`Mark ${habit.name} as ${status === 'pending' ? 'done' : status === 'done' ? 'failed' : 'pending'}`}>
+        {status === 'done' ? '✓' : status === 'failed' ? '✗' : ''}
+      </button>
+      <span className="habit-row-icon">{habit.icon || '•'}</span>
+      <span className="habit-row-name">{habit.name}</span>
+      {habit.timeOfDay && <span className="habit-row-time">{formatTimeOfDay(habit.timeOfDay)}</span>}
     </div>
   )
 }

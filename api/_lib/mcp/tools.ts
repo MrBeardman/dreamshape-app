@@ -45,17 +45,11 @@ const exerciseLogSchema = z.object({
   notes: z.string().optional(),
 });
 
-const planDaySchema = z.object({
-  type: z.enum(["workout", "run", "rest"]),
-  templateId: z.string().optional(),
-  label: z.string().optional(),
-});
-
-const planCheckInSchema = z.object({
-  id: z.string().optional(),
-  date: z.string(),
-  cycleIndex: z.number().int(),
-  completed: z.boolean(),
+const habitRecurrenceSchema = z.object({
+  type: z.enum(["daily", "weekdays", "interval"]),
+  weekdays: z.array(z.number().int().min(0).max(6)).optional().describe("0=Sun..6=Sat"),
+  intervalDays: z.number().int().min(1).optional(),
+  anchorDate: z.string().optional().describe("YYYY-MM-DD"),
 });
 
 function withIds<T extends { id?: string }>(items: T[]): (Omit<T, "id"> & { id: string })[] {
@@ -401,53 +395,55 @@ export function registerMcpTools(server: McpServer) {
       })
   );
 
-  // ─── Training plan ────────────────────────────────────────────────────────
+  // ─── Habits ───────────────────────────────────────────────────────────────
   server.registerTool(
-    "get_active_training_plan",
-    { title: "Get active training plan", description: "Get the currently active training plan (cycle of workout/run/rest days), if any.", inputSchema: {} },
-    async () =>
+    "list_habits",
+    {
+      title: "List habits",
+      description: "List the user's habits, ordered by sort order. Archived habits are excluded unless includeArchived is set.",
+      inputSchema: { includeArchived: z.boolean().optional() },
+    },
+    async ({ includeArchived }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { data, error } = await supabase.from("training_plans").select("*").eq("user_id", userId).eq("is_active", true).maybeSingle();
+        let query = supabase.from("habits").select("*").eq("user_id", userId).order("sort_order", { ascending: true });
+        if (!includeArchived) query = query.eq("is_active", true);
+        const { data, error } = await query;
         if (error) return fail(error.message);
         return ok(data);
       })
   );
 
   server.registerTool(
-    "upsert_training_plan",
+    "create_habit",
     {
-      title: "Create or update the training plan",
-      description: "Create a new training plan or update an existing one by id. Only one plan is active at a time — creating/updating deactivates any other plan.",
+      title: "Create habit",
+      description: "Create a new recurring habit (e.g. morning stretch, no phone till 8am, daily gym/run).",
       inputSchema: {
-        planId: z.string().optional(),
         name: z.string(),
-        days: z.array(planDaySchema),
-        startDate: z.string().optional(),
-        currentCycleIndex: z.number().int().optional(),
-        checkIns: z.array(planCheckInSchema).optional(),
+        icon: z.string().optional(),
+        recurrence: habitRecurrenceSchema,
+        timeOfDay: z.string().optional().describe("HH:MM 24h, display/sort only"),
+        linkedTemplateId: z.string().optional().describe("Optional workout template id this habit is tied to"),
+        sortOrder: z.number().int().optional(),
       },
     },
     async (input) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const planId = input.planId ?? randomUUID();
-        await supabase.from("training_plans").update({ is_active: false }).eq("user_id", userId);
         const { data, error } = await supabase
-          .from("training_plans")
-          .upsert(
-            {
-              id: planId,
-              user_id: userId,
-              name: input.name,
-              days: input.days,
-              start_date: input.startDate ?? new Date().toISOString().slice(0, 10),
-              is_active: true,
-              current_cycle_index: input.currentCycleIndex ?? 0,
-              check_ins: withIds(input.checkIns ?? []),
-            },
-            { onConflict: "id" }
-          )
+          .from("habits")
+          .insert({
+            id: randomUUID(),
+            user_id: userId,
+            name: input.name,
+            icon: input.icon ?? null,
+            recurrence: input.recurrence,
+            time_of_day: input.timeOfDay ?? null,
+            linked_template_id: input.linkedTemplateId ?? null,
+            is_active: true,
+            sort_order: input.sortOrder ?? 0,
+          })
           .select()
           .single();
         if (error) return fail(error.message);
@@ -456,48 +452,92 @@ export function registerMcpTools(server: McpServer) {
   );
 
   server.registerTool(
-    "delete_training_plan",
-    { title: "Delete training plan", description: "Delete a training plan.", inputSchema: { planId: z.string() } },
-    async ({ planId }) =>
+    "update_habit",
+    {
+      title: "Update habit",
+      description: "Update a habit's name, icon, recurrence, time of day, linked template, active state, or sort order. Only provided fields are changed.",
+      inputSchema: {
+        habitId: z.string(),
+        name: z.string().optional(),
+        icon: z.string().nullable().optional(),
+        recurrence: habitRecurrenceSchema.optional(),
+        timeOfDay: z.string().nullable().optional(),
+        linkedTemplateId: z.string().nullable().optional(),
+        isActive: z.boolean().optional(),
+        sortOrder: z.number().int().optional(),
+      },
+    },
+    async ({ habitId, timeOfDay, linkedTemplateId, isActive, sortOrder, ...rest }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { error } = await supabase.from("training_plans").delete().eq("id", planId).eq("user_id", userId);
+        const updates: Record<string, unknown> = { ...rest };
+        if (timeOfDay !== undefined) updates.time_of_day = timeOfDay;
+        if (linkedTemplateId !== undefined) updates.linked_template_id = linkedTemplateId;
+        if (isActive !== undefined) updates.is_active = isActive;
+        if (sortOrder !== undefined) updates.sort_order = sortOrder;
+        const { data, error } = await supabase.from("habits").update(updates).eq("id", habitId).eq("user_id", userId).select().single();
+        if (error) return fail(error.message);
+        return ok(data);
+      })
+  );
+
+  server.registerTool(
+    "delete_habit",
+    {
+      title: "Delete habit",
+      description: "Permanently delete a habit and its completion history. To keep history but stop tracking it, use update_habit with isActive: false instead.",
+      inputSchema: { habitId: z.string() },
+    },
+    async ({ habitId }) =>
+      safe(async () => {
+        const userId = await getUserId(supabase);
+        const { error } = await supabase.from("habits").delete().eq("id", habitId).eq("user_id", userId);
         if (error) return fail(error.message);
         return ok({ ok: true });
       })
   );
 
   server.registerTool(
-    "check_in_plan_day",
+    "set_habit_completion",
     {
-      title: "Check in today's plan day",
-      description: "Mark today's step in the active training plan as completed or skipped (once per day). Advances the cycle only when completed.",
-      inputSchema: { completed: z.boolean() },
+      title: "Set habit completion status for a date",
+      description: "Set a habit's status for a specific date (YYYY-MM-DD) to done, failed, or pending (pending clears any existing record for that day).",
+      inputSchema: { habitId: z.string(), date: z.string(), status: z.enum(["done", "failed", "pending"]) },
     },
-    async ({ completed }) =>
+    async ({ habitId, date, status }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { data: plan, error: fetchError } = await supabase.from("training_plans").select("*").eq("user_id", userId).eq("is_active", true).maybeSingle();
-        if (fetchError) return fail(fetchError.message);
-        if (!plan) return fail("No active training plan");
-
-        const todayStr = new Date().toISOString().slice(0, 10);
-        const checkIns = (plan.check_ins ?? []) as { date: string }[];
-        if (checkIns.some((ci) => ci.date === todayStr)) return fail("Already checked in today");
-
-        const days = plan.days as unknown[];
-        const cycleIndex = (plan.current_cycle_index as number) % days.length;
-        const newCheckIn = { id: randomUUID(), date: todayStr, cycleIndex, completed };
-        const updatedCheckIns = [...checkIns, newCheckIn];
-        const updatedIndex = completed ? (plan.current_cycle_index as number) + 1 : (plan.current_cycle_index as number);
-
+        if (status === "pending") {
+          const { error } = await supabase.from("habit_completions").delete().eq("habit_id", habitId).eq("date", date).eq("user_id", userId);
+          if (error) return fail(error.message);
+          return ok({ habitId, date, status: "pending" });
+        }
+        const { data: existing } = await supabase.from("habit_completions").select("id").eq("habit_id", habitId).eq("date", date).eq("user_id", userId).maybeSingle();
         const { data, error } = await supabase
-          .from("training_plans")
-          .update({ check_ins: updatedCheckIns, current_cycle_index: updatedIndex })
-          .eq("id", plan.id)
-          .eq("user_id", userId)
+          .from("habit_completions")
+          .upsert({ id: existing?.id ?? randomUUID(), user_id: userId, habit_id: habitId, date, status }, { onConflict: "id" })
           .select()
           .single();
+        if (error) return fail(error.message);
+        return ok(data);
+      })
+  );
+
+  server.registerTool(
+    "list_habit_completions",
+    {
+      title: "List habit completions",
+      description: "List habit completion records, optionally filtered by habit and/or date range.",
+      inputSchema: { habitId: z.string().optional(), from: z.string().optional(), to: z.string().optional() },
+    },
+    async ({ habitId, from, to }) =>
+      safe(async () => {
+        const userId = await getUserId(supabase);
+        let query = supabase.from("habit_completions").select("*").eq("user_id", userId).order("date", { ascending: true });
+        if (habitId) query = query.eq("habit_id", habitId);
+        if (from) query = query.gte("date", from);
+        if (to) query = query.lte("date", to);
+        const { data, error } = await query;
         if (error) return fail(error.message);
         return ok(data);
       })

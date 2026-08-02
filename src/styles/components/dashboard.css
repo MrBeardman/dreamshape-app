@@ -373,19 +373,12 @@
   transition: opacity 0.1s;
 }
 
-.heatmap-day.active { background: var(--primary); cursor: pointer; }
-.heatmap-day.active:hover { opacity: 0.85; }
-
-/* Today marker — white ring regardless of workout state */
+/* Today marker — white ring regardless of habit completion state */
 .heatmap-day.today {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7);
 }
-.heatmap-day.today.active {
-  box-shadow: 0 0 0 2px #ffffff;
-}
 
-.heatmap-day.active.selected {
-  background: var(--primary);
+.heatmap-day.selected {
   outline: 2px solid #ffffff;
   outline-offset: 1px;
 }
@@ -493,11 +486,6 @@
   background: var(--bg-hover);
 }
 
-.week-cal-cell.active {
-  background: rgba(245, 197, 24, 0.1);
-  cursor: pointer;
-}
-
 .week-cal-cell.today {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7);
 }
@@ -521,8 +509,6 @@
   color: var(--text-secondary);
   line-height: 1;
 }
-
-.week-cal-cell.active .week-cal-num { color: var(--primary); }
 
 .week-cal-dot {
   width: 4px;
@@ -569,15 +555,7 @@
 
 .month-cal-cell.empty { background: transparent; }
 
-.month-cal-cell.active {
-  background: rgba(245, 197, 24, 0.12);
-  color: var(--primary);
-  font-weight: var(--font-bold);
-  cursor: pointer;
-}
-
 .month-cal-cell.today { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
-.month-cal-cell.today.active { box-shadow: 0 0 0 2px #ffffff; }
 
 .month-cal-cell.selected {
   background: rgba(245, 197, 24, 0.2);

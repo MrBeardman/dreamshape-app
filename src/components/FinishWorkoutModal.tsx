@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import type { Exercise, ExerciseLog, WorkoutLog, TrainingPlan } from '../types'
-import { getTodayPlanDay } from './PlanSection'
+import type { Exercise, ExerciseLog, WorkoutLog, Habit, HabitCompletion } from '../types'
+import { getHabitStatus, isHabitDueOnDate, todayISO } from '../lib/habits'
 
 interface FinishWorkoutModalProps {
   originalTemplateName: string | null
@@ -16,12 +16,13 @@ interface FinishWorkoutModalProps {
   duration: number // seconds
   workoutLogs: WorkoutLog[]
   exerciseDatabase?: Array<{ name: string; trackingMode?: 'weight-reps' | 'time' }>
-  activePlan: TrainingPlan | null
+  habits: Habit[]
+  habitCompletions: HabitCompletion[]
   onUpdateTemplate: () => void
   onSaveAsNewTemplate: (name: string, exercises: Exercise[]) => void
   onJustFinish: () => void
   onCancel: () => void
-  onCompleteDay?: () => void
+  onCompleteLinkedHabit?: (habitId: string) => void
 }
 
 function formatDuration(seconds: number): string {
@@ -43,24 +44,26 @@ export default function FinishWorkoutModal({
   duration,
   workoutLogs,
   exerciseDatabase,
-  activePlan,
+  habits,
+  habitCompletions,
   onUpdateTemplate,
   onSaveAsNewTemplate,
   onJustFinish,
   onCancel,
-  onCompleteDay,
+  onCompleteLinkedHabit,
 }: FinishWorkoutModalProps) {
-  // Detect if this workout matches today's plan day
-  const planMatchesWorkout = useMemo(() => {
-    if (!activePlan || !originalTemplateId) return false
-    const { day } = getTodayPlanDay(activePlan)
-    if (day.type !== 'workout') return false
-    const todayStr = new Date().toISOString().split('T')[0]
-    const alreadyCheckedIn = activePlan.checkIns.some(ci => ci.date === todayStr)
-    return day.templateId === originalTemplateId && !alreadyCheckedIn
-  }, [activePlan, originalTemplateId])
+  // Detect if a habit is linked to this workout's template and still pending today
+  const linkedHabit = useMemo(() => {
+    if (!originalTemplateId) return null
+    const todayStr = todayISO()
+    return habits.find(h =>
+      h.linkedTemplateId === originalTemplateId &&
+      isHabitDueOnDate(h, todayStr) &&
+      getHabitStatus(habitCompletions, h.id, todayStr) === 'pending'
+    ) ?? null
+  }, [habits, habitCompletions, originalTemplateId])
 
-  const [logToPlan, setLogToPlan] = useState(planMatchesWorkout)
+  const [logToHabit, setLogToHabit] = useState(!!linkedHabit)
 
   const isFromTemplate = !!originalTemplateId
   const isUnchanged = isFromTemplate && !hasChanges
@@ -180,7 +183,7 @@ export default function FinishWorkoutModal({
       } else {
         await onJustFinish()
       }
-      if (logToPlan && onCompleteDay) onCompleteDay()
+      if (logToHabit && linkedHabit && onCompleteLinkedHabit) onCompleteLinkedHabit(linkedHabit.id)
     } catch (err) {
       console.error('Error finishing workout:', err)
       setError('Failed to save workout. Please try again.')
@@ -289,15 +292,15 @@ export default function FinishWorkoutModal({
           </div>
         )}
 
-        {/* Plan check-in */}
-        {planMatchesWorkout && (
-          <label className="plan-log-checkbox">
+        {/* Linked habit check-in */}
+        {linkedHabit && (
+          <label className="habit-log-checkbox">
             <input
               type="checkbox"
-              checked={logToPlan}
-              onChange={e => setLogToPlan(e.target.checked)}
+              checked={logToHabit}
+              onChange={e => setLogToHabit(e.target.checked)}
             />
-            <span>Mark training plan step as complete</span>
+            <span>Mark '{linkedHabit.name}' as done</span>
           </label>
         )}
 

@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { WorkoutTemplate, WorkoutLog, UserProfile, WeightEntry, RunLog, TrainingPlan } from '../types'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
 
 export class SyncService {
   private userId: string
@@ -36,8 +36,6 @@ export class SyncService {
       for (const exercise of localExercises) await this.createCustomExercise(exercise)
       for (const entry of localWeightEntries) await this.upsertWeightEntry(entry)
       for (const run of localRunLogs) await this.createRunLog(run)
-      const localPlan = this.getLocalPlan()
-      if (localPlan) await this.upsertPlan(localPlan)
 
       localStorage.setItem(migrationKey, 'true')
     } catch (error) {
@@ -58,10 +56,11 @@ export class SyncService {
     exercises: Array<{ name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }>
     weightEntries: WeightEntry[]
     runLogs: RunLog[]
-    activePlan: TrainingPlan | null
+    habits: Habit[]
+    habitCompletions: HabitCompletion[]
   }> {
     try {
-      const [profileRes, templatesRes, workoutsRes, exercisesRes, weightRes, runsRes, plansRes] =
+      const [profileRes, templatesRes, workoutsRes, exercisesRes, weightRes, runsRes, habitsRes, habitCompletionsRes] =
         await Promise.all([
           supabase.from('profiles').select('*').eq('id', this.userId).single(),
           supabase.from('templates').select('*').eq('user_id', this.userId).order('created_at', { ascending: false }),
@@ -69,7 +68,8 @@ export class SyncService {
           supabase.from('custom_exercises').select('*').eq('user_id', this.userId).order('name'),
           supabase.from('weight_entries').select('*').eq('user_id', this.userId).order('date', { ascending: true }),
           supabase.from('run_logs').select('*').eq('user_id', this.userId).order('date', { ascending: false }),
-          supabase.from('training_plans').select('*').eq('user_id', this.userId).eq('is_active', true).maybeSingle(),
+          supabase.from('habits').select('*').eq('user_id', this.userId).order('sort_order', { ascending: true }),
+          supabase.from('habit_completions').select('*').eq('user_id', this.userId),
         ])
 
       const profile: UserProfile | null = profileRes.data
@@ -121,19 +121,26 @@ export class SyncService {
         notes: r.notes ?? undefined,
       }))
 
-      const activePlan: TrainingPlan | null = plansRes.data
-        ? {
-            id: plansRes.data.id,
-            name: plansRes.data.name,
-            days: plansRes.data.days,
-            currentCycleIndex: plansRes.data.current_cycle_index ?? 0,
-            checkIns: plansRes.data.check_ins ?? [],
-            startDate: plansRes.data.start_date ?? undefined,
-            isActive: true,
-          }
-        : null
+      const habits: Habit[] = (habitsRes.data || []).map(h => ({
+        id: h.id,
+        name: h.name,
+        icon: h.icon ?? undefined,
+        recurrence: h.recurrence,
+        timeOfDay: h.time_of_day ?? undefined,
+        linkedTemplateId: h.linked_template_id ?? undefined,
+        isActive: h.is_active,
+        sortOrder: h.sort_order ?? 0,
+        createdAt: h.created_at,
+      }))
 
-      return { profile, templates, workouts, exercises, weightEntries, runLogs, activePlan }
+      const habitCompletions: HabitCompletion[] = (habitCompletionsRes.data || []).map(c => ({
+        id: c.id,
+        habitId: c.habit_id,
+        date: c.date,
+        status: c.status,
+      }))
+
+      return { profile, templates, workouts, exercises, weightEntries, runLogs, habits, habitCompletions }
     } catch (error) {
       console.error('Failed to load data:', error)
       return {
@@ -143,7 +150,8 @@ export class SyncService {
         exercises: this.getLocalExercises(),
         weightEntries: this.getLocalWeightEntries(),
         runLogs: this.getLocalRunLogs(),
-        activePlan: this.getLocalPlan(),
+        habits: this.getLocalHabits(),
+        habitCompletions: this.getLocalHabitCompletions(),
       }
     }
   }
@@ -332,29 +340,79 @@ export class SyncService {
     try { return JSON.parse(localStorage.getItem('dreamshape_runs') || '[]') } catch { return [] }
   }
 
-  private getLocalPlan(): TrainingPlan | null {
-    try { return JSON.parse(localStorage.getItem('dreamshape_plan') || 'null') } catch { return null }
+  private getLocalHabits(): Habit[] {
+    try { return JSON.parse(localStorage.getItem('dreamshape_habits') || '[]') } catch { return [] }
+  }
+
+  private getLocalHabitCompletions(): HabitCompletion[] {
+    try { return JSON.parse(localStorage.getItem('dreamshape_habit_completions') || '[]') } catch { return [] }
   }
 
   // ============================================
-  // TRAINING PLANS
+  // HABITS
   // ============================================
-  async upsertPlan(plan: TrainingPlan): Promise<void> {
-    await supabase.from('training_plans').update({ is_active: false }).eq('user_id', this.userId)
-    const { error } = await supabase.from('training_plans').upsert({
-      id: plan.id,
+  async createHabit(habit: Habit): Promise<void> {
+    const { error } = await supabase.from('habits').insert({
+      id: habit.id,
       user_id: this.userId,
-      name: plan.name,
-      days: plan.days,
-      start_date: plan.startDate ?? null,
-      is_active: plan.isActive,
-      current_cycle_index: plan.currentCycleIndex,
-      check_ins: plan.checkIns,
-    }, { onConflict: 'id' })
+      name: habit.name,
+      icon: habit.icon ?? null,
+      recurrence: habit.recurrence,
+      time_of_day: habit.timeOfDay ?? null,
+      linked_template_id: habit.linkedTemplateId ?? null,
+      is_active: habit.isActive,
+      sort_order: habit.sortOrder,
+      created_at: habit.createdAt,
+    })
     if (error) throw error
   }
 
-  async deletePlan(planId: string): Promise<void> {
-    await supabase.from('training_plans').delete().eq('id', planId).eq('user_id', this.userId)
+  async updateHabit(habit: Habit): Promise<void> {
+    const { error } = await supabase
+      .from('habits')
+      .update({
+        name: habit.name,
+        icon: habit.icon ?? null,
+        recurrence: habit.recurrence,
+        time_of_day: habit.timeOfDay ?? null,
+        linked_template_id: habit.linkedTemplateId ?? null,
+        is_active: habit.isActive,
+        sort_order: habit.sortOrder,
+      })
+      .eq('id', habit.id)
+      .eq('user_id', this.userId)
+    if (error) throw error
+  }
+
+  async deleteHabit(habitId: string): Promise<void> {
+    await supabase.from('habits').delete().eq('id', habitId).eq('user_id', this.userId)
+  }
+
+  async reorderHabits(habits: Habit[]): Promise<void> {
+    await Promise.all(
+      habits.map(h => supabase.from('habits').update({ sort_order: h.sortOrder }).eq('id', h.id).eq('user_id', this.userId))
+    )
+  }
+
+  async setHabitCompletion(habitId: string, date: string, status: HabitCompletionStatus | 'pending'): Promise<void> {
+    if (status === 'pending') {
+      await supabase.from('habit_completions').delete().eq('habit_id', habitId).eq('date', date).eq('user_id', this.userId)
+      return
+    }
+    const { data: existing } = await supabase
+      .from('habit_completions')
+      .select('id')
+      .eq('habit_id', habitId)
+      .eq('date', date)
+      .eq('user_id', this.userId)
+      .maybeSingle()
+    const { error } = await supabase.from('habit_completions').upsert({
+      id: existing?.id ?? crypto.randomUUID(),
+      user_id: this.userId,
+      habit_id: habitId,
+      date,
+      status,
+    }, { onConflict: 'id' })
+    if (error) throw error
   }
 }
