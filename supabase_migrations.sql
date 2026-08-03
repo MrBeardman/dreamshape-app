@@ -97,3 +97,10 @@ create table if not exists habit_completions (
 alter table habit_completions enable row level security;
 create policy "Users can manage their own habit completions"
   on habit_completions for all using (auth.uid() = user_id);
+
+-- Peak XP high-water mark for the RPG rank system. XP itself is always computed
+-- client-side from habits/habit_completions/workouts/run_logs, never stored — this
+-- single monotonic column just remembers the highest value ever computed, so a
+-- retroactive edit (e.g. un-checking a past habit day) can't cause displayed rank
+-- to regress. Only ever set to a value >= its current value.
+alter table profiles add column if not exists peak_xp numeric default 0;
