@@ -95,6 +95,11 @@
 }
 .habit-row:last-child { border-bottom: none; }
 
+.habit-row-status-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .habit-row-status {
   width: 26px;
   height: 26px;
@@ -124,17 +129,60 @@
   color: var(--error);
 }
 
+.habit-xp-pop {
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  color: var(--success);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: habitXpPop 900ms var(--ease-out) forwards;
+}
+
+@keyframes habitXpPop {
+  0%   { opacity: 0; transform: translate(-50%, 4px); }
+  15%  { opacity: 1; transform: translate(-50%, -2px); }
+  70%  { opacity: 1; transform: translate(-50%, -20px); }
+  100% { opacity: 0; transform: translate(-50%, -28px); }
+}
+
 .habit-row-icon { font-size: 1rem; flex-shrink: 0; }
 
-.habit-row-name {
+.habit-row-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.habit-row-name {
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.habit-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.habit-row-streak {
+  color: var(--primary);
+  font-weight: var(--font-medium);
+}
+
+.habit-row-xp {
+  color: var(--text-tertiary);
 }
 
 .habit-row-time {

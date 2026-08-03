@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import type { Habit, HabitRecurrence, HabitRecurrenceType, WorkoutTemplate } from '../types'
+import { useMemo, useState } from 'react'
+import type { Habit, HabitCompletion, HabitRecurrence, HabitRecurrenceType, WorkoutTemplate } from '../types'
 import { todayISO } from '../lib/habits'
+import { getHabitXpHistory } from '../lib/xp'
 
 interface HabitManagementViewProps {
   habits: Habit[]
+  habitCompletions: HabitCompletion[]
   templates: WorkoutTemplate[]
   onSaveHabit: (habit: Habit) => void
   onDeleteHabit: (habitId: string) => void
@@ -44,8 +46,10 @@ function formatTime(time: string): string {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }
 
-export default function HabitManagementView({ habits, templates, onSaveHabit, onDeleteHabit, onReorderHabits, onBack }: HabitManagementViewProps) {
+export default function HabitManagementView({ habits, habitCompletions, templates, onSaveHabit, onDeleteHabit, onReorderHabits, onBack }: HabitManagementViewProps) {
   const [editing, setEditing] = useState<Habit | 'new' | null>(null)
+
+  const habitXp = useMemo(() => getHabitXpHistory(habits, habitCompletions, todayISO()), [habits, habitCompletions])
 
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | undefined>(undefined)
@@ -271,6 +275,7 @@ export default function HabitManagementView({ habits, templates, onSaveHabit, on
                 <div className="habit-manage-sub">
                   {recurrenceSummary(habit.recurrence)}
                   {habit.timeOfDay && ` · ${formatTime(habit.timeOfDay)}`}
+                  {(habitXp.perHabit[habit.id]?.streak ?? 0) > 0 && ` · 🔥${habitXp.perHabit[habit.id].streak}`}
                 </div>
               </div>
             </div>

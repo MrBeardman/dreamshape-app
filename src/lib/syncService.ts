@@ -78,6 +78,7 @@ export class SyncService {
             memberSince: profileRes.data.member_since,
             role: profileRes.data.role ?? undefined,
             peakXp: profileRes.data.peak_xp ?? undefined,
+            xpStartDate: profileRes.data.xp_start_date ?? undefined,
           }
         : null
 
@@ -164,7 +165,7 @@ export class SyncService {
     try {
       await supabase
         .from('profiles')
-        .update({ name: profile.name, role: profile.role ?? null, peak_xp: profile.peakXp ?? 0 })
+        .update({ name: profile.name, role: profile.role ?? null, peak_xp: profile.peakXp ?? 0, xp_start_date: profile.xpStartDate ?? null })
         .eq('id', this.userId)
       localStorage.setItem('dreamshape_profile', JSON.stringify(profile))
     } catch (error) {

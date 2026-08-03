@@ -104,3 +104,9 @@ create policy "Users can manage their own habit completions"
 -- retroactive edit (e.g. un-checking a past habit day) can't cause displayed rank
 -- to regress. Only ever set to a value >= its current value.
 alter table profiles add column if not exists peak_xp numeric default 0;
+
+-- Optional XP "reset" point: when set, only habit/workout/run events on or after
+-- this date count toward XP (PR bonuses still compare against full history, so
+-- a reset can't be used to cheaply re-beat an old real PR). Null means "count
+-- everything," the original behavior.
+alter table profiles add column if not exists xp_start_date text;

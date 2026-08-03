@@ -100,6 +100,7 @@ export interface UserProfile {
   memberSince: string
   role?: 'creator' | 'tester' | 'member'
   peakXp?: number // monotonic high-water mark; never decreases, even if computed XP drops from a retroactive edit
+  xpStartDate?: string // YYYY-MM-DD; if set, only habit/workout/run events on or after this date count toward XP ("reset progress")
 }
 
 export interface WeightEntry {
