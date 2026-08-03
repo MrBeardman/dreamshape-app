@@ -4,7 +4,7 @@ import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
 import type { UserProfile, WorkoutLog, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
-import { getDayCompletionRatio, getHabitsDueOn, getHabitStatus, getHabitStreak, nextHabitStatus } from '../lib/habits'
+import { getDayCompletionRatio, getHabitsDueOn, getHabitStatus, getHabitStreak, nextHabitStatus, todayISO } from '../lib/habits'
 import { getTotalXp, getTopMultiplierHabit, getRankForXp } from '../lib/xp'
 
 interface ProfileViewProps {
@@ -272,8 +272,8 @@ export default function ProfileView({
   const habitStreak = useMemo(() => getHabitStreak(habits, habitCompletions), [habits, habitCompletions])
 
   const xp = useMemo(
-    () => getTotalXp(habits, habitCompletions, workoutLogs, runLogs),
-    [habits, habitCompletions, workoutLogs, runLogs]
+    () => getTotalXp(habits, habitCompletions, workoutLogs, runLogs, todayISO(), userProfile.xpStartDate),
+    [habits, habitCompletions, workoutLogs, runLogs, userProfile.xpStartDate]
   )
   const topMultiplierHabit = useMemo(() => getTopMultiplierHabit(habits, xp.habitXp), [habits, xp.habitXp])
 
@@ -721,6 +721,22 @@ export default function ProfileView({
             }}
           >
             <span>Export Data</span>
+            <span className="action-arrow">→</span>
+          </button>
+          <button
+            className="action-item"
+            onClick={async () => {
+              if (await showConfirm({
+                title: 'Reset XP Progress?',
+                message: 'Your rank and XP go back to Wooden and start accumulating from today. Your habit and workout history is not deleted or changed.',
+                confirmLabel: 'Reset',
+                danger: true,
+              })) {
+                onUpdateProfile({ ...userProfile, xpStartDate: todayISO(), peakXp: 0 })
+              }
+            }}
+          >
+            <span>Reset XP Progress</span>
             <span className="action-arrow">→</span>
           </button>
           <button className="action-item action-item-danger" onClick={onSignOut}>

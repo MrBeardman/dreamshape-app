@@ -66,7 +66,12 @@ export interface HabitXpResult {
   perHabit: Record<string, HabitXpState>
 }
 
-export function getHabitXpHistory(habits: Habit[], completions: HabitCompletion[], todayStr: string = todayISO()): HabitXpResult {
+export function getHabitXpHistory(
+  habits: Habit[],
+  completions: HabitCompletion[],
+  todayStr: string = todayISO(),
+  startDate?: string
+): HabitXpResult {
   if (habits.length === 0) return { totalXp: 0, perHabit: {} }
 
   // O(1) status lookups instead of habits.ts's getHabitStatus (a linear .find())
@@ -77,7 +82,10 @@ export function getHabitXpHistory(habits: Habit[], completions: HabitCompletion[
   const statusOf = (habitId: string, date: string): HabitCompletionStatus | 'pending' =>
     completionMap.get(`${habitId}|${date}`) ?? 'pending'
 
-  const earliest = habits.reduce((min, h) => (h.createdAt.slice(0, 10) < min ? h.createdAt.slice(0, 10) : min), todayStr)
+  const earliestHabit = habits.reduce((min, h) => (h.createdAt.slice(0, 10) < min ? h.createdAt.slice(0, 10) : min), todayStr)
+  // A reset ("start from scratch") clamps the walk forward — streaks and XP
+  // both begin counting fresh from startDate, same as a brand-new habit would.
+  const earliest = startDate && startDate > earliestHabit ? startDate : earliestHabit
 
   const streaks: Record<string, number> = {}
   const xpByHabit: Record<string, number> = {}
@@ -153,15 +161,20 @@ export interface WorkoutXpResult {
   prCount: number
 }
 
-export function getWorkoutXp(workoutLogs: WorkoutLog[]): WorkoutXpResult {
-  const finishXp = workoutLogs.length * WORKOUT_FINISH_XP
+export function getWorkoutXp(workoutLogs: WorkoutLog[], startDate?: string): WorkoutXpResult {
   const sorted = [...workoutLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
+  // PR baselines always use full history — a "PR" must mean a genuine lifetime
+  // best, otherwise a reset would let old numbers be re-beaten for free XP.
+  // Only whether an event *counts toward XP* is gated by startDate.
   const historicalMax: Record<string, number> = {}
+  let finishXp = 0
   let prXp = 0
   let prCount = 0
 
   for (const workout of sorted) {
+    const countsForXp = !startDate || workout.date.slice(0, 10) >= startDate
+    if (countsForXp) finishXp += WORKOUT_FINISH_XP
     for (const exercise of workout.exercises) {
       const weights = exercise.sets.filter(s => s.weight > 0).map(s => s.weight)
       if (weights.length === 0) continue
@@ -169,7 +182,7 @@ export function getWorkoutXp(workoutLogs: WorkoutLog[]): WorkoutXpResult {
       const priorMax = historicalMax[exercise.exerciseName]
       // A first-ever appearance sets the baseline but isn't itself a PR —
       // prevents farming bonus XP by trying lots of new exercises once.
-      if (priorMax !== undefined && maxThisWorkout > priorMax) {
+      if (countsForXp && priorMax !== undefined && maxThisWorkout > priorMax) {
         prCount++
         prXp += WORKOUT_PR_BONUS_XP
       }
@@ -191,18 +204,20 @@ export interface RunXpResult {
   prCount: number
 }
 
-export function getRunXp(runLogs: RunLog[]): RunXpResult {
-  const finishXp = runLogs.length * RUN_FINISH_XP
+export function getRunXp(runLogs: RunLog[], startDate?: string): RunXpResult {
   const sorted = [...runLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
   const bestPaceByBucket: Record<number, number> = {}
+  let finishXp = 0
   let prXp = 0
   let prCount = 0
 
   for (const run of sorted) {
+    const countsForXp = !startDate || run.date.slice(0, 10) >= startDate
+    if (countsForXp) finishXp += RUN_FINISH_XP
     const bucket = Math.floor(run.distance)
     const priorBest = bestPaceByBucket[bucket]
-    if (priorBest !== undefined && run.averagePace < priorBest) {
+    if (countsForXp && priorBest !== undefined && run.averagePace < priorBest) {
       prCount++
       prXp += RUN_PR_BONUS_XP
     }
@@ -257,11 +272,12 @@ export function getTotalXp(
   completions: HabitCompletion[],
   workoutLogs: WorkoutLog[],
   runLogs: RunLog[],
-  todayStr: string = todayISO()
+  todayStr: string = todayISO(),
+  startDate?: string
 ): TotalXpResult {
-  const habitXp = getHabitXpHistory(habits, completions, todayStr)
-  const workoutXp = getWorkoutXp(workoutLogs)
-  const runXp = getRunXp(runLogs)
+  const habitXp = getHabitXpHistory(habits, completions, todayStr, startDate)
+  const workoutXp = getWorkoutXp(workoutLogs, startDate)
+  const runXp = getRunXp(runLogs, startDate)
   const totalXp = habitXp.totalXp + workoutXp.totalXp + runXp.totalXp
   const rank = getRankForXp(totalXp)
   return { totalXp, habitXp, workoutXp, runXp, rank }
@@ -270,6 +286,26 @@ export function getTotalXp(
 // ============================================
 // DISPLAY HELPER
 // ============================================
+
+export interface HabitXpPreview {
+  xp: number
+  multiplier: number
+  streak: number
+}
+
+/**
+ * What a habit is currently worth, for a per-row "+N XP" display. For a
+ * still-pending habit this previews the streak it WOULD reach if completed
+ * right now (state.streak + 1); for an already-done habit it reflects the
+ * streak it actually reached today (state.streak, unchanged); a failed habit
+ * is worth nothing this cycle.
+ */
+export function previewHabitXp(state: HabitXpState, status: HabitCompletionStatus | 'pending'): HabitXpPreview {
+  if (status === 'failed') return { xp: 0, multiplier: 1, streak: 0 }
+  const streak = status === 'done' ? state.streak : state.streak + 1
+  const multiplier = streakMultiplier(streak) * (1 + state.breadthBonus)
+  return { xp: HABIT_BASE_XP * multiplier, multiplier, streak }
+}
 
 /** The single habit with the highest current multiplier, for a compact "current multiplier" readout. Null if no habit has a bonus above 1x. */
 export function getTopMultiplierHabit(habits: Habit[], habitXp: HabitXpResult): { habitName: string; state: HabitXpState } | null {

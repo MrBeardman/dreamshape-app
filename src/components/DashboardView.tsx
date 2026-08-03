@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
-import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog, Habit, HabitCompletion } from '../types'
+import type { WorkoutTemplate, WorkoutLog, UserProfile, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
 import { getHabitsDueOn, getHabitStatus, getHabitStreak, todayISO } from '../lib/habits'
+import { getHabitXpHistory, previewHabitXp, type HabitXpPreview } from '../lib/xp'
 import LogRunModal from './LogRunModal'
 
 interface ExerciseDbEntry {
@@ -65,6 +66,10 @@ export default function DashboardView({
     [dueToday]
   )
   const habitStreak = useMemo(() => getHabitStreak(habits, habitCompletions, todayStr), [habits, habitCompletions, todayStr])
+  const habitXp = useMemo(
+    () => getHabitXpHistory(habits, habitCompletions, todayStr, userProfile.xpStartDate),
+    [habits, habitCompletions, todayStr, userProfile.xpStartDate]
+  )
 
   const muscleGroupCoverage = useMemo(() => {
     const exToGroup: Record<string, string> = {}
@@ -147,17 +152,35 @@ export default function DashboardView({
           <div className="habits-today-list">
             {timedHabits.length > 0 && (
               <>
-                {timedHabits.map(habit => (
-                  <HabitRow key={habit.id} habit={habit} status={getHabitStatus(habitCompletions, habit.id, todayStr)} onToggle={() => onCycleHabitStatus(habit.id)} />
-                ))}
+                {timedHabits.map(habit => {
+                  const status = getHabitStatus(habitCompletions, habit.id, todayStr)
+                  return (
+                    <HabitRow
+                      key={habit.id}
+                      habit={habit}
+                      status={status}
+                      preview={previewHabitXp(habitXp.perHabit[habit.id], status)}
+                      onToggle={() => onCycleHabitStatus(habit.id)}
+                    />
+                  )
+                })}
               </>
             )}
             {anytimeHabits.length > 0 && (
               <>
                 {timedHabits.length > 0 && <span className="habits-section-label">Anytime</span>}
-                {anytimeHabits.map(habit => (
-                  <HabitRow key={habit.id} habit={habit} status={getHabitStatus(habitCompletions, habit.id, todayStr)} onToggle={() => onCycleHabitStatus(habit.id)} />
-                ))}
+                {anytimeHabits.map(habit => {
+                  const status = getHabitStatus(habitCompletions, habit.id, todayStr)
+                  return (
+                    <HabitRow
+                      key={habit.id}
+                      habit={habit}
+                      status={status}
+                      preview={previewHabitXp(habitXp.perHabit[habit.id], status)}
+                      onToggle={() => onCycleHabitStatus(habit.id)}
+                    />
+                  )
+                })}
               </>
             )}
           </div>
@@ -284,14 +307,47 @@ function formatTimeOfDay(time: string): string {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`
 }
 
-function HabitRow({ habit, status, onToggle }: { habit: Habit; status: 'done' | 'failed' | 'pending'; onToggle: () => void }) {
+function HabitRow({
+  habit,
+  status,
+  preview,
+  onToggle,
+}: {
+  habit: Habit
+  status: HabitCompletionStatus | 'pending'
+  preview: HabitXpPreview
+  onToggle: () => void
+}) {
+  const [popXp, setPopXp] = useState<number | null>(null)
+
+  const handleClick = () => {
+    if (status === 'pending') {
+      setPopXp(Math.round(preview.xp))
+      window.setTimeout(() => setPopXp(null), 900)
+    }
+    onToggle()
+  }
+
   return (
     <div className="habit-row">
-      <button className={`habit-row-status habit-row-status--${status}`} onClick={onToggle} aria-label={`Mark ${habit.name} as ${status === 'pending' ? 'done' : status === 'done' ? 'failed' : 'pending'}`}>
-        {status === 'done' ? '✓' : status === 'failed' ? '✗' : ''}
-      </button>
+      <div className="habit-row-status-wrap">
+        <button className={`habit-row-status habit-row-status--${status}`} onClick={handleClick} aria-label={`Mark ${habit.name} as ${status === 'pending' ? 'done' : status === 'done' ? 'failed' : 'pending'}`}>
+          {status === 'done' ? '✓' : status === 'failed' ? '✗' : ''}
+        </button>
+        {popXp !== null && <span className="habit-xp-pop">+{popXp}</span>}
+      </div>
       <span className="habit-row-icon">{habit.icon || '•'}</span>
-      <span className="habit-row-name">{habit.name}</span>
+      <div className="habit-row-main">
+        <span className="habit-row-name">{habit.name}</span>
+        <span className="habit-row-meta">
+          {preview.streak > 0 && <span className="habit-row-streak">🔥{preview.streak}</span>}
+          {status !== 'failed' && (
+            <span className="habit-row-xp">
+              +{Math.round(preview.xp)} XP{preview.multiplier > 1 ? ` · ${preview.multiplier.toFixed(2)}x` : ''}
+            </span>
+          )}
+        </span>
+      </div>
       {habit.timeOfDay && <span className="habit-row-time">{formatTimeOfDay(habit.timeOfDay)}</span>}
     </div>
   )
