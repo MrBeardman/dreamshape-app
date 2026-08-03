@@ -899,6 +899,7 @@ function App() {
               ) : (
                 <HabitManagementView
                   habits={habits}
+                  habitCompletions={habitCompletions}
                   templates={templates}
                   onSaveHabit={saveHabit}
                   onDeleteHabit={deleteHabitHandler}

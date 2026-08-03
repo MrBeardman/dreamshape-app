@@ -5,7 +5,8 @@ import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
 import type { UserProfile, WorkoutLog, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
 import { getDayCompletionRatio, getHabitsDueOn, getHabitStatus, getHabitStreak, nextHabitStatus, todayISO } from '../lib/habits'
-import { getTotalXp, getTopMultiplierHabit, getRankForXp } from '../lib/xp'
+import { getTotalXp, getTopMultiplierHabit, getRankForXp, getXpInRange, RANKS } from '../lib/xp'
+import { getAchievements, type Achievement } from '../lib/achievements'
 
 interface ProfileViewProps {
   userProfile: UserProfile
@@ -289,6 +290,51 @@ export default function ProfileView({
   const displayedXp = Math.max(xp.totalXp, userProfile.peakXp ?? 0)
   const displayedRank = useMemo(() => getRankForXp(displayedXp), [displayedXp])
 
+  // Rank-up glow: ProfileView unmounts on every tab switch, so a plain ref
+  // can't detect a crossing that happened while the Dashboard was open (the
+  // common case). Persist the last-seen rank locally instead — a UI-only
+  // flag, not synced — and glow once whenever it's higher than last seen.
+  const [justRankedUp, setJustRankedUp] = useState(false)
+  useEffect(() => {
+    const key = 'dreamshape_last_seen_rank'
+    const lastSeen = localStorage.getItem(key)
+    if (lastSeen !== null && lastSeen !== displayedRank.rank.id) {
+      const lastIndex = RANKS.findIndex(r => r.id === lastSeen)
+      if (lastIndex !== -1 && displayedRank.rankIndex > lastIndex) {
+        setJustRankedUp(true)
+        const t = window.setTimeout(() => setJustRankedUp(false), 1600)
+        localStorage.setItem(key, displayedRank.rank.id)
+        return () => window.clearTimeout(t)
+      }
+    }
+    localStorage.setItem(key, displayedRank.rank.id)
+  }, [displayedRank.rank.id, displayedRank.rankIndex])
+
+  // Weekly XP recap — mirrors getVolumeWeekDelta's rolling-7-day-window convention.
+  const xpWeekDelta = useMemo(() => {
+    const now = new Date()
+    const weekStart = new Date(now)
+    weekStart.setDate(now.getDate() - 7)
+    weekStart.setHours(0, 0, 0, 0)
+    const prevWeekStart = new Date(weekStart)
+    prevWeekStart.setDate(weekStart.getDate() - 7)
+    const dayBeforeWeekStart = new Date(weekStart.getTime() - 86400000)
+
+    const todayStr = todayISO()
+    const weekStartStr = weekStart.toISOString().slice(0, 10)
+    const prevWeekStartStr = prevWeekStart.toISOString().slice(0, 10)
+    const dayBeforeWeekStartStr = dayBeforeWeekStart.toISOString().slice(0, 10)
+
+    const thisWeek = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, weekStartStr, todayStr, todayStr, userProfile.xpStartDate)
+    const lastWeek = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, prevWeekStartStr, dayBeforeWeekStartStr, todayStr, userProfile.xpStartDate)
+    return { thisWeek, lastWeek }
+  }, [habits, habitCompletions, workoutLogs, runLogs, userProfile.xpStartDate])
+
+  const achievements = useMemo(
+    () => getAchievements(habits, xp.habitXp, xp.workoutXp, xp.runXp),
+    [habits, xp.habitXp, xp.workoutXp, xp.runXp]
+  )
+
   const ratioClass = (ratio: number | null): string => {
     if (ratio === null) return 'none'
     if (ratio === 0) return '0'
@@ -346,7 +392,7 @@ export default function ProfileView({
             </div>
 
             <div
-              className={`profile-rank-badge${displayedRank.rank.id === 'legendary' ? ' profile-rank-badge--legendary' : ''}`}
+              className={`profile-rank-badge${displayedRank.rank.id === 'legendary' ? ' profile-rank-badge--legendary' : ''}${justRankedUp ? ' profile-rank-badge--rankup' : ''}`}
               style={{ '--rank-color': displayedRank.rank.color } as CSSProperties}
             >
               <span className="profile-rank-icon">{displayedRank.rank.icon}</span>
@@ -374,6 +420,18 @@ export default function ProfileView({
               </div>
             )}
 
+            {xpWeekDelta.thisWeek > 0 && (
+              <div className="profile-xp-week-recap">
+                +{Math.round(xpWeekDelta.thisWeek).toLocaleString()} XP this week
+                {xpWeekDelta.lastWeek > 0 && (
+                  <span className={`goals-volume-mini-delta ${xpWeekDelta.thisWeek >= xpWeekDelta.lastWeek ? 'positive' : 'negative'}`}>
+                    {' '}{xpWeekDelta.thisWeek >= xpWeekDelta.lastWeek ? '↑' : '↓'}
+                    {Math.abs(Math.round(((xpWeekDelta.thisWeek - xpWeekDelta.lastWeek) / xpWeekDelta.lastWeek) * 100))}% vs last wk
+                  </span>
+                )}
+              </div>
+            )}
+
             <p className="profile-member-since">
               {userProfile.role === 'creator' && 'Creator'}
               {userProfile.role === 'tester' && 'Beta Tester'}
@@ -382,6 +440,19 @@ export default function ProfileView({
             </p>
           </div>
         )}
+      </div>
+
+      {/* Achievements */}
+      <div className="profile-section">
+        <h3 className="section-title">Achievements</h3>
+        <div className="achievements-grid">
+          {achievements.map((a: Achievement) => (
+            <div key={a.id} className={`achievement-tile${a.achieved ? ' achievement-tile--unlocked' : ' achievement-tile--locked'}`} title={a.description}>
+              <span className="achievement-tile-icon">{a.icon}</span>
+              <span className="achievement-tile-name">{a.name}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Overview stat rings */}
@@ -585,11 +656,13 @@ export default function ProfileView({
           {selectedDate && (() => {
             const dueHabits = getHabitsDueOn(habits, selectedDate)
             if (dueHabits.length === 0) return null
+            const dayXp = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, selectedDate, selectedDate, todayISO(), userProfile.xpStartDate)
             return (
               <div className="calendar-day-detail">
                 <div className="day-detail-header">
                   <span className="day-detail-date">
                     {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                    {dayXp > 0 && <span className="day-detail-xp"> · +{Math.round(dayXp)} XP</span>}
                   </span>
                   <button className="day-detail-close" onClick={() => setSelectedDate(null)}>×</button>
                 </div>
