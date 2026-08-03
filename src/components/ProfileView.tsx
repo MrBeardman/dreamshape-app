@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, type CSSProperties } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
-import type { UserProfile, WorkoutLog, WeightEntry, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
+import type { UserProfile, WorkoutLog, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
 import { getDayCompletionRatio, getHabitsDueOn, getHabitStatus, getHabitStreak, nextHabitStatus } from '../lib/habits'
+import { getTotalXp, getTopMultiplierHabit, getRankForXp } from '../lib/xp'
 
 interface ProfileViewProps {
   userProfile: UserProfile
   workoutLogs: WorkoutLog[]
   weightEntries: WeightEntry[]
+  runLogs: RunLog[]
   habits: Habit[]
   habitCompletions: HabitCompletion[]
   onSetHabitStatus: (habitId: string, date: string, status: HabitCompletionStatus | 'pending') => void
@@ -22,6 +24,7 @@ export default function ProfileView({
   userProfile,
   workoutLogs,
   weightEntries,
+  runLogs,
   habits,
   habitCompletions,
   onSetHabitStatus,
@@ -268,6 +271,24 @@ export default function ProfileView({
 
   const habitStreak = useMemo(() => getHabitStreak(habits, habitCompletions), [habits, habitCompletions])
 
+  const xp = useMemo(
+    () => getTotalXp(habits, habitCompletions, workoutLogs, runLogs),
+    [habits, habitCompletions, workoutLogs, runLogs]
+  )
+  const topMultiplierHabit = useMemo(() => getTopMultiplierHabit(habits, xp.habitXp), [habits, xp.habitXp])
+
+  // Peak-XP ratchet: rank is a permanent high-water mark, even if a retroactive
+  // edit (un-checking a past habit day, deleting a workout) lowers the live
+  // computed total. Only ever moves up.
+  useEffect(() => {
+    if (xp.totalXp > (userProfile.peakXp ?? 0)) {
+      onUpdateProfile({ ...userProfile, peakXp: xp.totalXp })
+    }
+  }, [xp.totalXp, userProfile, onUpdateProfile])
+
+  const displayedXp = Math.max(xp.totalXp, userProfile.peakXp ?? 0)
+  const displayedRank = useMemo(() => getRankForXp(displayedXp), [displayedXp])
+
   const ratioClass = (ratio: number | null): string => {
     if (ratio === null) return 'none'
     if (ratio === 0) return '0'
@@ -323,6 +344,36 @@ export default function ProfileView({
               {userProfile.role === 'creator' && <span className="creator-badge" title="App Creator">👑</span>}
               {userProfile.role === 'tester' && <span className="tester-badge" title="Beta Tester">🧪</span>}
             </div>
+
+            <div
+              className={`profile-rank-badge${displayedRank.rank.id === 'legendary' ? ' profile-rank-badge--legendary' : ''}`}
+              style={{ '--rank-color': displayedRank.rank.color } as CSSProperties}
+            >
+              <span className="profile-rank-icon">{displayedRank.rank.icon}</span>
+              <span className="profile-rank-name">{displayedRank.rank.name}</span>
+            </div>
+
+            <div className="profile-xp-bar-wrap">
+              <div
+                className="profile-xp-bar-track"
+                style={{ '--rank-color': displayedRank.rank.color } as CSSProperties}
+              >
+                <div className="profile-xp-bar-fill" style={{ width: `${displayedRank.progressRatio * 100}%` }} />
+              </div>
+              <div className="profile-xp-bar-label">
+                {displayedRank.nextRank
+                  ? `${Math.round(displayedRank.xpIntoRank).toLocaleString()} / ${displayedRank.xpForNextRank!.toLocaleString()} XP to ${displayedRank.nextRank.name}`
+                  : `${Math.round(displayedRank.totalXp).toLocaleString()} XP · Max Rank`}
+              </div>
+            </div>
+
+            {topMultiplierHabit && (
+              <div className="profile-xp-multiplier">
+                <span className="profile-xp-multiplier-value">{topMultiplierHabit.state.totalMultiplier.toFixed(2)}x</span>
+                {' '}current multiplier · {topMultiplierHabit.habitName} ({topMultiplierHabit.state.streak}d streak)
+              </div>
+            )}
+
             <p className="profile-member-since">
               {userProfile.role === 'creator' && 'Creator'}
               {userProfile.role === 'tester' && 'Beta Tester'}

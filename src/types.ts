@@ -99,6 +99,7 @@ export interface UserProfile {
   name: string
   memberSince: string
   role?: 'creator' | 'tester' | 'member'
+  peakXp?: number // monotonic high-water mark; never decreases, even if computed XP drops from a retroactive edit
 }
 
 export interface WeightEntry {

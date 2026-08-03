@@ -876,6 +876,7 @@ function App() {
                       userProfile={userProfile}
                       workoutLogs={workoutLogs}
                       weightEntries={weightEntries}
+                      runLogs={runLogs}
                       habits={habits}
                       habitCompletions={habitCompletions}
                       onSetHabitStatus={setHabitStatus}

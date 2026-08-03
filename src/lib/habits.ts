@@ -4,13 +4,17 @@ export function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function dateOnly(dateStr: string): Date {
+export function dateOnly(dateStr: string): Date {
   return new Date(dateStr + 'T12:00:00')
 }
 
-function daysBetween(fromStr: string, toStr: string): number {
+export function daysBetween(fromStr: string, toStr: string): number {
   const ms = dateOnly(toStr).getTime() - dateOnly(fromStr).getTime()
   return Math.round(ms / 86400000)
+}
+
+export function addDays(dateStr: string, n: number): string {
+  return new Date(dateOnly(dateStr).getTime() + n * 86400000).toISOString().slice(0, 10)
 }
 
 export function isHabitDueOnDate(habit: Habit, dateStr: string): boolean {
