@@ -1,17 +1,26 @@
 import { useState } from 'react'
 import type { WorkoutLog } from '../types'
+import { localDateKey } from '../lib/workoutHabits'
+
+type WorkoutPatch = Partial<Pick<WorkoutLog, 'duration' | 'date' | 'templateName'>>
 
 interface WorkoutDetailViewProps {
   workout: WorkoutLog
   onBack: () => void
   onDelete: (id: string) => void
-  onUpdateDuration: (id: string, newDurationSeconds: number) => void
+  onUpdate: (id: string, patch: WorkoutPatch) => void
 }
 
-export default function WorkoutDetailView({ workout, onBack, onDelete, onUpdateDuration }: WorkoutDetailViewProps) {
+export default function WorkoutDetailView({ workout, onBack, onDelete, onUpdate }: WorkoutDetailViewProps) {
   const [editingDuration, setEditingDuration] = useState(false)
   const [durationHours, setDurationHours] = useState(String(Math.floor(workout.duration / 3600)))
   const [durationMins, setDurationMins] = useState(String(Math.floor((workout.duration % 3600) / 60)))
+
+  const [editingName, setEditingName] = useState(false)
+  const [nameValue, setNameValue] = useState(workout.templateName)
+
+  const [editingDate, setEditingDate] = useState(false)
+  const [dateValue, setDateValue] = useState(localDateKey(new Date(workout.date)))
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -39,7 +48,7 @@ export default function WorkoutDetailView({ workout, onBack, onDelete, onUpdateD
     const h = Math.max(0, Number(durationHours) || 0)
     const m = Math.max(0, Math.min(59, Number(durationMins) || 0))
     const newSeconds = h * 3600 + m * 60
-    if (newSeconds > 0) onUpdateDuration(workout.id, newSeconds)
+    if (newSeconds > 0) onUpdate(workout.id, { duration: newSeconds })
     setEditingDuration(false)
   }
 
@@ -49,18 +58,86 @@ export default function WorkoutDetailView({ workout, onBack, onDelete, onUpdateD
     setEditingDuration(false)
   }
 
+  const handleSaveName = () => {
+    const trimmed = nameValue.trim()
+    if (trimmed && trimmed !== workout.templateName) onUpdate(workout.id, { templateName: trimmed })
+    else setNameValue(workout.templateName)
+    setEditingName(false)
+  }
+
+  const handleCancelName = () => {
+    setNameValue(workout.templateName)
+    setEditingName(false)
+  }
+
+  const handleSaveDate = () => {
+    if (dateValue) {
+      const [y, m, d] = dateValue.split('-').map(Number)
+      // Move the calendar day but keep the original time of day, so a workout
+      // corrected onto the right date still reads as e.g. an 18:30 session.
+      const next = new Date(workout.date)
+      next.setFullYear(y, m - 1, d)
+      onUpdate(workout.id, { date: next.toISOString() })
+    }
+    setEditingDate(false)
+  }
+
+  const handleCancelDate = () => {
+    setDateValue(localDateKey(new Date(workout.date)))
+    setEditingDate(false)
+  }
+
   return (
     <div className="workout-detail-view">
       <div className="workout-detail-header">
         <button className="btn-back" onClick={onBack}>← Back</button>
-        <h2>{workout.templateName}</h2>
+        {editingName ? (
+          <div className="name-edit-inline">
+            <input
+              type="text"
+              className="input"
+              value={nameValue}
+              onChange={e => setNameValue(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleSaveName()
+                if (e.key === 'Escape') handleCancelName()
+              }}
+              autoFocus
+            />
+            <button className="btn btn-primary btn-xs" onClick={handleSaveName}>✓</button>
+            <button className="btn btn-secondary btn-xs" onClick={handleCancelName}>✕</button>
+          </div>
+        ) : (
+          <h2 className="workout-detail-title-editable" onClick={() => setEditingName(true)} title="Tap to rename">
+            {workout.templateName} <span className="edit-pencil">✎</span>
+          </h2>
+        )}
         <button className="btn-remove" onClick={() => onDelete(workout.id)}>×</button>
       </div>
 
       <div className="workout-meta">
         <div className="meta-item">
           <span className="meta-label">Date</span>
-          <span className="meta-value">{formatDate(workout.date)}</span>
+          {editingDate ? (
+            <div className="duration-edit-inline">
+              <input
+                type="date"
+                className="input date-input"
+                value={dateValue}
+                onChange={e => setDateValue(e.target.value)}
+              />
+              <button className="btn btn-primary btn-xs" onClick={handleSaveDate}>✓</button>
+              <button className="btn btn-secondary btn-xs" onClick={handleCancelDate}>✕</button>
+            </div>
+          ) : (
+            <span
+              className="meta-value meta-value-editable"
+              onClick={() => setEditingDate(true)}
+              title="Tap to change the date"
+            >
+              {formatDate(workout.date)} ✎
+            </span>
+          )}
         </div>
         <div className="meta-item">
           <span className="meta-label">Time</span>

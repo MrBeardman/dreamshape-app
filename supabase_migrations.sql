@@ -110,3 +110,15 @@ alter table profiles add column if not exists peak_xp numeric default 0;
 -- a reset can't be used to cheaply re-beat an old real PR). Null means "count
 -- everything," the original behavior.
 alter table profiles add column if not exists xp_start_date text;
+
+-- The `role` column the client has always written but that never existed. Because
+-- updateProfile() sends the whole row, a single missing column made PostgREST
+-- reject every profiles UPDATE — silently, since the error was swallowed. That is
+-- why the XP reset (and name changes) never persisted.
+alter table profiles add column if not exists role text;
+
+-- Durable workout -> template link. A logged workout previously stored only
+-- template_name, so tying it back to a habit's linked_template_id relied on
+-- fragile name matching that breaks when a template is renamed. New workouts
+-- carry the id; older rows still fall back to the name lookup.
+alter table workouts add column if not exists template_id uuid;

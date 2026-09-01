@@ -92,6 +92,7 @@ export class SyncService {
       const workouts: WorkoutLog[] = (workoutsRes.data || []).map(w => ({
         id: w.id,
         templateName: w.template_name,
+        templateId: w.template_id ?? undefined,
         date: w.date,
         exercises: w.exercises,
         duration: w.duration,
@@ -162,15 +163,21 @@ export class SyncService {
   // PROFILE
   // ============================================
   async updateProfile(profile: UserProfile): Promise<void> {
+    // Always keep the local copy — this app is offline-first and a failed sync
+    // must not lose the user's edit.
+    localStorage.setItem('dreamshape_profile', JSON.stringify(profile))
     try {
-      await supabase
+      // supabase-js RETURNS PostgREST errors rather than throwing them, so the
+      // error has to be destructured to be seen at all. It previously wasn't,
+      // which is how a missing `role`/`xp_start_date` column silently rejected
+      // every profile write — renames and XP resets alike — for weeks.
+      const { error } = await supabase
         .from('profiles')
         .update({ name: profile.name, role: profile.role ?? null, peak_xp: profile.peakXp ?? 0, xp_start_date: profile.xpStartDate ?? null })
         .eq('id', this.userId)
-      localStorage.setItem('dreamshape_profile', JSON.stringify(profile))
+      if (error) console.error('Failed to sync profile to Supabase:', error.message, error)
     } catch (error) {
-      console.error('Failed to update profile:', error)
-      localStorage.setItem('dreamshape_profile', JSON.stringify(profile))
+      console.error('Failed to sync profile to Supabase:', error)
     }
   }
 
@@ -214,6 +221,7 @@ export class SyncService {
       id: workout.id,
       user_id: this.userId,
       template_name: workout.templateName,
+      template_id: workout.templateId ?? null,
       date: workout.date,
       duration: workout.duration,
       exercises: workout.exercises,
@@ -222,10 +230,22 @@ export class SyncService {
     if (error) throw error
   }
 
-  async updateWorkout(workoutId: string, updates: { duration?: number; date?: string }): Promise<void> {
+  async updateWorkout(
+    workoutId: string,
+    updates: { duration?: number; date?: string; templateName?: string }
+  ): Promise<void> {
+    // Map to column names explicitly rather than spreading the patch through —
+    // `duration` and `date` happen to match their columns, but `templateName`
+    // does not, and a silent camelCase key would be rejected by PostgREST.
+    const patch: Record<string, unknown> = {}
+    if (updates.duration !== undefined) patch.duration = updates.duration
+    if (updates.date !== undefined) patch.date = updates.date
+    if (updates.templateName !== undefined) patch.template_name = updates.templateName
+    if (Object.keys(patch).length === 0) return
+
     const { error } = await supabase
       .from('workouts')
-      .update(updates)
+      .update(patch)
       .eq('id', workoutId)
       .eq('user_id', this.userId)
     if (error) throw error

@@ -18,9 +18,9 @@ interface FinishWorkoutModalProps {
   exerciseDatabase?: Array<{ name: string; trackingMode?: 'weight-reps' | 'time' }>
   habits: Habit[]
   habitCompletions: HabitCompletion[]
-  onUpdateTemplate: () => void
-  onSaveAsNewTemplate: (name: string, exercises: Exercise[]) => void
-  onJustFinish: () => void
+  onUpdateTemplate: (durationSeconds: number) => void
+  onSaveAsNewTemplate: (name: string, exercises: Exercise[], durationSeconds: number) => void
+  onJustFinish: (durationSeconds: number) => void
   onCancel: () => void
   onCompleteLinkedHabit?: (habitId: string) => void
 }
@@ -74,6 +74,26 @@ export default function FinishWorkoutModal({
   const [newTemplateName, setNewTemplateName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // The duration is editable here because it comes straight off the wall clock:
+  // a timer left running overnight otherwise logs a 15-hour session, and this is
+  // the one moment the user is looking at the number.
+  const [editedDuration, setEditedDuration] = useState(duration)
+  const [editingDuration, setEditingDuration] = useState(false)
+  const [durationHours, setDurationHours] = useState(String(Math.floor(duration / 3600)))
+  const [durationMins, setDurationMins] = useState(String(Math.floor((duration % 3600) / 60)))
+
+  const handleSaveDuration = () => {
+    const h = Math.max(0, Number(durationHours) || 0)
+    const m = Math.max(0, Math.min(59, Number(durationMins) || 0))
+    const seconds = h * 3600 + m * 60
+    if (seconds > 0) setEditedDuration(seconds)
+    setEditingDuration(false)
+  }
+
+  // Anything past a few hours is almost certainly a forgotten timer rather than a
+  // real session, so say so instead of silently saving it.
+  const durationLooksWrong = editedDuration > 4 * 3600
 
   // Workout summary stats (completed sets only)
   const completedSets = exerciseLogs.reduce(
@@ -169,19 +189,20 @@ export default function FinishWorkoutModal({
     setIsSaving(true)
 
     try {
+      const finalDuration = editedDuration
       if (isUnchanged) {
-        await onJustFinish()
+        await onJustFinish(finalDuration)
       } else if (selectedOption === 'update' && originalTemplateId) {
-        await onUpdateTemplate()
+        await onUpdateTemplate(finalDuration)
       } else if (selectedOption === 'new') {
         if (!newTemplateName.trim()) {
           setError('Please enter a template name.')
           setIsSaving(false)
           return
         }
-        await onSaveAsNewTemplate(newTemplateName, currentExercises)
+        await onSaveAsNewTemplate(newTemplateName, currentExercises, finalDuration)
       } else {
-        await onJustFinish()
+        await onJustFinish(finalDuration)
       }
       if (logToHabit && linkedHabit && onCompleteLinkedHabit) onCompleteLinkedHabit(linkedHabit.id)
     } catch (err) {
@@ -202,7 +223,39 @@ export default function FinishWorkoutModal({
         {/* Workout Summary */}
         <div className="workout-summary-stats">
           <div className="summary-stat">
-            <span className="summary-stat-value">{formatDuration(duration)}</span>
+            {editingDuration ? (
+              <div className="duration-edit-inline">
+                <input
+                  type="number"
+                  className="input duration-input"
+                  value={durationHours}
+                  onChange={e => setDurationHours(e.target.value)}
+                  min="0"
+                  placeholder="h"
+                  autoFocus
+                />
+                <span className="duration-sep">h</span>
+                <input
+                  type="number"
+                  className="input duration-input"
+                  value={durationMins}
+                  onChange={e => setDurationMins(e.target.value)}
+                  min="0"
+                  max="59"
+                  placeholder="m"
+                />
+                <span className="duration-sep">m</span>
+                <button className="btn btn-primary btn-xs" onClick={handleSaveDuration}>✓</button>
+              </div>
+            ) : (
+              <span
+                className="summary-stat-value summary-stat-value-editable"
+                onClick={() => setEditingDuration(true)}
+                title="Tap to correct the duration"
+              >
+                {formatDuration(editedDuration)} ✎
+              </span>
+            )}
             <span className="summary-stat-label">Duration</span>
           </div>
           <div className="summary-stat">
@@ -224,6 +277,12 @@ export default function FinishWorkoutModal({
             </div>
           )}
         </div>
+
+        {durationLooksWrong && !editingDuration && (
+          <button className="duration-warning" onClick={() => setEditingDuration(true)}>
+            ⏱ That's {formatDuration(editedDuration)} — forgot to stop the timer? Tap to correct it.
+          </button>
+        )}
 
         {/* Changes summary — only when template was modified */}
         {isFromTemplate && hasChanges && (
