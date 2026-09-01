@@ -39,6 +39,12 @@ export interface ExerciseLog {
 export interface WorkoutLog {
   id: string
   templateName: string
+  /**
+   * The template this workout was started from, when it was started from one.
+   * Absent on ad-hoc workouts and on everything logged before this field existed —
+   * consumers fall back to matching on templateName. See lib/workoutHabits.ts.
+   */
+  templateId?: string
   date: string
   exercises: ExerciseLog[]
   duration: number

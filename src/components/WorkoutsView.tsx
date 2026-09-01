@@ -2,9 +2,8 @@ import { useState } from 'react'
 import type { WorkoutLog, WeightEntry, RunLog } from '../types'
 import WeightTrackerSheet from './WeightTrackerSheet'
 import RunsView from './RunsView'
-import WorkoutCalendarView from './WorkoutCalendarView'
-import ConfirmDialog from './ConfirmDialog'
-import { useConfirm } from '../hooks/useConfirm'
+
+const VISIBLE_WORKOUTS = 20
 
 interface WorkoutsViewProps {
   workoutLogs: WorkoutLog[]
@@ -31,16 +30,18 @@ export default function WorkoutsView({
 }: WorkoutsViewProps) {
   const [tab, setTab] = useState<'workouts' | 'runs'>('workouts')
   const [showWeightTracker, setShowWeightTracker] = useState(false)
-  const { confirm: showConfirm, confirmDialogProps } = useConfirm()
+  const [showAllWorkouts, setShowAllWorkouts] = useState(false)
 
   const sortedWeight = [...weightEntries].sort((a, b) => a.date.localeCompare(b.date))
   const latestWeight = sortedWeight[sortedWeight.length - 1]
 
-  const handleDeleteWorkout = async (id: string) => {
-    if (await showConfirm({ title: 'Delete Workout', message: 'This workout log will be permanently removed.', confirmLabel: 'Delete', danger: true })) {
-      onDeleteWorkout(id)
-    }
-  }
+  const sortedWorkouts = [...workoutLogs]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, showAllWorkouts ? undefined : VISIBLE_WORKOUTS)
+
+  // No local confirm here — App.deleteWorkout already prompts, and wrapping it
+  // again made every delete ask twice.
+  const handleDeleteWorkout = (id: string) => onDeleteWorkout(id)
 
   return (
     <div className="workouts-view">
@@ -133,16 +134,47 @@ export default function WorkoutsView({
               <button className="btn-action-primary" onClick={onStartWorkout}>Start First Workout</button>
             </div>
           ) : (
-            <WorkoutCalendarView
-              workoutLogs={workoutLogs}
-              onOpenWorkout={onSelectWorkout}
-              onDeleteWorkout={handleDeleteWorkout}
-            />
+            <div className="workout-history-list">
+              <div className="workout-history-hint">
+                Tap a workout to view or edit it. The full calendar lives on your Profile.
+              </div>
+              {sortedWorkouts.map(w => {
+                const volume = w.exercises.reduce(
+                  (sum, ex) => sum + ex.sets.reduce((s, set) => s + set.weight * set.reps, 0), 0
+                )
+                return (
+                  <div key={w.id} className="workout-history-row">
+                    <button className="workout-history-main" onClick={() => onSelectWorkout(w)}>
+                      <span className="workout-history-date">
+                        {new Date(w.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </span>
+                      <span className="workout-history-body">
+                        <span className="workout-history-name">{w.templateName}</span>
+                        <span className="workout-history-meta">
+                          {Math.round(w.duration / 60)} min · {(volume / 1000).toFixed(1)}t · {w.exercises.length} exercises
+                        </span>
+                      </span>
+                    </button>
+                    <button
+                      className="workout-history-delete"
+                      onClick={() => handleDeleteWorkout(w.id)}
+                      aria-label={`Delete ${w.templateName}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                )
+              })}
+              {workoutLogs.length > VISIBLE_WORKOUTS && !showAllWorkouts && (
+                <button className="workout-history-more" onClick={() => setShowAllWorkouts(true)}>
+                  Show all {workoutLogs.length} workouts
+                </button>
+              )}
+            </div>
           )}
         </>
       )}
 
-      {confirmDialogProps && <ConfirmDialog {...confirmDialogProps} />}
     </div>
   )
 }

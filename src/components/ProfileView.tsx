@@ -3,19 +3,22 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import CircularProgress from './CircularProgress'
 import ConfirmDialog from './ConfirmDialog'
 import { useConfirm } from '../hooks/useConfirm'
-import type { UserProfile, WorkoutLog, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
+import type { UserProfile, WorkoutLog, WorkoutTemplate, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
 import { getDayCompletionRatio, getHabitsDueOn, getHabitStatus, getHabitStreak, nextHabitStatus, todayISO } from '../lib/habits'
-import { getTotalXp, getTopMultiplierHabit, getRankForXp, getXpInRange, RANKS } from '../lib/xp'
+import { getWorkoutsByDate, getDayActivity, localDateKey } from '../lib/workoutHabits'
+import { getTotalXp, getTopMultiplierHabit, getRankForXp, getXpInRange, getEffectiveXpStart, RANKS } from '../lib/xp'
 import { getAchievements, type Achievement } from '../lib/achievements'
 
 interface ProfileViewProps {
   userProfile: UserProfile
   workoutLogs: WorkoutLog[]
+  templates: WorkoutTemplate[]
   weightEntries: WeightEntry[]
   runLogs: RunLog[]
   habits: Habit[]
   habitCompletions: HabitCompletion[]
   onSetHabitStatus: (habitId: string, date: string, status: HabitCompletionStatus | 'pending') => void
+  onSelectWorkout: (workout: WorkoutLog) => void
   onManageHabits: () => void
   onUpdateProfile: (profile: UserProfile) => void
   onSignOut: () => void
@@ -24,11 +27,13 @@ interface ProfileViewProps {
 export default function ProfileView({
   userProfile,
   workoutLogs,
+  templates,
   weightEntries,
   runLogs,
   habits,
   habitCompletions,
   onSetHabitStatus,
+  onSelectWorkout,
   onManageHabits,
   onUpdateProfile,
   onSignOut,
@@ -188,6 +193,7 @@ export default function ProfileView({
   const [chartPeriod, setChartPeriod] = useState<'week' | 'month' | 'year'>('month')
   const [calPeriod, setCalPeriod] = useState<'week' | 'month' | 'year'>('month')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const [monthOffset, setMonthOffset] = useState(0)
 
   const volumeData = useMemo(() => {
     const calcVolume = (wos: typeof workoutLogs) =>
@@ -248,33 +254,60 @@ export default function ProfileView({
     })
   }, [habits, habitCompletions])
 
+  // Workouts keyed by local calendar day, so the calendar can show what was
+  // actually trained that day alongside the habits.
+  const workoutsByDate = useMemo(() => getWorkoutsByDate(workoutLogs), [workoutLogs])
+
+  // Month navigation, ported from the old History calendar. setDate(1) before
+  // setMonth avoids the Jan-31 -> Mar-3 overflow.
+  const monthAnchor = useMemo(() => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() + monthOffset)
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [monthOffset])
+
   const monthCalendarData = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const todayTime = today.getTime()
-    const year = today.getFullYear()
-    const month = today.getMonth()
+    const year = monthAnchor.getFullYear()
+    const month = monthAnchor.getMonth()
     const firstDay = new Date(year, month, 1)
     let startDow = firstDay.getDay() - 1
     if (startDow < 0) startDow = 6
     const daysInMonth = new Date(year, month + 1, 0).getDate()
-    type Cell = { date: string; dayNum: number; due: number; done: number; ratio: number | null; isToday: boolean } | null
+    type Cell = { date: string; dayNum: number; due: number; done: number; ratio: number | null; isToday: boolean; isFuture: boolean; workouts: WorkoutLog[] } | null
     const cells: Cell[] = []
     for (let i = 0; i < startDow; i++) cells.push(null)
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(year, month, d)
       date.setHours(0, 0, 0, 0)
-      const dateStr = date.toISOString().split('T')[0]
-      cells.push({ date: dateStr, dayNum: d, ...getDayCompletionRatio(habits, habitCompletions, dateStr), isToday: date.getTime() === todayTime })
+      const dateStr = localDateKey(date)
+      cells.push({
+        date: dateStr,
+        dayNum: d,
+        ...getDayCompletionRatio(habits, habitCompletions, dateStr),
+        isToday: date.getTime() === todayTime,
+        // A day that hasn't happened yet isn't a failure — without this guard the
+        // rest of the month paints solid red at 0/N.
+        isFuture: date.getTime() > todayTime,
+        workouts: workoutsByDate.get(dateStr) ?? [],
+      })
     }
     return cells
-  }, [habits, habitCompletions])
+  }, [habits, habitCompletions, monthAnchor, workoutsByDate])
 
   const habitStreak = useMemo(() => getHabitStreak(habits, habitCompletions), [habits, habitCompletions])
 
+  // XP counts from when habits were introduced, not across the workout history
+  // that predates the system. An explicit reset overrides it.
+  const xpStart = useMemo(() => getEffectiveXpStart(habits, userProfile), [habits, userProfile])
+
   const xp = useMemo(
-    () => getTotalXp(habits, habitCompletions, workoutLogs, runLogs, todayISO(), userProfile.xpStartDate),
-    [habits, habitCompletions, workoutLogs, runLogs, userProfile.xpStartDate]
+    () => getTotalXp(habits, habitCompletions, workoutLogs, runLogs, todayISO(), xpStart),
+    [habits, habitCompletions, workoutLogs, runLogs, xpStart]
   )
   const topMultiplierHabit = useMemo(() => getTopMultiplierHabit(habits, xp.habitXp), [habits, xp.habitXp])
 
@@ -325,10 +358,10 @@ export default function ProfileView({
     const prevWeekStartStr = prevWeekStart.toISOString().slice(0, 10)
     const dayBeforeWeekStartStr = dayBeforeWeekStart.toISOString().slice(0, 10)
 
-    const thisWeek = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, weekStartStr, todayStr, todayStr, userProfile.xpStartDate)
-    const lastWeek = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, prevWeekStartStr, dayBeforeWeekStartStr, todayStr, userProfile.xpStartDate)
+    const thisWeek = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, weekStartStr, todayStr, todayStr, xpStart)
+    const lastWeek = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, prevWeekStartStr, dayBeforeWeekStartStr, todayStr, xpStart)
     return { thisWeek, lastWeek }
-  }, [habits, habitCompletions, workoutLogs, runLogs, userProfile.xpStartDate])
+  }, [habits, habitCompletions, workoutLogs, runLogs, xpStart])
 
   const achievements = useMemo(
     () => getAchievements(habits, xp.habitXp, xp.workoutXp, xp.runXp),
@@ -567,7 +600,9 @@ export default function ProfileView({
               </h4>
               <p className="chart-subtitle">
                 {calPeriod === 'week' && 'This week'}
-                {calPeriod === 'month' && `${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`}
+                {/* The month itself is named by the nav below, so don't repeat it
+                    here — it would also go stale when navigating months. */}
+                {calPeriod === 'month' && 'Habits and workouts — tap a day for detail'}
                 {calPeriod === 'year' && 'Last 12 weeks'}
               </p>
             </div>
@@ -631,6 +666,20 @@ export default function ProfileView({
 
           {calPeriod === 'month' && (
             <div>
+              <div className="calendar-month-nav">
+                <button className="calendar-month-nav-btn" onClick={() => { setMonthOffset(p => p - 1); setSelectedDate(null) }} aria-label="Previous month">‹</button>
+                <span className="calendar-month-label">
+                  {monthAnchor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  className="calendar-month-nav-btn"
+                  onClick={() => { setMonthOffset(p => p + 1); setSelectedDate(null) }}
+                  disabled={monthOffset >= 0}
+                  aria-label="Next month"
+                >
+                  ›
+                </button>
+              </div>
               <div className="month-cal-header">
                 {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => <span key={d}>{d}</span>)}
               </div>
@@ -639,11 +688,23 @@ export default function ProfileView({
                   cell ? (
                     <div
                       key={cell.date}
-                      className={['month-cal-cell', `habit-cal-day--${ratioClass(cell.ratio)}`, cell.isToday ? 'today' : '', selectedDate === cell.date ? 'selected' : ''].filter(Boolean).join(' ')}
-                      onClick={() => { if (cell.due > 0) setSelectedDate(selectedDate === cell.date ? null : cell.date) }}
+                      className={[
+                        'month-cal-cell',
+                        `habit-cal-day--${ratioClass(cell.isFuture ? null : cell.ratio)}`,
+                        cell.isToday ? 'today' : '',
+                        cell.isFuture ? 'future' : '',
+                        cell.workouts.length > 0 ? 'has-workout' : '',
+                        selectedDate === cell.date ? 'selected' : '',
+                      ].filter(Boolean).join(' ')}
+                      onClick={() => {
+                        if (cell.due > 0 || cell.workouts.length > 0) {
+                          setSelectedDate(selectedDate === cell.date ? null : cell.date)
+                        }
+                      }}
                     >
                       <span>{cell.dayNum}</span>
-                      {cell.due > 0 && <span className="month-cal-cell-ratio">{cell.done}/{cell.due}</span>}
+                      {!cell.isFuture && cell.due > 0 && <span className="month-cal-cell-ratio">{cell.done}/{cell.due}</span>}
+                      {cell.workouts.length > 0 && <span className="month-cal-workout-dot" title="Workout logged" />}
                     </div>
                   ) : (
                     <div key={`pad-${i}`} className="month-cal-cell empty" />
@@ -655,8 +716,17 @@ export default function ProfileView({
 
           {selectedDate && (() => {
             const dueHabits = getHabitsDueOn(habits, selectedDate)
-            if (dueHabits.length === 0) return null
-            const dayXp = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, selectedDate, selectedDate, todayISO(), userProfile.xpStartDate)
+            const dayWorkouts = workoutsByDate.get(selectedDate) ?? []
+            // A day with a workout but no habits due still has something to show.
+            if (dueHabits.length === 0 && dayWorkouts.length === 0) return null
+            const { merged, workoutsOnly, habitsOnly } = getDayActivity(
+              dueHabits, dayWorkouts, habits, templates, habitCompletions, selectedDate
+            )
+            const dayXp = getXpInRange(habits, habitCompletions, workoutLogs, runLogs, selectedDate, selectedDate, todayISO(), xpStart)
+            const durationLabel = (secs: number) => {
+              const mins = Math.round(secs / 60)
+              return mins < 60 ? `${mins} min` : `${Math.floor(mins / 60)}h ${mins % 60}m`
+            }
             return (
               <div className="calendar-day-detail">
                 <div className="day-detail-header">
@@ -667,7 +737,27 @@ export default function ProfileView({
                   <button className="day-detail-close" onClick={() => setSelectedDate(null)}>×</button>
                 </div>
                 <div className="habit-day-detail-list">
-                  {dueHabits.map(habit => {
+                  {/* A planned session that was both trained and ticked off is one
+                      achievement, so it renders as a single combined row. */}
+                  {merged.map(({ workout, habit }) => (
+                    <button
+                      key={workout.id}
+                      className="habit-day-detail-row habit-day-detail-row--done habit-day-detail-row--merged"
+                      onClick={() => onSelectWorkout(workout)}
+                    >
+                      <span className="habit-day-detail-glyph">✓</span>
+                      <span className="habit-day-detail-icon">{habit.icon || '🏋️'}</span>
+                      <span className="habit-day-detail-name">
+                        {habit.name}
+                        <span className="habit-day-detail-sub">
+                          {workout.templateName} · {durationLabel(workout.duration)}
+                        </span>
+                      </span>
+                      <span className="habit-day-detail-chevron">›</span>
+                    </button>
+                  ))}
+
+                  {habitsOnly.map(habit => {
                     const status = getHabitStatus(habitCompletions, habit.id, selectedDate)
                     return (
                       <button
@@ -681,6 +771,23 @@ export default function ProfileView({
                       </button>
                     )
                   })}
+
+                  {workoutsOnly.map(workout => (
+                    <button
+                      key={workout.id}
+                      className="habit-day-detail-row habit-day-detail-row--workout"
+                      onClick={() => onSelectWorkout(workout)}
+                    >
+                      <span className="habit-day-detail-glyph">🏋️</span>
+                      <span className="habit-day-detail-name">
+                        {workout.templateName}
+                        <span className="habit-day-detail-sub">
+                          {durationLabel(workout.duration)} · {workout.exercises.length} exercises
+                        </span>
+                      </span>
+                      <span className="habit-day-detail-chevron">›</span>
+                    </button>
+                  ))}
                 </div>
               </div>
             )

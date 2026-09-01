@@ -274,6 +274,27 @@ export function getRankForXp(totalXp: number): RankProgress {
 // AGGREGATE
 // ============================================
 
+/**
+ * The date XP actually starts counting from.
+ *
+ * An explicit reset (profile.xpStartDate) always wins. Otherwise XP starts the day
+ * the first habit was created — "since we introduced the habits" — so the months of
+ * workout history that predate the habit system don't hand out a rank that was never
+ * really earned under these rules.
+ *
+ * Note getHabitXpHistory already clamps its walk to the earliest habit, so this
+ * mostly gates getWorkoutXp/getRunXp. Returns undefined when there are no habits
+ * yet, which means "count everything" — the original behavior.
+ */
+export function getEffectiveXpStart(habits: Habit[], profile: { xpStartDate?: string }): string | undefined {
+  if (profile.xpStartDate) return profile.xpStartDate
+  if (habits.length === 0) return undefined
+  return habits.reduce<string | undefined>((earliest, h) => {
+    const created = h.createdAt.slice(0, 10)
+    return earliest === undefined || created < earliest ? created : earliest
+  }, undefined)
+}
+
 export interface TotalXpResult {
   totalXp: number
   habitXp: HabitXpResult

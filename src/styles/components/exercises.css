@@ -534,3 +534,41 @@
     margin: auto;
   }
 }
+
+/* ==========================================
+   WORKOUT DETAIL — Date & name edit
+   ========================================== */
+
+.date-input {
+  height: 28px;
+  padding: 0 6px !important;
+  font-size: var(--text-sm) !important;
+  width: auto !important;
+}
+
+.workout-detail-title-editable {
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.workout-detail-title-editable:hover { color: var(--primary); }
+
+.workout-detail-title-editable .edit-pencil {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  vertical-align: middle;
+}
+
+.name-edit-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.name-edit-inline .input {
+  height: 30px;
+  padding: 0 8px !important;
+  font-size: var(--text-sm) !important;
+  min-width: 0;
+}

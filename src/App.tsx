@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import { SyncService } from './lib/syncService'
 import SyncIndicator from './components/SyncIndicator'
@@ -231,6 +231,27 @@ function App() {
       finally { setIsSyncing(false) }
     }
   }
+
+  // One-time XP epoch adoption. XP should count from the day habits were introduced,
+  // not across the months of workout history that predate the system — that history
+  // is what awarded a Gold rank nobody earned under these rules. Stamping
+  // xpStartDate makes the epoch explicit and durable; clearing peakXp is required
+  // because the rank ratchet only ever moves up, so a stale high-water mark from the
+  // old scoring would pin the rank forever.
+  const epochAdoptedRef = useRef(false)
+  useEffect(() => {
+    if (epochAdoptedRef.current) return
+    if (authLoading || !user || habits.length === 0) return
+    if (userProfile.xpStartDate) return
+    const earliest = habits.reduce<string | undefined>((min, h) => {
+      const created = h.createdAt.slice(0, 10)
+      return min === undefined || created < min ? created : min
+    }, undefined)
+    if (!earliest) return
+    epochAdoptedRef.current = true
+    handleUpdateProfile({ ...userProfile, xpStartDate: earliest, peakXp: 0 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user, habits, userProfile.xpStartDate])
 
   const handleSignOut = async () => {
     if (await showConfirm({ title: 'Sign out?', confirmLabel: 'Sign Out' })) {
@@ -513,7 +534,14 @@ function App() {
     setActiveWorkout({ ...activeWorkout, exercises: updatedExercises })
   }
 
-  const finishWorkout = () => { if (activeWorkout) setShowFinishModal(true) }
+  // Snapshot the elapsed time when the modal opens. Computing it inline in the
+  // render would make the number tick upward underneath the duration editor.
+  const [finishDuration, setFinishDuration] = useState(0)
+  const finishWorkout = () => {
+    if (!activeWorkout) return
+    setFinishDuration(Math.floor((Date.now() - activeWorkout.startTime) / 1000))
+    setShowFinishModal(true)
+  }
 
   const getWorkoutChanges = () => {
     if (!activeWorkout) return { hasChanges: false, added: [], removed: [], isReordered: false }
@@ -537,10 +565,10 @@ function App() {
     return { id: ex.exerciseId, name: ex.exerciseName, equipment: fromDb?.equipment ?? 'Barbell', muscleGroup: fromDb?.muscleGroup ?? 'Other' }
   }
 
-  const handleUpdateTemplate = async () => {
+  const handleUpdateTemplate = async (durationOverride?: number) => {
     if (!activeWorkout || !activeWorkout.originalTemplateId) return
     const originalTemplate = templates.find(t => t.id === activeWorkout.originalTemplateId)
-    if (!originalTemplate) { await saveWorkoutLog(); return }
+    if (!originalTemplate) { await saveWorkoutLog(durationOverride); return }
     const updatedExercises: Exercise[] = activeWorkout.exercises.map(ex => resolveExerciseFromLog(ex, activeWorkout.originalTemplateId))
     const newTemplate = { ...originalTemplate, exercises: updatedExercises }
     const updatedTemplates = templates.map(t => t.id === activeWorkout.originalTemplateId ? newTemplate : t)
@@ -552,14 +580,14 @@ function App() {
       catch (error) { console.error('Failed to sync template:', error) }
       finally { setIsSyncing(false) }
     }
-    await saveWorkoutLog()
+    await saveWorkoutLog(durationOverride)
   }
 
-  const handleSaveAsNewTemplate = async (name: string, exercises: Exercise[]) => {
+  const handleSaveAsNewTemplate = async (name: string, exercises: Exercise[], durationOverride?: number) => {
     const existingTemplate = templates.find(t => t.name.toLowerCase() === name.toLowerCase())
     if (existingTemplate) {
       const ok = await showConfirm({ title: 'Template Already Exists', message: `"${name}" already exists. Create a duplicate anyway?`, confirmLabel: 'Create Anyway' })
-      if (!ok) { await saveWorkoutLog(); return }
+      if (!ok) { await saveWorkoutLog(durationOverride); return }
     }
     const newTemplate: WorkoutTemplate = { id: crypto.randomUUID(), name, exercises }
     const updatedTemplates = [...templates, newTemplate]
@@ -571,17 +599,22 @@ function App() {
       catch (error) { console.error('Failed to sync template:', error) }
       finally { setIsSyncing(false) }
     }
-    await saveWorkoutLog()
+    await saveWorkoutLog(durationOverride)
   }
 
-  const handleJustFinish = async () => { await saveWorkoutLog() }
+  const handleJustFinish = async (durationOverride?: number) => { await saveWorkoutLog(durationOverride) }
 
-  const saveWorkoutLog = async () => {
+  const saveWorkoutLog = async (durationOverride?: number) => {
     if (!activeWorkout) return
-    const duration = Math.floor((Date.now() - activeWorkout.startTime) / 1000)
+    // The finish modal lets the user correct the duration before saving — a timer
+    // left running overnight would otherwise log a 15-hour session.
+    const duration = durationOverride ?? Math.floor((Date.now() - activeWorkout.startTime) / 1000)
     const workoutLog: WorkoutLog = {
       id: crypto.randomUUID(),
       templateName: activeWorkout.templateName,
+      // Keep the template link instead of discarding it, so this workout can be
+      // tied back to its habit later even if the template is renamed.
+      templateId: activeWorkout.originalTemplateId ?? undefined,
       date: new Date().toISOString(),
       exercises: activeWorkout.exercises,
       duration,
@@ -622,12 +655,24 @@ function App() {
     }
   }
 
-  const updateWorkoutDuration = async (id: string, newDurationSeconds: number) => {
-    setWorkoutLogs(prev => prev.map(w => w.id === id ? { ...w, duration: newDurationSeconds } : w))
-    if (selectedWorkout?.id === id) setSelectedWorkout(prev => prev ? { ...prev, duration: newDurationSeconds } : prev)
+  type WorkoutPatch = Partial<Pick<WorkoutLog, 'duration' | 'date' | 'templateName'>>
+
+  const updateWorkout = async (id: string, patch: WorkoutPatch) => {
+    const previousLogs = workoutLogs
+    const previousSelected = selectedWorkout
+    // selectedWorkout is a snapshot copy, not a reference into workoutLogs, so both
+    // have to be written or the open detail view keeps showing stale values.
+    setWorkoutLogs(prev => prev.map(w => (w.id === id ? { ...w, ...patch } : w)))
+    if (selectedWorkout?.id === id) setSelectedWorkout(prev => (prev ? { ...prev, ...patch } : prev))
     if (syncService) {
-      try { await syncService.updateWorkout(id, { duration: newDurationSeconds }) }
-      catch (error) { console.error('Failed to update workout duration:', error) }
+      try {
+        await syncService.updateWorkout(id, patch)
+        setLastSyncTime(new Date())
+      } catch (error) {
+        console.error('Failed to update workout:', error)
+        setWorkoutLogs(previousLogs)
+        setSelectedWorkout(previousSelected)
+      }
     }
   }
 
@@ -795,7 +840,7 @@ function App() {
                         changedExercises={{ added: workoutChanges.added, removed: workoutChanges.removed, isReordered: workoutChanges.isReordered }}
                         currentExercises={activeWorkout.exercises.map(ex => resolveExerciseFromLog(ex, activeWorkout.originalTemplateId))}
                         exerciseLogs={activeWorkout.exercises}
-                        duration={Math.floor((Date.now() - activeWorkout.startTime) / 1000)}
+                        duration={finishDuration}
                         workoutLogs={workoutLogs}
                         exerciseDatabase={exerciseDatabase}
                         habits={habits}
@@ -814,7 +859,7 @@ function App() {
                   workout={selectedWorkout}
                   onBack={() => setSelectedWorkout(null)}
                   onDelete={deleteWorkout}
-                  onUpdateDuration={updateWorkoutDuration}
+                  onUpdate={updateWorkout}
                 />
               ) : !isCreating && !isManagingHabits ? (
                 <>
@@ -875,11 +920,13 @@ function App() {
                     <ProfileView
                       userProfile={userProfile}
                       workoutLogs={workoutLogs}
+                      templates={templates}
                       weightEntries={weightEntries}
                       runLogs={runLogs}
                       habits={habits}
                       habitCompletions={habitCompletions}
                       onSetHabitStatus={setHabitStatus}
+                      onSelectWorkout={setSelectedWorkout}
                       onManageHabits={() => setIsManagingHabits(true)}
                       onUpdateProfile={handleUpdateProfile}
                       onSignOut={handleSignOut}

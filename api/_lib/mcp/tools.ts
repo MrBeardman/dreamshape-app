@@ -214,11 +214,26 @@ export function registerMcpTools(server: McpServer) {
 
   server.registerTool(
     "update_workout",
-    { title: "Update workout", description: "Update a logged workout's duration or date.", inputSchema: { workoutId: z.string(), duration: z.number().optional(), date: z.string().optional() } },
-    async ({ workoutId, ...rest }) =>
+    {
+      title: "Update workout",
+      description: "Update a logged workout's duration, date or name.",
+      inputSchema: {
+        workoutId: z.string(),
+        duration: z.number().optional(),
+        date: z.string().optional(),
+        templateName: z.string().optional(),
+      },
+    },
+    async ({ workoutId, duration, date, templateName }) =>
       safe(async () => {
         const userId = await getUserId(supabase);
-        const { data, error } = await supabase.from("workouts").update(rest).eq("id", workoutId).eq("user_id", userId).select().single();
+        // Column names, not the camelCase input keys — templateName maps to template_name.
+        const patch: Record<string, unknown> = {};
+        if (duration !== undefined) patch.duration = duration;
+        if (date !== undefined) patch.date = date;
+        if (templateName !== undefined) patch.template_name = templateName;
+        if (Object.keys(patch).length === 0) return fail("No fields to update.");
+        const { data, error } = await supabase.from("workouts").update(patch).eq("id", workoutId).eq("user_id", userId).select().single();
         if (error) return fail(error.message);
         return ok(data);
       })
