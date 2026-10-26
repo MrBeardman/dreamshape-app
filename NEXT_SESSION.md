@@ -20,7 +20,7 @@ When a user is in an active workout and opens the context menu on an exercise (t
    - `alternatives` = same muscle group, different name than current
    - `others` = everything else
 3. Show `alternatives` first under a "Alternatives" heading, then `others` under "All Exercises". Both sections searchable.
-4. No new types or Supabase changes needed — pure UI change.
+4. No new types or database changes needed — pure UI change.
 
 ### Key data
 - `exerciseDatabase` already has `{ name, muscleGroup, equipment }` for all exercises
@@ -70,7 +70,7 @@ Pass `workoutLogs` down to `ExercisesView` (currently not passed — add it to p
 
 **Rule for "hit all reps":** All `completed = true` working sets (type !== 'warmup') have `reps >= reps from previous session`. Simple: just check `set.completed === true` for all working sets.
 
-**No new Supabase table needed** — calculated on the fly from `workoutLogs`.
+**No new table needed** — calculated on the fly from `workoutLogs`.
 
 ---
 
@@ -113,10 +113,10 @@ export interface TrainingPlan {
 
 ### Storage
 - localStorage key: `'dreamshape_plan'`
-- Supabase: new `training_plans` table (see SQL below)
+- Database: `training_plans` table already exists (`prisma/schema.prisma`; original SQL below)
 - Only one active plan at a time (`isActive: true`)
 
-### Supabase table to add
+### Table (original Postgres SQL, now modelled in prisma/schema.prisma)
 ```sql
 create table if not exists training_plans (
   id         uuid primary key,
@@ -132,7 +132,7 @@ create policy "Users can manage their own plans"
   on training_plans for all using (auth.uid() = user_id);
 ```
 
-Add this SQL to `supabase_migrations.sql`.
+The model is `TrainingPlan` in `prisma/schema.prisma`; schema changes go through a Prisma migration.
 
 ### Calculating today's session
 ```typescript
@@ -151,7 +151,7 @@ function getTodayPlanDay(plan: TrainingPlan): PlanDay {
 1. **New `PlanView.tsx`** — Plan editor. Create/edit a plan by adding days to the cycle. Each day you pick: Rest | Run | Workout (choose template from list). Set start date. Activate the plan.
 2. **Dashboard widget** — Show today's session in a prominent card. If it's a workout, show a "Start →" button that launches that template directly. If it's a run, show run icon + "Log Run →". If rest, show rest message.
 3. **Navigation** — Add "Plan" as a 6th tab, OR put it inside the Start tab as a section above Templates. The latter avoids adding a 6th nav item (bottom nav is already 5 items). Recommended: add a "Plan" section at the top of `TemplatesView`.
-4. **App.tsx** — Add `plan` state (single `TrainingPlan | null`), localStorage persist, Supabase sync via new `syncService` methods.
+4. **App.tsx** — Add `plan` state (single `TrainingPlan | null`), localStorage persist, server sync via new `syncService` methods and `server/routes/data.ts` routes.
 
 ### Sync methods to add to `syncService.ts`
 ```typescript

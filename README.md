@@ -2,7 +2,6 @@
 
 Personal fitness PWA — workout tracking, nutrition logging, and daily habit tracking.
 
-**Live:** [dreamshape-app.vercel.app](https://dreamshape-app.vercel.app)
 
 ---
 
@@ -54,8 +53,8 @@ Personal fitness PWA — workout tracking, nutrition logging, and daily habit tr
 - Link to full Workout History
 
 ### Cloud & Offline
-- Supabase authentication (email / password)
-- Cloud sync across devices — localStorage first, then Supabase
+- Email / password login (signed session cookie, no third-party auth)
+- Cloud sync across devices - localStorage first, then the server (MySQL)
 - Automatic one-time migration of local data on first login
 - Real-time sync indicator
 
@@ -67,71 +66,81 @@ Personal fitness PWA — workout tracking, nutrition logging, and daily habit tr
 |---|---|
 | Framework | React 19 + TypeScript |
 | Build | Vite 7 |
-| Backend / Auth / DB | Supabase (Postgres + Auth + RLS) |
+| Backend | Node + Express (serves the app, JSON API, MCP endpoint) |
+| Auth | Own login: bcrypt/scrypt password check, HMAC-signed session cookie |
+| Database | MySQL / MariaDB via Prisma (`@prisma/adapter-mariadb`) |
 | Charts | Recharts |
 | Drag & Drop | @dnd-kit |
 | Barcode | @zxing/browser |
 | Styling | Modular plain CSS |
-| Deployment | Vercel |
+| Deployment | Hostinger Node.js app |
 
 ---
 
 ## Project Structure
 
 ```
-src/
-├── App.tsx                     — Root component, all global state & handlers
-├── App-redesign.css            — Main CSS entry (imports all modules)
-├── types.ts                    — All TypeScript interfaces
-├── data/
-│   └── defaultExercises.ts     — 55 built-in exercises
-├── lib/
-│   ├── supabase.ts             — Supabase client
-│   ├── syncService.ts          — Supabase CRUD class
-│   ├── openFoodFacts.ts        — Food search & barcode lookup (OFF API v2)
-│   ├── exerciseStats.ts        — Progressive overload history helper
-│   └── notifications.ts        — Rest timer push notifications
-├── hooks/
-│   ├── useWorkoutTimer.ts      — Elapsed time + rest timer logic
-│   └── useConfirm.ts           — Async confirm dialog hook
-├── components/
-│   ├── BottomNav.tsx           — Mobile bottom nav (Home/Habits/Start/Nutrition/Profile)
-│   ├── SidebarNav.tsx          — Desktop sidebar nav
-│   ├── DashboardView.tsx       — Home tab
-│   ├── HabitsView.tsx          — Habits & Tasks tab
-│   ├── NutritionView.tsx       — Nutrition tab
-│   ├── ProfileView.tsx         — Profile tab (goals, charts, stats, settings)
-│   ├── WorkoutsView.tsx        — Workout history list
-│   ├── WorkoutView.tsx         — Active workout screen
-│   ├── TemplatesView.tsx       — Templates (Start tab)
-│   ├── CreateTemplateView.tsx  — Create / edit template
-│   ├── FoodSearchSheet.tsx     — Food search bottom sheet
-│   ├── BarcodeScanner.tsx      — Camera barcode scanner
-│   ├── ExerciseProgressSheet.tsx — Progressive overload chart
-│   ├── ExerciseCard.tsx        — Sortable exercise card with sets
-│   ├── FinishWorkoutModal.tsx  — Finish workout flow
-│   ├── ConfirmDialog.tsx       — Bottom-sheet confirm modal
-│   └── CircularProgress.tsx    — SVG circular progress widget
-└── styles/
-    ├── variables.css
-    ├── base.css
-    └── components/
-        ├── dashboard.css
-        ├── habits.css
-        ├── nutrition.css
-        ├── profile.css
-        ├── workout.css
-        └── ...
+src/                      React app (Vite). Talks to the server only through src/lib/api.ts
+  App.tsx                 Root component, all global state & handlers
+  lib/api.ts              fetch wrapper for /api
+  lib/auth.ts             sign in / sign up / sign out / session
+  lib/syncService.ts      local-first sync: localStorage first, then the server
+  components/ hooks/ styles/ data/ ...
+server/                   Express app (TypeScript, bundled to dist-server/index.js)
+  index.ts                entry: listens on process.env.PORT, host 0.0.0.0
+  app.ts                  serves dist/ (SPA fallback), mounts the routers
+  auth/                   session cookie (HMAC) + password check (bcrypt / scrypt)
+  routes/auth.ts          POST /api/auth/login | signup | logout, GET /api/auth/session
+  routes/data.ts          the sync API (GET /api/data, templates, workouts, habits, ...)
+  mcp/                    MCP endpoint (/api/mcp), OAuth shim (/api/oauth/*), /.well-known/*
+prisma/
+  schema.prisma           data model (MySQL)
+  migrations/0_init       generated with `prisma migrate diff`
+scripts/
+  build-server.mjs        esbuild bundle of server/
+  copy-from-supabase.mjs  one-off Supabase Postgres -> MySQL data copy
+  hash-password.mjs       print a password hash
+  create-user.mjs         insert a user + profile
+docs/supabase_migrations.sql   the original Postgres schema (archive)
 ```
+
+Every /api data route takes the user from the signed session cookie and scopes every query to it
+(this replaces Supabase row level security). A client-supplied user id is never read.
+
+---
+
+## Local development
+
+```bash
+cp .env.example .env        # fill DATABASE_URL, SESSION_SECRET, MCP_AUTH_TOKEN, MCP_AUTHORIZE_PASSPHRASE
+npm install                 # postinstall runs prisma generate
+npm run db:deploy           # applies prisma/migrations to DATABASE_URL
+npm run create-user -- you@example.com "password" "Your name" creator
+npm run dev                 # API on :3001 (tsx watch) + Vite on :5173, /api is proxied
+```
+
+## Production (Hostinger Node.js app)
+
+- Install: `npm install` (runs `prisma generate`), build: `npm run build` (Vite build to `dist/`, server bundle to `dist-server/index.js`)
+- Entry file: `dist-server/index.js` (also `npm start`). It listens on `process.env.PORT`, host 0.0.0.0, and serves `dist/` itself.
+- Run `npm run db:deploy` once (and after schema changes) against the Hostinger database.
+- Env vars: `DATABASE_URL`, `SESSION_SECRET`, `MCP_AUTH_TOKEN`, `MCP_AUTHORIZE_PASSPHRASE`; optional `AUTH_SIGNUP_CODE`, `MCP_USER_ID`.
+
+### Moving the data off Supabase
+
+```bash
+# DATABASE_URL = the new MySQL, SOURCE_DATABASE_URL = the old Supabase Postgres connection string
+npm run db:deploy
+npm run db:copy-from-supabase             # refuses if the target already has rows; add -- --replace to overwrite
+```
+
+`auth.users` is copied into `users` including the bcrypt password hash, so the existing password keeps working.
 
 ---
 
 ## Environment Variables
 
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-```
+See `.env.example`. `DATABASE_URL`, `SESSION_SECRET`, `MCP_AUTH_TOKEN` and `MCP_AUTHORIZE_PASSPHRASE` are required in production. None of them is exposed to the browser.
 
 ---
 

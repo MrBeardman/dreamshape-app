@@ -3,15 +3,36 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "dev": "concurrently -k -n api,web -c blue,green \"tsx watch server/index.ts\" \"vite\"",
+    "dev:api": "tsx watch server/index.ts",
+    "dev:web": "vite",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "tsc -p tsconfig.json && vite build",
+    "build:server": "tsc -p server/tsconfig.json && node scripts/build-server.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p server/tsconfig.json",
+    "start": "node dist-server/index.js",
+    "preview": "vite preview",
+    "postinstall": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "db:copy-from-supabase": "node scripts/copy-from-supabase.mjs",
+    "hash-password": "node scripts/hash-password.mjs",
+    "create-user": "node scripts/create-user.mjs"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.2",
+    "concurrently": "^10.0.6",
+    "esbuild": "^0.28.2",
+    "pg": "^8.23.1",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3",
     "vite": "^7.2.4"
   },
@@ -19,15 +40,20 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@supabase/supabase-js": "^2.89.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@prisma/adapter-mariadb": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "@zxing/browser": "^0.1.5",
     "@zxing/library": "^0.21.3",
-    "mcp-handler": "^1.1.0",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0",
+    "mariadb": "^3.5.4",
     "motion": "^12.42.2",
+    "prisma": "^7.10.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "recharts": "^3.6.0",
-    "zod": "^4.4.3",
-    "zod-to-json-schema": "^3.25.2"
+    "zod": "^4.4.3"
   }
 }

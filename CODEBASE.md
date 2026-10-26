@@ -7,8 +7,8 @@
 ## What the app is
 
 **DreamShape** is a mobile-first PWA: workout tracker + nutrition logger + habit tracker.
-Built with React 19 + TypeScript + Vite 7. Auth and cloud sync via Supabase.
-Data is written to **localStorage** immediately (offline-first) and synced to **Supabase** async.
+Built with React 19 + TypeScript + Vite 7. Own login (signed session cookie) and cloud sync through an Express API on MySQL/MariaDB (Hostinger).
+Data is written to **localStorage** immediately (offline-first) and synced to the **server** (MySQL via Prisma) async.
 
 ---
 
@@ -18,13 +18,15 @@ Data is written to **localStorage** immediately (offline-first) and synced to **
 |---|---|
 | Framework | React 19, TypeScript |
 | Build | Vite 7 |
-| Backend / Auth / DB | Supabase (Postgres + Auth + RLS) |
+| Backend | Node + Express (`server/`): serves `dist/`, JSON API under `/api`, MCP endpoint |
+| Auth | Own login: bcrypt/scrypt password check + HMAC-signed session cookie (`server/auth/`) |
+| Database | MySQL / MariaDB via Prisma (`prisma/schema.prisma`) |
 | Drag & Drop | @dnd-kit/core, @dnd-kit/sortable |
 | Charts | Recharts |
 | Barcode | @zxing/browser |
 | Styling | Modular plain CSS (`src/App-redesign.css` imports all) |
 | State | useState / useEffect (no global store) |
-| Deployment | Vercel |
+| Deployment | Hostinger Node.js app (`dist-server/index.js`) |
 
 ---
 
@@ -39,8 +41,9 @@ src/
 ├── data/
 │   └── defaultExercises.ts       — 55 built-in exercises (6 muscle groups)
 ├── lib/
-│   ├── supabase.ts               — Supabase client (reads VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)
-│   ├── syncService.ts            — SyncService class: all Supabase CRUD + migration
+│   ├── api.ts                     - fetch wrapper for /api (ApiError, 401 hook)
+│   ├── auth.ts                    - sign in / up / out, session lookup
+│   ├── syncService.ts            — SyncService class: calls the /api sync routes + local migration
 │   ├── openFoodFacts.ts          — searchFoods(query), lookupBarcode(barcode) → OFF API v2
 │   ├── exerciseStats.ts          — getExerciseHistory(workoutLogs, exerciseName)
 │   └── notifications.ts          — requestNotificationPermission, scheduleRestNotification, cancelRestNotification
@@ -127,7 +130,7 @@ DailyTask         { id, text, date (YYYY-MM-DD), completed, createdAt }
 | `activeWorkout` | `ActiveWorkout \| null` | `dreamshape_active_workout` |
 | `originalTemplateExercises` | `Exercise[]` | `dreamshape_original_exercises` |
 | `currentView` | `'dashboard'\|'habits'\|'progress'\|'start'\|'nutrition'\|'profile'` | in-memory |
-| `user` | `User \| null` | Supabase session |
+| `user` | `AuthUser \| null` | session cookie (`/api/auth/session`) |
 | `syncService` | `SyncService \| null` | in-memory |
 | `isSyncing` | `boolean` | in-memory |
 | `lastSyncTime` | `Date \| null` | in-memory |
@@ -152,9 +155,9 @@ DailyTask         { id, text, date (YYYY-MM-DD), completed, createdAt }
 | `startWorkout(template)` | Creates `ActiveWorkout`, pre-fills sets from last workout |
 | `startEmptyWorkout()` | Creates `ActiveWorkout` with auto-generated time-of-day name |
 | `finishWorkout()` | Opens `FinishWorkoutModal` |
-| `saveWorkoutLog()` | Saves to localStorage + Supabase, clears active state |
+| `saveWorkoutLog()` | Saves to localStorage + server, clears active state |
 | `cancelWorkout()` | Confirms then clears `activeWorkout` |
-| `deleteWorkout(id)` | Removes from state + Supabase |
+| `deleteWorkout(id)` | Removes from state + server |
 
 ### Set / Exercise manipulation
 | Function | What it does |
@@ -181,9 +184,9 @@ DailyTask         { id, text, date (YYYY-MM-DD), completed, createdAt }
 ### Template CRUD
 | Function | What it does |
 |---|---|
-| `saveTemplate(name, exercises)` | Create or update in state + localStorage + Supabase |
+| `saveTemplate(name, exercises)` | Create or update in state + localStorage + server |
 | `editTemplate(template)` | Sets `selectedTemplate` + `isCreating=true` |
-| `deleteTemplate(id)` | Removes from state + Supabase |
+| `deleteTemplate(id)` | Removes from state + server |
 
 ### Nutrition
 | Function | What it does |
@@ -206,8 +209,8 @@ DailyTask         { id, text, date (YYYY-MM-DD), completed, createdAt }
 ### Sync / Auth
 | Function | What it does |
 |---|---|
-| `handleInitialSync(sync, user)` | On login: migrates local data → Supabase, loads all data back |
-| `handleUpdateProfile(profile)` | Updates profile in state + Supabase |
+| `handleInitialSync(sync, user)` | On login: migrates local data → server, loads all data back |
+| `handleUpdateProfile(profile)` | Updates profile in state + server |
 | `handleSignOut()` | Signs out, clears sync service |
 
 ---
@@ -268,7 +271,7 @@ PR flash: "🏆 New PR!" for 2.5 s when a new all-time PR is completed.
 
 ## SyncService (`src/lib/syncService.ts`)
 
-### Supabase tables
+### Database tables (MySQL, `prisma/schema.prisma`; every query is scoped to the session user)
 | Table | Key columns |
 |---|---|
 | `profiles` | id, name, member_since, role |
@@ -281,8 +284,8 @@ PR flash: "🏆 New PR!" for 2.5 s when a new all-time PR is completed.
 ### Methods
 | Method | What it does |
 |---|---|
-| `migrateLocalDataToSupabase()` | One-time migration (guarded by `migration_completed_{userId}`) |
-| `loadAllData()` | Loads all data from Supabase, falls back to localStorage |
+| `migrateLocalDataToServer()` | One-time migration (guarded by `migration_completed_{userId}`) |
+| `loadAllData()` | Loads everything with `GET /api/data`, falls back to localStorage |
 | `updateProfile(profile)` | PATCH profiles row |
 | `createTemplate / updateTemplate / deleteTemplate` | Template CRUD |
 | `createWorkout / deleteWorkout` | Workout CRUD |
@@ -344,7 +347,14 @@ Key patterns:
 
 ## Environment Variables
 
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-```
+Server only, see `.env.example`: `DATABASE_URL`, `SESSION_SECRET`, `MCP_AUTH_TOKEN`, `MCP_AUTHORIZE_PASSPHRASE` (optional: `AUTH_SIGNUP_CODE`, `MCP_USER_ID`). Nothing is exposed to the browser.
+
+## Server (`server/`)
+
+| Path | Purpose |
+|---|---|
+| `index.ts` | entry, `PORT` / 0.0.0.0, built to `dist-server/index.js` |
+| `app.ts` | static `dist/` + SPA fallback, mounts routers |
+| `routes/auth.ts` | `/api/auth/login`, `/signup`, `/logout`, `/session` |
+| `routes/data.ts` | sync API used by `syncService.ts` (zod-validated, user from the session) |
+| `mcp/` | `/api/mcp` (Streamable HTTP), `/api/oauth/*`, `/.well-known/*` |
