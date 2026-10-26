@@ -1,10 +1,9 @@
-import { sign, verify, timingSafeStringCompare, type AuthCode, type RegisteredClient } from "../_lib/mcp/oauth.js";
+import { sign, verify, timingSafeStringCompare, type AuthCode, type RegisteredClient } from "./oauth.js";
 
 // Authorization step of the OAuth flow claude.ai runs to obtain an MCP access token.
-// Dreamshape is a client-side SPA with no server-readable session (the Supabase session
-// lives only in browser localStorage), so unlike the other two apps this can't reuse a
-// cookie-based login. Instead it's gated by a single shared passphrase (MCP_AUTHORIZE_PASSPHRASE)
-// — good enough for a personal single-user app, and it doesn't require touching App.tsx.
+// Gated by a single shared passphrase (MCP_AUTHORIZE_PASSPHRASE) rather than the app's
+// session cookie: good enough for a personal single-user app, and it keeps the connector flow
+// independent of the web login.
 
 function html(body: string, status = 200): Response {
   return new Response(body, { status, headers: { "Content-Type": "text/html; charset=utf-8" } });

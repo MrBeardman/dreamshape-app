@@ -1,4 +1,4 @@
-import { getPublicOrigin, metadataCorsOptionsRequestHandler } from "mcp-handler";
+import { getPublicOrigin, metadataCorsOptionsRequestHandler } from "./publicUrl.js";
 
 export async function GET(req: Request) {
   const origin = getPublicOrigin(req);

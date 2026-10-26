@@ -1,7 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
-import { createAdminClient, getUserId } from "../supabase/admin.js";
+import { prisma, Prisma } from "../db.js";
+import { completionRow, customExerciseRow, habitRow, profileRow, runRow, templateRow, weightRow, workoutRow } from "./rows.js";
+
+// Tool names, descriptions, input schemas and output shapes are unchanged from the Supabase
+// version, so the claude.ai connector keeps working. Only the data layer moved to Prisma/MySQL.
 
 type ToolResult = { content: { type: "text"; text: string }[]; isError?: boolean };
 
@@ -17,6 +21,9 @@ async function safe(fn: () => Promise<ToolResult>): Promise<ToolResult> {
   try {
     return await fn();
   } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return fail("duplicate key value: that record already exists");
+    }
     return fail(err instanceof Error ? err.message : String(err));
   }
 }
@@ -56,19 +63,35 @@ function withIds<T extends { id?: string }>(items: T[]): (Omit<T, "id"> & { id: 
   return items.map((item) => ({ ...item, id: item.id ?? randomUUID() }));
 }
 
-export function registerMcpTools(server: McpServer) {
-  const supabase = createAdminClient();
+const json = (v: unknown) => v as Prisma.InputJsonValue;
 
+function parseDate(label: string, value: string): Date {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) throw new Error(`Invalid ${label}: ${value}`);
+  return d;
+}
+
+// Dreamshape is single-user, and a remote MCP call carries no browser session. The tools act
+// on the one user: MCP_USER_ID if set, otherwise the oldest account.
+async function getUserId(): Promise<string> {
+  const fixed = process.env.MCP_USER_ID;
+  if (fixed) return fixed;
+  const profile = await prisma.profile.findFirst({ orderBy: { createdAt: "asc" }, select: { id: true } });
+  if (!profile) throw new Error("Could not resolve the app's user id from the profiles table");
+  return profile.id;
+}
+
+export function registerMcpTools(server: McpServer) {
   // ─── Profile ──────────────────────────────────────────────────────────────
   server.registerTool(
     "get_profile",
     { title: "Get profile", description: "Get the user's profile (name, member since, role).", inputSchema: {} },
     async () =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data, error } = await supabase.from("profiles").select("*").eq("id", userId).single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const row = await prisma.profile.findUnique({ where: { id: userId } });
+        if (!row) return fail("Profile not found");
+        return ok(profileRow(row));
       })
   );
 
@@ -77,13 +100,11 @@ export function registerMcpTools(server: McpServer) {
     { title: "Update profile", description: "Update the user's display name or role.", inputSchema: { name: z.string().optional(), role: z.enum(["creator", "tester", "member"]).nullable().optional() } },
     async ({ name, role }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const updates: Record<string, unknown> = {};
-        if (name !== undefined) updates.name = name;
-        if (role !== undefined) updates.role = role;
-        const { data, error } = await supabase.from("profiles").update(updates).eq("id", userId).select().single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const exists = await prisma.profile.findUnique({ where: { id: userId }, select: { id: true } });
+        if (!exists) return fail("Profile not found");
+        const row = await prisma.profile.update({ where: { id: userId }, data: { name, role } });
+        return ok(profileRow(row));
       })
   );
 
@@ -93,10 +114,9 @@ export function registerMcpTools(server: McpServer) {
     { title: "List workout templates", description: "List all workout templates.", inputSchema: {} },
     async () =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data, error } = await supabase.from("templates").select("*").eq("user_id", userId).order("created_at", { ascending: false });
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const rows = await prisma.template.findMany({ where: { userId }, orderBy: { createdAt: "desc" } });
+        return ok(rows.map(templateRow));
       })
   );
 
@@ -109,20 +129,11 @@ export function registerMcpTools(server: McpServer) {
     },
     async (input) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data, error } = await supabase
-          .from("templates")
-          .insert({
-            id: randomUUID(),
-            user_id: userId,
-            name: input.name,
-            exercises: withIds(input.exercises),
-            notes: input.notes || null,
-          })
-          .select()
-          .single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const row = await prisma.template.create({
+          data: { id: randomUUID(), userId, name: input.name, exercises: json(withIds(input.exercises)), notes: input.notes || null },
+        });
+        return ok(templateRow(row));
       })
   );
 
@@ -133,14 +144,16 @@ export function registerMcpTools(server: McpServer) {
       description: "Update a template's name, exercise list, or notes. Only provided fields are changed.",
       inputSchema: { templateId: z.string(), name: z.string().optional(), exercises: z.array(exerciseSchema).optional(), notes: z.string().nullable().optional() },
     },
-    async ({ templateId, exercises, ...rest }) =>
+    async ({ templateId, exercises, name, notes }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const updates: Record<string, unknown> = { ...rest };
-        if (exercises !== undefined) updates.exercises = withIds(exercises);
-        const { data, error } = await supabase.from("templates").update(updates).eq("id", templateId).eq("user_id", userId).select().single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const result = await prisma.template.updateMany({
+          where: { id: templateId, userId },
+          data: { name, notes, exercises: exercises !== undefined ? json(withIds(exercises)) : undefined },
+        });
+        if (result.count === 0) return fail("Template not found");
+        const row = await prisma.template.findFirst({ where: { id: templateId, userId } });
+        return ok(templateRow(row!));
       })
   );
 
@@ -149,9 +162,8 @@ export function registerMcpTools(server: McpServer) {
     { title: "Delete workout template", description: "Delete a workout template.", inputSchema: { templateId: z.string() } },
     async ({ templateId }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { error } = await supabase.from("templates").delete().eq("id", templateId).eq("user_id", userId);
-        if (error) return fail(error.message);
+        const userId = await getUserId();
+        await prisma.template.deleteMany({ where: { id: templateId, userId } });
         return ok({ ok: true });
       })
   );
@@ -166,14 +178,16 @@ export function registerMcpTools(server: McpServer) {
     },
     async ({ from, to, limit }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        let query = supabase.from("workouts").select("*").eq("user_id", userId).order("date", { ascending: false });
-        if (from) query = query.gte("date", from);
-        if (to) query = query.lte("date", to);
-        if (limit) query = query.limit(limit);
-        const { data, error } = await query;
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const date: Prisma.DateTimeFilter = {};
+        if (from) date.gte = parseDate("from", from);
+        if (to) date.lte = parseDate("to", to);
+        const rows = await prisma.workout.findMany({
+          where: { userId, ...(from || to ? { date } : {}) },
+          orderBy: { date: "desc" },
+          ...(limit ? { take: limit } : {}),
+        });
+        return ok(rows.map(workoutRow));
       })
   );
 
@@ -192,35 +206,36 @@ export function registerMcpTools(server: McpServer) {
     },
     async (input) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
+        const userId = await getUserId();
         const exercises = input.exercises.map((ex) => ({ ...ex, sets: withIds(ex.sets) }));
-        const { data, error } = await supabase
-          .from("workouts")
-          .insert({
+        const row = await prisma.workout.create({
+          data: {
             id: randomUUID(),
-            user_id: userId,
-            template_name: input.templateName,
-            date: input.date,
-            duration: input.duration,
-            exercises,
-            activity_type: input.activityType ?? "workout",
-          })
-          .select()
-          .single();
-        if (error) return fail(error.message);
-        return ok(data);
+            userId,
+            templateName: input.templateName,
+            date: parseDate("date", input.date),
+            duration: Math.round(input.duration),
+            exercises: json(exercises),
+            activityType: input.activityType ?? "workout",
+          },
+        });
+        return ok(workoutRow(row));
       })
   );
 
   server.registerTool(
     "update_workout",
     { title: "Update workout", description: "Update a logged workout's duration or date.", inputSchema: { workoutId: z.string(), duration: z.number().optional(), date: z.string().optional() } },
-    async ({ workoutId, ...rest }) =>
+    async ({ workoutId, duration, date }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data, error } = await supabase.from("workouts").update(rest).eq("id", workoutId).eq("user_id", userId).select().single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const result = await prisma.workout.updateMany({
+          where: { id: workoutId, userId },
+          data: { duration: duration !== undefined ? Math.round(duration) : undefined, date: date !== undefined ? parseDate("date", date) : undefined },
+        });
+        if (result.count === 0) return fail("Workout not found");
+        const row = await prisma.workout.findFirst({ where: { id: workoutId, userId } });
+        return ok(workoutRow(row!));
       })
   );
 
@@ -229,9 +244,8 @@ export function registerMcpTools(server: McpServer) {
     { title: "Delete workout", description: "Delete a logged workout.", inputSchema: { workoutId: z.string() } },
     async ({ workoutId }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { error } = await supabase.from("workouts").delete().eq("id", workoutId).eq("user_id", userId);
-        if (error) return fail(error.message);
+        const userId = await getUserId();
+        await prisma.workout.deleteMany({ where: { id: workoutId, userId } });
         return ok({ ok: true });
       })
   );
@@ -242,10 +256,9 @@ export function registerMcpTools(server: McpServer) {
     { title: "List custom exercises", description: "List user-created exercises (in addition to the built-in library).", inputSchema: {} },
     async () =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data, error } = await supabase.from("custom_exercises").select("*").eq("user_id", userId).order("name");
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const rows = await prisma.customExercise.findMany({ where: { userId }, orderBy: { name: "asc" } });
+        return ok(rows.map(customExerciseRow));
       })
   );
 
@@ -258,14 +271,11 @@ export function registerMcpTools(server: McpServer) {
     },
     async ({ name, muscleGroup, equipment, trackingMode }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data, error } = await supabase
-          .from("custom_exercises")
-          .insert({ user_id: userId, name, muscle_group: muscleGroup, equipment, tracking_mode: trackingMode ?? null })
-          .select()
-          .single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const row = await prisma.customExercise.create({
+          data: { userId, name, muscleGroup, equipment, trackingMode: trackingMode ?? null },
+        });
+        return ok(customExerciseRow(row));
       })
   );
 
@@ -274,9 +284,8 @@ export function registerMcpTools(server: McpServer) {
     { title: "Delete custom exercise", description: "Remove an exercise from the personal exercise library, by name.", inputSchema: { name: z.string() } },
     async ({ name }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { error } = await supabase.from("custom_exercises").delete().eq("name", name).eq("user_id", userId);
-        if (error) return fail(error.message);
+        const userId = await getUserId();
+        await prisma.customExercise.deleteMany({ where: { name, userId } });
         return ok({ ok: true });
       })
   );
@@ -287,13 +296,12 @@ export function registerMcpTools(server: McpServer) {
     { title: "List weight entries", description: "List logged body-weight entries, oldest first. Optionally filter by date range.", inputSchema: { from: z.string().optional(), to: z.string().optional() } },
     async ({ from, to }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        let query = supabase.from("weight_entries").select("*").eq("user_id", userId).order("date", { ascending: true });
-        if (from) query = query.gte("date", from);
-        if (to) query = query.lte("date", to);
-        const { data, error } = await query;
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const rows = await prisma.weightEntry.findMany({
+          where: { userId, ...(from || to ? { date: { gte: from, lte: to } } : {}) },
+          orderBy: { date: "asc" },
+        });
+        return ok(rows.map(weightRow));
       })
   );
 
@@ -302,15 +310,12 @@ export function registerMcpTools(server: McpServer) {
     { title: "Log body weight", description: "Log (or overwrite) the body-weight entry for a given date (YYYY-MM-DD), in kg.", inputSchema: { date: z.string(), weight: z.number() } },
     async ({ date, weight }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data: existing } = await supabase.from("weight_entries").select("id").eq("user_id", userId).eq("date", date).maybeSingle();
-        const { data, error } = await supabase
-          .from("weight_entries")
-          .upsert({ id: existing?.id ?? randomUUID(), user_id: userId, date, weight }, { onConflict: "id" })
-          .select()
-          .single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const existing = await prisma.weightEntry.findFirst({ where: { userId, date }, select: { id: true } });
+        const row = existing
+          ? await prisma.weightEntry.update({ where: { id: existing.id }, data: { weight } })
+          : await prisma.weightEntry.create({ data: { id: randomUUID(), userId, date, weight } });
+        return ok(weightRow(row));
       })
   );
 
@@ -319,9 +324,8 @@ export function registerMcpTools(server: McpServer) {
     { title: "Delete weight entry", description: "Delete a logged weight entry.", inputSchema: { entryId: z.string() } },
     async ({ entryId }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { error } = await supabase.from("weight_entries").delete().eq("id", entryId).eq("user_id", userId);
-        if (error) return fail(error.message);
+        const userId = await getUserId();
+        await prisma.weightEntry.deleteMany({ where: { id: entryId, userId } });
         return ok({ ok: true });
       })
   );
@@ -332,13 +336,12 @@ export function registerMcpTools(server: McpServer) {
     { title: "List run logs", description: "List logged runs, most recent first. Optionally filter by date range.", inputSchema: { from: z.string().optional(), to: z.string().optional() } },
     async ({ from, to }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        let query = supabase.from("run_logs").select("*").eq("user_id", userId).order("date", { ascending: false });
-        if (from) query = query.gte("date", from);
-        if (to) query = query.lte("date", to);
-        const { data, error } = await query;
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const rows = await prisma.runLog.findMany({
+          where: { userId, ...(from || to ? { date: { gte: from, lte: to } } : {}) },
+          orderBy: { date: "desc" },
+        });
+        return ok(rows.map(runRow));
       })
   );
 
@@ -360,26 +363,23 @@ export function registerMcpTools(server: McpServer) {
     },
     async (input) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
+        const userId = await getUserId();
         const averagePace = input.averagePace ?? Math.round(input.duration / Math.max(input.distance, 0.01));
-        const { data, error } = await supabase
-          .from("run_logs")
-          .insert({
+        const row = await prisma.runLog.create({
+          data: {
             id: randomUUID(),
-            user_id: userId,
+            userId,
             date: input.date,
             distance: input.distance,
-            duration: input.duration,
-            average_pace: averagePace,
-            pace_is_manual: input.paceIsManual ?? false,
-            average_hr: input.averageHR ?? null,
+            duration: Math.round(input.duration),
+            averagePace: Math.round(averagePace),
+            paceIsManual: input.paceIsManual ?? false,
+            averageHr: input.averageHR != null ? Math.round(input.averageHR) : null,
             difficulty: input.difficulty,
             notes: input.notes ?? null,
-          })
-          .select()
-          .single();
-        if (error) return fail(error.message);
-        return ok(data);
+          },
+        });
+        return ok(runRow(row));
       })
   );
 
@@ -388,9 +388,8 @@ export function registerMcpTools(server: McpServer) {
     { title: "Delete run log", description: "Delete a logged run.", inputSchema: { runId: z.string() } },
     async ({ runId }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { error } = await supabase.from("run_logs").delete().eq("id", runId).eq("user_id", userId);
-        if (error) return fail(error.message);
+        const userId = await getUserId();
+        await prisma.runLog.deleteMany({ where: { id: runId, userId } });
         return ok({ ok: true });
       })
   );
@@ -405,12 +404,12 @@ export function registerMcpTools(server: McpServer) {
     },
     async ({ includeArchived }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        let query = supabase.from("habits").select("*").eq("user_id", userId).order("sort_order", { ascending: true });
-        if (!includeArchived) query = query.eq("is_active", true);
-        const { data, error } = await query;
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const rows = await prisma.habit.findMany({
+          where: { userId, ...(includeArchived ? {} : { isActive: true }) },
+          orderBy: { sortOrder: "asc" },
+        });
+        return ok(rows.map(habitRow));
       })
   );
 
@@ -430,24 +429,21 @@ export function registerMcpTools(server: McpServer) {
     },
     async (input) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { data, error } = await supabase
-          .from("habits")
-          .insert({
+        const userId = await getUserId();
+        const row = await prisma.habit.create({
+          data: {
             id: randomUUID(),
-            user_id: userId,
+            userId,
             name: input.name,
             icon: input.icon ?? null,
-            recurrence: input.recurrence,
-            time_of_day: input.timeOfDay ?? null,
-            linked_template_id: input.linkedTemplateId ?? null,
-            is_active: true,
-            sort_order: input.sortOrder ?? 0,
-          })
-          .select()
-          .single();
-        if (error) return fail(error.message);
-        return ok(data);
+            recurrence: json(input.recurrence),
+            timeOfDay: input.timeOfDay ?? null,
+            linkedTemplateId: input.linkedTemplateId ?? null,
+            isActive: true,
+            sortOrder: input.sortOrder ?? 0,
+          },
+        });
+        return ok(habitRow(row));
       })
   );
 
@@ -467,17 +463,24 @@ export function registerMcpTools(server: McpServer) {
         sortOrder: z.number().int().optional(),
       },
     },
-    async ({ habitId, timeOfDay, linkedTemplateId, isActive, sortOrder, ...rest }) =>
+    async ({ habitId, name, icon, recurrence, timeOfDay, linkedTemplateId, isActive, sortOrder }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const updates: Record<string, unknown> = { ...rest };
-        if (timeOfDay !== undefined) updates.time_of_day = timeOfDay;
-        if (linkedTemplateId !== undefined) updates.linked_template_id = linkedTemplateId;
-        if (isActive !== undefined) updates.is_active = isActive;
-        if (sortOrder !== undefined) updates.sort_order = sortOrder;
-        const { data, error } = await supabase.from("habits").update(updates).eq("id", habitId).eq("user_id", userId).select().single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const data: Prisma.HabitUpdateManyMutationInput = {};
+        if (name !== undefined) data.name = name;
+        if (icon !== undefined) data.icon = icon;
+        if (recurrence !== undefined) data.recurrence = json(recurrence);
+        if (timeOfDay !== undefined) data.timeOfDay = timeOfDay;
+        if (linkedTemplateId !== undefined) data.linkedTemplateId = linkedTemplateId;
+        if (isActive !== undefined) data.isActive = isActive;
+        if (sortOrder !== undefined) data.sortOrder = sortOrder;
+        if (Object.keys(data).length > 0) {
+          const result = await prisma.habit.updateMany({ where: { id: habitId, userId }, data });
+          if (result.count === 0) return fail("Habit not found");
+        }
+        const row = await prisma.habit.findFirst({ where: { id: habitId, userId } });
+        if (!row) return fail("Habit not found");
+        return ok(habitRow(row));
       })
   );
 
@@ -490,9 +493,8 @@ export function registerMcpTools(server: McpServer) {
     },
     async ({ habitId }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        const { error } = await supabase.from("habits").delete().eq("id", habitId).eq("user_id", userId);
-        if (error) return fail(error.message);
+        const userId = await getUserId();
+        await prisma.habit.deleteMany({ where: { id: habitId, userId } });
         return ok({ ok: true });
       })
   );
@@ -506,20 +508,18 @@ export function registerMcpTools(server: McpServer) {
     },
     async ({ habitId, date, status }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
+        const userId = await getUserId();
         if (status === "pending") {
-          const { error } = await supabase.from("habit_completions").delete().eq("habit_id", habitId).eq("date", date).eq("user_id", userId);
-          if (error) return fail(error.message);
+          await prisma.habitCompletion.deleteMany({ where: { habitId, date, userId } });
           return ok({ habitId, date, status: "pending" });
         }
-        const { data: existing } = await supabase.from("habit_completions").select("id").eq("habit_id", habitId).eq("date", date).eq("user_id", userId).maybeSingle();
-        const { data, error } = await supabase
-          .from("habit_completions")
-          .upsert({ id: existing?.id ?? randomUUID(), user_id: userId, habit_id: habitId, date, status }, { onConflict: "id" })
-          .select()
-          .single();
-        if (error) return fail(error.message);
-        return ok(data);
+        const habit = await prisma.habit.findFirst({ where: { id: habitId, userId }, select: { id: true } });
+        if (!habit) return fail("Habit not found");
+        const existing = await prisma.habitCompletion.findFirst({ where: { habitId, date, userId }, select: { id: true } });
+        const row = existing
+          ? await prisma.habitCompletion.update({ where: { id: existing.id }, data: { status } })
+          : await prisma.habitCompletion.create({ data: { id: randomUUID(), userId, habitId, date, status } });
+        return ok(completionRow(row));
       })
   );
 
@@ -532,14 +532,12 @@ export function registerMcpTools(server: McpServer) {
     },
     async ({ habitId, from, to }) =>
       safe(async () => {
-        const userId = await getUserId(supabase);
-        let query = supabase.from("habit_completions").select("*").eq("user_id", userId).order("date", { ascending: true });
-        if (habitId) query = query.eq("habit_id", habitId);
-        if (from) query = query.gte("date", from);
-        if (to) query = query.lte("date", to);
-        const { data, error } = await query;
-        if (error) return fail(error.message);
-        return ok(data);
+        const userId = await getUserId();
+        const rows = await prisma.habitCompletion.findMany({
+          where: { userId, ...(habitId ? { habitId } : {}), ...(from || to ? { date: { gte: from, lte: to } } : {}) },
+          orderBy: { date: "asc" },
+        });
+        return ok(rows.map(completionRow));
       })
   );
 }

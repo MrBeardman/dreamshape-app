@@ -1,4 +1,4 @@
-import { verify, verifyPkce, type AuthCode } from "../_lib/mcp/oauth.js";
+import { verify, verifyPkce, type AuthCode } from "./oauth.js";
 
 const EXPIRES_IN = 34560000; // ~400 days; this is a personal single-user server, not worth rotating often
 

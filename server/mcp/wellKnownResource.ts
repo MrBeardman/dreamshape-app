@@ -1,4 +1,4 @@
-import { generateProtectedResourceMetadata, getPublicUrl, metadataCorsOptionsRequestHandler } from "mcp-handler";
+import { generateProtectedResourceMetadata, getPublicUrl, metadataCorsOptionsRequestHandler } from "./publicUrl.js";
 
 export async function GET(req: Request) {
   const origin = getPublicUrl(req).origin;
