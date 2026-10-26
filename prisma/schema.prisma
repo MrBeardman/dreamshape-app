@@ -1,0 +1,275 @@
+// DreamShape data model, MySQL / MariaDB (Hostinger).
+//
+// Ported from the Supabase Postgres schema (docs/supabase_migrations.sql).
+// - Table and column names keep their Postgres spelling (snake_case) via @@map / @map,
+//   so scripts/copy-from-supabase.mjs can copy table by table, column by column.
+// - ids stay UUID strings (VarChar(36)), same values as before.
+// - timestamptz -> DateTime(3) stored as UTC; numeric -> Decimal; jsonb -> Json.
+// - Several "date" columns are plain text ('2026-10-26') in the app. They stay strings.
+// - MySQL defaults strings to VARCHAR(191): free text is @db.Text, everything else VarChar(255).
+// - Row level security is gone. Every query in server/ is scoped to the session user.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum ActivityType {
+  workout
+  cardio
+  stretching
+  recovery
+}
+
+enum HabitStatus {
+  done
+  failed
+}
+
+// Replaces Supabase auth.users. id is the same UUID as auth.users.id / profiles.id.
+// passwordHash is a bcrypt hash (copied as is from Supabase) or "saltHex:hashHex" (scrypt).
+model User {
+  id           String   @id @db.VarChar(36)
+  email        String   @unique @db.VarChar(255)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  profile          Profile?
+  templates        Template[]
+  workouts         Workout[]
+  customExercises  CustomExercise[]
+  nutritionLogs    NutritionLog[]
+  customFoods      CustomFood[]
+  weightEntries    WeightEntry[]
+  runLogs          RunLog[]
+  trainingPlans    TrainingPlan[]
+  habits           Habit[]
+  habitCompletions HabitCompletion[]
+
+  @@map("users")
+}
+
+model Profile {
+  id          String   @id @db.VarChar(36)
+  name        String   @default("User") @db.VarChar(255)
+  memberSince DateTime @default(now()) @map("member_since") @db.DateTime(3)
+  createdAt   DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+  peakXp      Decimal? @default(0) @map("peak_xp") @db.Decimal(18, 4)
+  xpStartDate String?  @map("xp_start_date") @db.VarChar(32)
+  role        String?  @db.VarChar(32)
+
+  user          User           @relation(fields: [id], references: [id], onDelete: Cascade)
+  incomeEntries IncomeEntry[]
+  incomeSources IncomeSource[]
+
+  @@map("profiles")
+}
+
+model Template {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  userId    String   @map("user_id") @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  notes     String?  @db.Text
+  exercises Json
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("templates")
+}
+
+model Workout {
+  id           String        @id @default(uuid()) @db.VarChar(36)
+  userId       String        @map("user_id") @db.VarChar(36)
+  templateName String        @map("template_name") @db.VarChar(255)
+  date         DateTime      @default(now()) @db.DateTime(3)
+  duration     Int
+  activityType ActivityType? @default(workout) @map("activity_type")
+  notes        String?       @db.Text
+  exercises    Json
+  createdAt    DateTime      @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime      @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+  templateId   String?       @map("template_id") @db.VarChar(36)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([date])
+  @@map("workouts")
+}
+
+model CustomExercise {
+  id           String   @id @default(uuid()) @db.VarChar(36)
+  userId       String   @map("user_id") @db.VarChar(36)
+  name         String   @db.VarChar(255)
+  muscleGroup  String   @map("muscle_group") @db.VarChar(255)
+  equipment    String   @db.VarChar(255)
+  notes        String?  @db.Text
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(3)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(3)
+  // 'weight-reps' | 'time'. Declared in docs/supabase_migrations.sql but never applied to the
+  // live Supabase database, so the old app silently lost it. Kept here because the app uses it.
+  trackingMode String?  @map("tracking_mode") @db.VarChar(16)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("custom_exercises")
+}
+
+model NutritionLog {
+  id        String    @id @db.VarChar(36)
+  userId    String    @map("user_id") @db.VarChar(36)
+  date      String    @db.VarChar(32)
+  entries   Json
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("nutrition_logs")
+}
+
+model CustomFood {
+  id              String    @id @db.VarChar(36)
+  userId          String    @map("user_id") @db.VarChar(36)
+  name            String    @db.VarChar(255)
+  brand           String?   @db.VarChar(255)
+  barcode         String?   @db.VarChar(64)
+  caloriesPer100g Decimal   @default(0) @map("calories_per100g") @db.Decimal(12, 4)
+  proteinPer100g  Decimal   @default(0) @map("protein_per100g") @db.Decimal(12, 4)
+  carbsPer100g    Decimal   @default(0) @map("carbs_per100g") @db.Decimal(12, 4)
+  fatPer100g      Decimal   @default(0) @map("fat_per100g") @db.Decimal(12, 4)
+  sugarPer100g    Decimal   @default(0) @map("sugar_per100g") @db.Decimal(12, 4)
+  createdAt       DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("custom_foods")
+}
+
+// income_* come from a shared Supabase project (finance tracking). DreamShape does not use
+// them, they are carried over so the schema is complete.
+model IncomeSource {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String   @db.VarChar(255)
+  profileId String?  @map("profile_id") @db.VarChar(36)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  profile Profile?      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  entries IncomeEntry[]
+
+  @@map("income_sources")
+}
+
+model IncomeEntry {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  profileId String   @map("profile_id") @db.VarChar(36)
+  sourceId  String?  @map("source_id") @db.VarChar(36)
+  date      DateTime @db.Date
+  // Postgres had CHECK (amount > 0). Enforce in code if this table is ever written to.
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.DateTime(3)
+
+  profile Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  source  IncomeSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([profileId])
+  @@map("income_entries")
+}
+
+model WeightEntry {
+  id        String    @id @db.VarChar(36)
+  userId    String    @map("user_id") @db.VarChar(36)
+  date      String    @db.VarChar(32)
+  weight    Decimal   @db.Decimal(12, 4)
+  createdAt DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("weight_entries")
+}
+
+model RunLog {
+  id           String    @id @db.VarChar(36)
+  userId       String    @map("user_id") @db.VarChar(36)
+  date         String    @db.VarChar(64)
+  distance     Decimal   @db.Decimal(12, 4)
+  duration     Int
+  averagePace  Int       @map("average_pace")
+  paceIsManual Boolean?  @default(false) @map("pace_is_manual")
+  averageHr    Int?      @map("average_hr")
+  difficulty   Int
+  notes        String?   @db.Text
+  createdAt    DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("run_logs")
+}
+
+model TrainingPlan {
+  id                String    @id @db.VarChar(36)
+  userId            String    @map("user_id") @db.VarChar(36)
+  name              String    @db.VarChar(255)
+  days              Json
+  startDate         String    @map("start_date") @db.VarChar(32)
+  isActive          Boolean?  @default(false) @map("is_active")
+  createdAt         DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+  currentCycleIndex Int?      @default(0) @map("current_cycle_index")
+  checkIns          Json?     @map("check_ins")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("training_plans")
+}
+
+model Habit {
+  id               String    @id @db.VarChar(36)
+  userId           String    @map("user_id") @db.VarChar(36)
+  name             String    @db.VarChar(255)
+  icon             String?   @db.VarChar(255)
+  recurrence       Json
+  timeOfDay        String?   @map("time_of_day") @db.VarChar(32)
+  linkedTemplateId String?   @map("linked_template_id") @db.VarChar(36)
+  isActive         Boolean?  @default(true) @map("is_active")
+  sortOrder        Int?      @default(0) @map("sort_order")
+  createdAt        DateTime? @default(now()) @map("created_at") @db.DateTime(3)
+
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  completions HabitCompletion[]
+
+  @@index([userId])
+  @@map("habits")
+}
+
+model HabitCompletion {
+  id        String      @id @db.VarChar(36)
+  userId    String      @map("user_id") @db.VarChar(36)
+  habitId   String      @map("habit_id") @db.VarChar(36)
+  date      String      @db.VarChar(32)
+  status    HabitStatus
+  createdAt DateTime?   @default(now()) @map("created_at") @db.DateTime(3)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+  @@index([userId])
+  @@map("habit_completions")
+}
