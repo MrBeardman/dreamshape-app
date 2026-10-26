@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { motion } from 'motion/react'
-import { supabase } from '../lib/supabase'
+import { signIn, signUp } from '../lib/auth'
+import type { AuthUser } from '../types'
 
 interface AuthViewProps {
-  onAuthSuccess: () => void
+  onAuthSuccess: (user: AuthUser) => void
 }
 
 export default function AuthView({ onAuthSuccess }: AuthViewProps) {
@@ -16,38 +17,21 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
 
-  const SIGNUP_CODE = 'BIGIISTHEBEST'
-
+  // The signup code is checked on the server (AUTH_SIGNUP_CODE); sign-up is off when it is not set.
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError(null)
     setMessage(null)
 
-    // Check signup code
-    if (signupCode !== SIGNUP_CODE) {
-      setError('Invalid signup code. DreamShape is currently in testing.')
+    try {
+      // All new signups are testers (set server-side). No confirmation email: the account is ready at once.
+      const user = await signUp({ email, password, name: name || 'User', signupCode })
       setLoading(false)
-      return
-    }
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name || 'User',
-          role: 'tester' // All new signups are testers
-        }
-      }
-    })
-
-    setLoading(false)
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setMessage('Check your email to confirm your account!')
+      onAuthSuccess(user)
+    } catch (err) {
+      setLoading(false)
+      setError(err instanceof Error ? err.message : 'Sign up failed')
     }
   }
 
@@ -57,17 +41,13 @@ export default function AuthView({ onAuthSuccess }: AuthViewProps) {
     setError(null)
     setMessage(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    setLoading(false)
-
-    if (error) {
-      setError(error.message)
-    } else {
-      onAuthSuccess()
+    try {
+      const user = await signIn(email, password)
+      setLoading(false)
+      onAuthSuccess(user)
+    } catch (err) {
+      setLoading(false)
+      setError(err instanceof Error ? err.message : 'Sign in failed')
     }
   }
 

@@ -1,6 +1,12 @@
-import { supabase } from './supabase'
+import { api } from './api'
 import type { WorkoutTemplate, WorkoutLog, UserProfile, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from '../types'
 
+type CustomExercise = { name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }
+
+// Local-first sync: the app writes to localStorage immediately and calls these methods to
+// mirror the change to the server (server/routes/data.ts). The server takes the user from the
+// session cookie, so no user id is sent. Which calls throw and which swallow errors is the same
+// as it was with Supabase; callers in App.tsx rely on that for rollbacks.
 export class SyncService {
   private userId: string
   private syncInProgress = false
@@ -10,9 +16,9 @@ export class SyncService {
   }
 
   // ============================================
-  // INITIAL MIGRATION (localStorage → Supabase)
+  // INITIAL MIGRATION (localStorage → server)
   // ============================================
-  async migrateLocalDataToSupabase(): Promise<void> {
+  async migrateLocalDataToServer(): Promise<void> {
     if (this.syncInProgress) return
     this.syncInProgress = true
 
@@ -47,102 +53,21 @@ export class SyncService {
   }
 
   // ============================================
-  // LOAD DATA FROM SUPABASE
+  // LOAD DATA FROM SERVER
   // ============================================
   async loadAllData(): Promise<{
     profile: UserProfile | null
     templates: WorkoutTemplate[]
     workouts: WorkoutLog[]
-    exercises: Array<{ name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }>
+    exercises: Array<CustomExercise>
     weightEntries: WeightEntry[]
     runLogs: RunLog[]
     habits: Habit[]
     habitCompletions: HabitCompletion[]
   }> {
     try {
-      const [profileRes, templatesRes, workoutsRes, exercisesRes, weightRes, runsRes, habitsRes, habitCompletionsRes] =
-        await Promise.all([
-          supabase.from('profiles').select('*').eq('id', this.userId).single(),
-          supabase.from('templates').select('*').eq('user_id', this.userId).order('created_at', { ascending: false }),
-          supabase.from('workouts').select('*').eq('user_id', this.userId).order('date', { ascending: false }),
-          supabase.from('custom_exercises').select('*').eq('user_id', this.userId).order('name'),
-          supabase.from('weight_entries').select('*').eq('user_id', this.userId).order('date', { ascending: true }),
-          supabase.from('run_logs').select('*').eq('user_id', this.userId).order('date', { ascending: false }),
-          supabase.from('habits').select('*').eq('user_id', this.userId).order('sort_order', { ascending: true }),
-          supabase.from('habit_completions').select('*').eq('user_id', this.userId),
-        ])
-
-      const profile: UserProfile | null = profileRes.data
-        ? {
-            name: profileRes.data.name,
-            memberSince: profileRes.data.member_since,
-            role: profileRes.data.role ?? undefined,
-            peakXp: profileRes.data.peak_xp ?? undefined,
-            xpStartDate: profileRes.data.xp_start_date ?? undefined,
-          }
-        : null
-
-      const templates: WorkoutTemplate[] = (templatesRes.data || []).map(t => ({
-        id: t.id,
-        name: t.name,
-        exercises: t.exercises,
-        notes: t.notes,
-      }))
-
-      const workouts: WorkoutLog[] = (workoutsRes.data || []).map(w => ({
-        id: w.id,
-        templateName: w.template_name,
-        date: w.date,
-        exercises: w.exercises,
-        duration: w.duration,
-        activityType: w.activity_type,
-      }))
-
-      const exercises = (exercisesRes.data || []).map(e => ({
-        name: e.name,
-        muscleGroup: e.muscle_group,
-        equipment: e.equipment,
-        trackingMode: (e.tracking_mode ?? undefined) as 'weight-reps' | 'time' | undefined,
-      }))
-
-      const weightEntries: WeightEntry[] = (weightRes.data || []).map(e => ({
-        id: e.id,
-        date: e.date,
-        weight: e.weight,
-      }))
-
-      const runLogs: RunLog[] = (runsRes.data || []).map(r => ({
-        id: r.id,
-        date: r.date,
-        distance: r.distance,
-        duration: r.duration,
-        averagePace: r.average_pace,
-        paceIsManual: r.pace_is_manual ?? false,
-        averageHR: r.average_hr ?? undefined,
-        difficulty: r.difficulty,
-        notes: r.notes ?? undefined,
-      }))
-
-      const habits: Habit[] = (habitsRes.data || []).map(h => ({
-        id: h.id,
-        name: h.name,
-        icon: h.icon ?? undefined,
-        recurrence: h.recurrence,
-        timeOfDay: h.time_of_day ?? undefined,
-        linkedTemplateId: h.linked_template_id ?? undefined,
-        isActive: h.is_active,
-        sortOrder: h.sort_order ?? 0,
-        createdAt: h.created_at,
-      }))
-
-      const habitCompletions: HabitCompletion[] = (habitCompletionsRes.data || []).map(c => ({
-        id: c.id,
-        habitId: c.habit_id,
-        date: c.date,
-        status: c.status,
-      }))
-
-      return { profile, templates, workouts, exercises, weightEntries, runLogs, habits, habitCompletions }
+      // The server already returns the client-side shapes (see GET /api/data).
+      return await api('GET', '/data')
     } catch (error) {
       console.error('Failed to load data:', error)
       return {
@@ -163,10 +88,12 @@ export class SyncService {
   // ============================================
   async updateProfile(profile: UserProfile): Promise<void> {
     try {
-      await supabase
-        .from('profiles')
-        .update({ name: profile.name, role: profile.role ?? null, peak_xp: profile.peakXp ?? 0, xp_start_date: profile.xpStartDate ?? null })
-        .eq('id', this.userId)
+      await api('PUT', '/profile', {
+        name: profile.name,
+        role: profile.role ?? null,
+        peakXp: profile.peakXp ?? 0,
+        xpStartDate: profile.xpStartDate ?? null,
+      })
       localStorage.setItem('dreamshape_profile', JSON.stringify(profile))
     } catch (error) {
       console.error('Failed to update profile:', error)
@@ -178,141 +105,110 @@ export class SyncService {
   // TEMPLATES
   // ============================================
   async createTemplate(template: WorkoutTemplate): Promise<void> {
-    const { error } = await supabase.from('templates').insert({
+    await api('POST', '/templates', {
       id: template.id,
-      user_id: this.userId,
       name: template.name,
       exercises: template.exercises,
       notes: template.notes || null,
-    }).select()
-    if (error) throw error
+    })
   }
 
   async updateTemplate(template: WorkoutTemplate): Promise<void> {
-    const { error } = await supabase
-      .from('templates')
-      .update({ name: template.name, exercises: template.exercises, notes: template.notes || null })
-      .eq('id', template.id)
-      .eq('user_id', this.userId)
-    if (error) throw error
+    await api('PUT', `/templates/${template.id}`, {
+      name: template.name,
+      exercises: template.exercises,
+      notes: template.notes || null,
+    })
   }
 
   async deleteTemplate(templateId: string): Promise<void> {
-    const { error } = await supabase
-      .from('templates')
-      .delete()
-      .eq('id', templateId)
-      .eq('user_id', this.userId)
-    if (error) throw error
+    await api('DELETE', `/templates/${templateId}`)
   }
 
   // ============================================
   // WORKOUTS
   // ============================================
   async createWorkout(workout: WorkoutLog): Promise<void> {
-    const { error } = await supabase.from('workouts').insert({
+    await api('POST', '/workouts', {
       id: workout.id,
-      user_id: this.userId,
-      template_name: workout.templateName,
+      templateName: workout.templateName,
       date: workout.date,
       duration: workout.duration,
       exercises: workout.exercises,
-      activity_type: workout.activityType || 'workout',
-    }).select()
-    if (error) throw error
+      activityType: workout.activityType || 'workout',
+    })
   }
 
   async updateWorkout(workoutId: string, updates: { duration?: number; date?: string }): Promise<void> {
-    const { error } = await supabase
-      .from('workouts')
-      .update(updates)
-      .eq('id', workoutId)
-      .eq('user_id', this.userId)
-    if (error) throw error
+    await api('PATCH', `/workouts/${workoutId}`, updates)
   }
 
   async deleteWorkout(workoutId: string): Promise<void> {
-    const { error } = await supabase
-      .from('workouts')
-      .delete()
-      .eq('id', workoutId)
-      .eq('user_id', this.userId)
-    if (error) throw error
+    await api('DELETE', `/workouts/${workoutId}`)
   }
 
   // ============================================
   // CUSTOM EXERCISES
   // ============================================
-  async createCustomExercise(exercise: { name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }): Promise<void> {
+  async createCustomExercise(exercise: CustomExercise): Promise<void> {
     try {
-      await supabase.from('custom_exercises').insert({
-        user_id: this.userId,
+      await api('POST', '/custom-exercises', {
         name: exercise.name,
-        muscle_group: exercise.muscleGroup,
+        muscleGroup: exercise.muscleGroup,
         equipment: exercise.equipment,
-        tracking_mode: exercise.trackingMode ?? null,
+        trackingMode: exercise.trackingMode ?? null,
       })
     } catch (error) {
-      if (!(error as any)?.message?.includes('duplicate')) {
-        console.error('Failed to create custom exercise:', error)
-      }
+      console.error('Failed to create custom exercise:', error)
     }
   }
 
   async deleteCustomExercise(exerciseName: string): Promise<void> {
-    await supabase
-      .from('custom_exercises')
-      .delete()
-      .eq('name', exerciseName)
-      .eq('user_id', this.userId)
+    try {
+      await api('DELETE', `/custom-exercises?name=${encodeURIComponent(exerciseName)}`)
+    } catch (error) {
+      console.error('Failed to delete custom exercise:', error)
+    }
   }
 
   // ============================================
   // WEIGHT ENTRIES
   // ============================================
   async upsertWeightEntry(entry: WeightEntry): Promise<void> {
-    const { error } = await supabase.from('weight_entries').upsert({
-      id: entry.id,
-      user_id: this.userId,
-      date: entry.date,
-      weight: entry.weight,
-    }, { onConflict: 'id' })
-    if (error) throw error
+    await api('PUT', `/weight-entries/${entry.id}`, { date: entry.date, weight: entry.weight })
   }
 
   async deleteWeightEntry(entryId: string): Promise<void> {
-    await supabase
-      .from('weight_entries')
-      .delete()
-      .eq('id', entryId)
-      .eq('user_id', this.userId)
+    try {
+      await api('DELETE', `/weight-entries/${entryId}`)
+    } catch (error) {
+      console.error('Failed to delete weight entry:', error)
+    }
   }
 
   // ============================================
   // RUN LOGS
   // ============================================
   async createRunLog(run: RunLog): Promise<void> {
-    const { error } = await supabase.from('run_logs').insert({
+    await api('POST', '/run-logs', {
       id: run.id,
-      user_id: this.userId,
       date: run.date,
       distance: run.distance,
       duration: run.duration,
-      average_pace: run.averagePace,
-      pace_is_manual: run.paceIsManual,
-      average_hr: run.averageHR ?? null,
+      averagePace: run.averagePace,
+      paceIsManual: run.paceIsManual,
+      averageHR: run.averageHR ?? null,
       difficulty: run.difficulty,
       notes: run.notes ?? null,
     })
-    if (error) throw error
   }
 
   async deleteRunLog(runId: string): Promise<void> {
-    await supabase
-      .from('run_logs')
-      .delete()
-      .eq('id', runId)
-      .eq('user_id', this.userId)
+    try {
+      await api('DELETE', `/run-logs/${runId}`)
+    } catch (error) {
+      console.error('Failed to delete run log:', error)
+    }
   }
 
   // ============================================
@@ -330,7 +226,7 @@ export class SyncService {
     try { return JSON.parse(localStorage.getItem('dreamshape_workouts') || '[]') } catch { return [] }
   }
 
-  private getLocalExercises(): Array<{ name: string; muscleGroup: string; equipment: string; trackingMode?: 'weight-reps' | 'time' }> {
+  private getLocalExercises(): Array<CustomExercise> {
     try { return JSON.parse(localStorage.getItem('dreamshape_exercises') || '[]') } catch { return [] }
   }
 
@@ -353,68 +249,53 @@ export class SyncService {
   // ============================================
   // HABITS
   // ============================================
-  async createHabit(habit: Habit): Promise<void> {
-    const { error } = await supabase.from('habits').insert({
+  private habitBody(habit: Habit) {
+    return {
       id: habit.id,
-      user_id: this.userId,
       name: habit.name,
       icon: habit.icon ?? null,
       recurrence: habit.recurrence,
-      time_of_day: habit.timeOfDay ?? null,
-      linked_template_id: habit.linkedTemplateId ?? null,
-      is_active: habit.isActive,
-      sort_order: habit.sortOrder,
-      created_at: habit.createdAt,
-    })
-    if (error) throw error
+      timeOfDay: habit.timeOfDay ?? null,
+      linkedTemplateId: habit.linkedTemplateId ?? null,
+      isActive: habit.isActive,
+      sortOrder: habit.sortOrder,
+      createdAt: habit.createdAt,
+    }
+  }
+
+  async createHabit(habit: Habit): Promise<void> {
+    await api('POST', '/habits', this.habitBody(habit))
   }
 
   async updateHabit(habit: Habit): Promise<void> {
-    const { error } = await supabase
-      .from('habits')
-      .update({
-        name: habit.name,
-        icon: habit.icon ?? null,
-        recurrence: habit.recurrence,
-        time_of_day: habit.timeOfDay ?? null,
-        linked_template_id: habit.linkedTemplateId ?? null,
-        is_active: habit.isActive,
-        sort_order: habit.sortOrder,
-      })
-      .eq('id', habit.id)
-      .eq('user_id', this.userId)
-    if (error) throw error
+    await api('PUT', `/habits/${habit.id}`, this.habitBody(habit))
   }
 
   async deleteHabit(habitId: string): Promise<void> {
-    await supabase.from('habits').delete().eq('id', habitId).eq('user_id', this.userId)
+    try {
+      await api('DELETE', `/habits/${habitId}`)
+    } catch (error) {
+      console.error('Failed to delete habit:', error)
+    }
   }
 
   async reorderHabits(habits: Habit[]): Promise<void> {
-    await Promise.all(
-      habits.map(h => supabase.from('habits').update({ sort_order: h.sortOrder }).eq('id', h.id).eq('user_id', this.userId))
-    )
+    try {
+      await api('POST', '/habits/reorder', { items: habits.map(h => ({ id: h.id, sortOrder: h.sortOrder })) })
+    } catch (error) {
+      console.error('Failed to reorder habits:', error)
+    }
   }
 
   async setHabitCompletion(habitId: string, date: string, status: HabitCompletionStatus | 'pending'): Promise<void> {
     if (status === 'pending') {
-      await supabase.from('habit_completions').delete().eq('habit_id', habitId).eq('date', date).eq('user_id', this.userId)
+      try {
+        await api('PUT', '/habit-completions', { habitId, date, status })
+      } catch (error) {
+        console.error('Failed to clear habit completion:', error)
+      }
       return
     }
-    const { data: existing } = await supabase
-      .from('habit_completions')
-      .select('id')
-      .eq('habit_id', habitId)
-      .eq('date', date)
-      .eq('user_id', this.userId)
-      .maybeSingle()
-    const { error } = await supabase.from('habit_completions').upsert({
-      id: existing?.id ?? crypto.randomUUID(),
-      user_id: this.userId,
-      habit_id: habitId,
-      date,
-      status,
-    }, { onConflict: 'id' })
-    if (error) throw error
+    await api('PUT', '/habit-completions', { habitId, date, status })
   }
 }

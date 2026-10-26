@@ -1,5 +1,5 @@
 // DreamShape Service Worker
-const CACHE_NAME = 'dreamshape-v3' // v3: skip cross-origin fetches so external APIs work correctly
+const CACHE_NAME = 'dreamshape-v4' // v4: never cache /api (auth + data); v3: skip cross-origin fetches so external APIs work correctly
 const urlsToCache = [
   '/',
   '/index.html'
@@ -33,6 +33,10 @@ self.addEventListener('fetch', (event) => {
   // the page's AbortController signal, causing fetches to hang until the timeout fires.
   const url = new URL(event.request.url)
   if (url.origin !== self.location.origin) return
+
+  // The JSON API (session, login, synced data) must always hit the server, never the cache:
+  // the app does its own offline handling from localStorage. Same for the MCP/OAuth endpoints.
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.well-known/')) return
 
   event.respondWith(
     fetch(event.request)

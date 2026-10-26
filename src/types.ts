@@ -108,3 +108,11 @@ export interface WeightEntry {
   date: string   // YYYY-MM-DD
   weight: number // kg
 }
+
+// The signed-in account, as returned by /api/auth/*.
+export interface AuthUser {
+  id: string
+  email: string
+  createdAt: string
+  role?: 'creator' | 'tester' | 'member'
+}

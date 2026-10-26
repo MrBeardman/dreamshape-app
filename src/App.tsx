@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
-import { supabase } from './lib/supabase'
+import { getSessionUser, signOut, forgetUser } from './lib/auth'
+import { onUnauthorized } from './lib/api'
 import { SyncService } from './lib/syncService'
 import SyncIndicator from './components/SyncIndicator'
 import AuthView from './components/AuthView'
-import type { User } from '@supabase/supabase-js'
 import './App-redesign.css'
-import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus } from './types'
+import type { WorkoutTemplate, WorkoutLog, ActiveWorkout, Exercise, ExerciseLog, UserProfile, WeightEntry, RunLog, Habit, HabitCompletion, HabitCompletionStatus, AuthUser } from './types'
 import { nextHabitStatus, getHabitStatus, todayISO } from './lib/habits'
 import { DEFAULT_EXERCISES } from './data/defaultExercises'
 import WorkoutView from './components/WorkoutView'
@@ -68,7 +68,7 @@ function App() {
     try { return JSON.parse(localStorage.getItem(HABIT_COMPLETIONS_KEY) || '[]') } catch { return [] }
   })
 
-  const [user, setUser] = useState<User | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [syncService, setSyncService] = useState<SyncService | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -128,21 +128,21 @@ function App() {
   // AUTH & SYNC
   // ============================================
 
-  const handleInitialSync = async (sync: SyncService, supabaseUser: User) => {
+  const handleInitialSync = async (sync: SyncService, authUser: AuthUser) => {
     try {
       setIsSyncing(true)
-      await sync.migrateLocalDataToSupabase()
+      await sync.migrateLocalDataToServer()
       const data = await sync.loadAllData()
 
       if (data.profile) {
-        const profileWithRole = { ...data.profile, role: supabaseUser.user_metadata?.role || data.profile.role }
+        const profileWithRole = { ...data.profile, role: authUser.role || data.profile.role }
         setUserProfile(profileWithRole)
         localStorage.setItem('dreamshape_profile', JSON.stringify(profileWithRole))
-      } else if (supabaseUser) {
+      } else if (authUser) {
         const newProfile: UserProfile = {
-          name: supabaseUser.email?.split('@')[0] || 'User',
-          memberSince: supabaseUser.created_at || new Date().toISOString(),
-          role: supabaseUser.user_metadata?.role || undefined,
+          name: authUser.email?.split('@')[0] || 'User',
+          memberSince: authUser.createdAt || new Date().toISOString(),
+          role: authUser.role || undefined,
         }
         setUserProfile(newProfile)
         localStorage.setItem('dreamshape_profile', JSON.stringify(newProfile))
@@ -181,36 +181,33 @@ function App() {
     }
   }
 
+  const startSession = (authUser: AuthUser) => {
+    setUser(authUser)
+    const sync = new SyncService(authUser.id)
+    setSyncService(sync)
+    handleInitialSync(sync, authUser)
+  }
+
   useEffect(() => {
     let isMounted = true
-    let hasInitializedSync = false
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    getSessionUser().then((sessionUser) => {
       if (!isMounted) return
-      setUser(session?.user ?? null)
       setAuthLoading(false)
-      if (session?.user && !hasInitializedSync) {
-        hasInitializedSync = true
-        const sync = new SyncService(session.user.id)
-        setSyncService(sync)
-        handleInitialSync(sync, session.user)
-      }
+      if (sessionUser) startSession(sessionUser)
+      else setUser(null)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    // A data request came back 401: the session cookie expired or was cleared.
+    const stopListening = onUnauthorized(() => {
       if (!isMounted) return
-      if (event === 'INITIAL_SESSION') return
-      setUser(session?.user ?? null)
-      if (session?.user && event === 'SIGNED_IN') {
-        const sync = new SyncService(session.user.id)
-        setSyncService(sync)
-        handleInitialSync(sync, session.user)
-      } else if (event === 'SIGNED_OUT') {
-        setSyncService(null)
-      }
+      forgetUser()
+      setUser(null)
+      setSyncService(null)
     })
 
-    return () => { isMounted = false; subscription.unsubscribe() }
+    return () => { isMounted = false; stopListening() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -234,7 +231,8 @@ function App() {
 
   const handleSignOut = async () => {
     if (await showConfirm({ title: 'Sign out?', confirmLabel: 'Sign Out' })) {
-      await supabase.auth.signOut()
+      await signOut()
+      setUser(null)
       setSyncService(null)
       setLastSyncTime(null)
     }
@@ -744,7 +742,7 @@ function App() {
           <p className="loading-text">Loading...</p>
         </div>
       ) : !user ? (
-        <AuthView onAuthSuccess={() => { }} />
+        <AuthView onAuthSuccess={startSession} />
       ) : (
         <>
           {!activeWorkout && !selectedWorkout && !isCreating && !isManagingHabits && (
