@@ -441,7 +441,7 @@
 }
 
 .calendar-y-label {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   text-align: right;
 }
@@ -484,7 +484,7 @@
 }
 
 .calendar-x-label {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   text-align: center;
 }
@@ -619,10 +619,8 @@
 }
 
 .goals-volume-label {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   margin-bottom: 4px;
 }
 
@@ -658,7 +656,7 @@
 }
 
 .goals-card-subtitle {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   font-weight: 400;
   margin-left: 6px;
@@ -695,7 +693,7 @@
 }
 
 .goals-pr-badge {
-  font-size: 11px;
+  font-size: 0.75rem;
   padding: 2px 7px;
   border-radius: 20px;
   background: rgba(245, 197, 24, 0.2);
@@ -747,7 +745,7 @@
 }
 
 .goals-trend-pct {
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 20px;
@@ -943,7 +941,7 @@
 }
 
 .nutrition-bar-value {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   white-space: nowrap;
   min-width: 90px;
@@ -1079,7 +1077,7 @@
 }
 
 .weight-profile-date {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
 }
 

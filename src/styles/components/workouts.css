@@ -73,8 +73,6 @@
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 /* ===== EMPTY STATE ===== */

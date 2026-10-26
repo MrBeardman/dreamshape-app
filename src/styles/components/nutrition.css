@@ -134,15 +134,13 @@
 }
 
 .cal-ring-unit {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   font-weight: var(--font-medium);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 .cal-ring-goal {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   margin-top: 2px;
 }
@@ -163,7 +161,7 @@
 }
 
 .macro-bar-label {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   font-weight: var(--font-medium);
   width: 42px;
@@ -186,7 +184,7 @@
 }
 
 .macro-bar-value {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -295,7 +293,7 @@
 
 .meal-entry-meta {
   display: block;
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -493,7 +491,7 @@
 }
 
 .food-result-macros {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -514,10 +512,8 @@
 }
 
 .food-recents-label {
-  font-size: 11px;
+  font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   color: var(--text-secondary);
   padding: 8px 0 4px;
 }
@@ -684,10 +680,8 @@
 }
 
 .macro-preview-label {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .macro-calories .macro-preview-val {
@@ -874,7 +868,7 @@
 }
 
 .dashboard-macro-mini-label {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   width: 36px;
   flex-shrink: 0;
@@ -895,7 +889,7 @@
 }
 
 .dashboard-macro-mini-val {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   min-width: 32px;
   text-align: right;
@@ -945,8 +939,6 @@
   font-size: var(--text-xs);
   color: var(--text-tertiary);
   font-weight: var(--font-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .custom-portions-list {
@@ -1016,8 +1008,6 @@
   font-size: var(--text-xs);
   color: var(--text-tertiary);
   font-weight: var(--font-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .portion-chips {
@@ -1055,7 +1045,7 @@
 }
 
 .portion-chip-grams {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
 }
 
@@ -1066,7 +1056,7 @@
 
 /* My foods list: portion hint */
 .food-result-portions {
-  font-size: 10px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   margin-top: 3px;
   font-style: italic;

@@ -106,8 +106,6 @@
 .stat-label {
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
   color: var(--text-tertiary);
 }
 
@@ -449,7 +447,7 @@
 .day-detail-exercises { display: flex; flex-wrap: wrap; gap: 6px; }
 
 .day-detail-exercise-tag {
-  font-size: 11px;
+  font-size: 0.75rem;
   padding: 3px 8px;
   background: rgba(255,255,255,0.07);
   border-radius: 20px;
@@ -496,11 +494,9 @@
 }
 
 .week-cal-day {
-  font-size: 9px;
+  font-size: 0.75rem;
   font-weight: var(--font-bold);
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
 }
 
 .week-cal-num {
@@ -527,11 +523,9 @@
 
 .month-cal-header span {
   text-align: center;
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: var(--font-bold);
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
   padding: 2px 0;
 }
 
@@ -645,13 +639,11 @@
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
   line-height: 1;
 }
 
 .muscle-tile-days {
-  font-size: 11px;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   line-height: 1;
 }

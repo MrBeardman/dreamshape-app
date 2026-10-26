@@ -115,19 +115,15 @@
 .nav-label {
   position: relative;
   z-index: 1;
-  font-size: 10px;
+  font-size: 0.75rem;
   font-weight: var(--font-semibold);
   line-height: 1;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 .nav-label-primary {
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   line-height: 1;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
 }
 
 /* iOS safe area support */

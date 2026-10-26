@@ -159,8 +159,6 @@ body {
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
   margin-bottom: 6px;
 }
 
@@ -412,3 +410,17 @@ body {
 }
 
 .minimized-bar-resume:hover { background: var(--primary-hover); }
+
+/* ===== ACCESSIBILITY & MOBILE POLISH ===== */
+/* Keyboard users get a visible ring; mouse/touch users do not */
+:where(button, a, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* iOS zooms into inputs below 16px; pinch-zoom itself is allowed again */
+@media (max-width: 767px) {
+  input, select, textarea {
+    font-size: max(16px, 1em);
+  }
+}

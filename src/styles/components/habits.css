@@ -81,8 +81,6 @@
   font-size: var(--text-xs);
   font-weight: var(--font-bold);
   color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin: 8px 0 2px;
 }
 
@@ -546,7 +544,7 @@
 }
 
 .month-cal-cell-ratio {
-  font-size: 8px;
+  font-size: 0.75rem;
   font-weight: var(--font-medium);
   opacity: 0.85;
   line-height: 1;

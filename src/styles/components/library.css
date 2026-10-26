@@ -382,8 +382,6 @@
   font-size: var(--text-base);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin: 0;
 }
 

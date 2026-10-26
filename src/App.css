@@ -129,7 +129,7 @@ button { cursor: pointer; border: none; background: none; }
   gap: 5px;
   padding: 5px 11px;
   border-radius: var(--r-full);
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   z-index: 999;
   backdrop-filter: blur(16px);
@@ -197,7 +197,7 @@ button { cursor: pointer; border: none; background: none; }
 .nav-item.active { color: var(--accent); }
 
 .nav-icon  { font-size: 1.375rem; line-height: 1; }
-.nav-label { font-size: 0.5625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.nav-label { font-size: 0.75rem; font-weight: 700;}
 
 /* Centre primary button */
 .nav-item-primary {
@@ -283,8 +283,6 @@ button { cursor: pointer; border: none; background: none; }
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
 }
 
 .form-group input {
@@ -449,10 +447,8 @@ button { cursor: pointer; border: none; background: none; }
 .stat-card.streak .stat-value { color: var(--accent-text); }
 
 .stat-label {
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
   color: var(--text-3);
 }
 
@@ -634,7 +630,7 @@ button { cursor: pointer; border: none; background: none; }
   align-items: center;
   justify-content: flex-end;
   gap: 5px;
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-3);
 }
 
@@ -777,11 +773,9 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .meta-label {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   color: var(--text-3);
-  text-transform: uppercase;
   font-weight: 700;
-  letter-spacing: 0.5px;
 }
 
 .meta-value { font-size: 0.9375rem; color: var(--text-1); font-weight: 700; }
@@ -802,11 +796,9 @@ button { cursor: pointer; border: none; background: none; }
   grid-template-columns: 36px 1fr 1fr 36px;
   gap: 6px;
   padding: 8px 2px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   border-bottom: 1px solid var(--border);
   margin: 10px 0 4px;
 }
@@ -1026,13 +1018,11 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .exercise-group-title {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-3);
   padding: 10px 14px;
   background: var(--bg-elevated);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .exercise-item {
@@ -1057,15 +1047,13 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .custom-badge {
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--accent);
   background: var(--accent-dim);
   border: 1px solid rgba(245, 197, 24, 0.3);
   padding: 1px 6px;
   border-radius: var(--r-full);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .btn-exercise-delete {
@@ -1375,8 +1363,6 @@ button { cursor: pointer; border: none; background: none; }
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin-bottom: 8px;
 }
 
@@ -1398,8 +1384,6 @@ button { cursor: pointer; border: none; background: none; }
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin-bottom: 12px;
 }
 
@@ -1445,11 +1429,9 @@ button { cursor: pointer; border: none; background: none; }
 
 .suggestion-group-header {
   padding: 8px 14px;
-  font-size: 0.625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   background: var(--bg-elevated);
   position: sticky;
   top: 0;
@@ -1714,11 +1696,9 @@ button { cursor: pointer; border: none; background: none; }
 .rest-timer-content { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
 .rest-label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   color: var(--text-3);
-  text-transform: uppercase;
   font-weight: 700;
-  letter-spacing: 1px;
 }
 
 .rest-time {
@@ -1885,11 +1865,9 @@ button { cursor: pointer; border: none; background: none; }
   grid-template-columns: 36px 1fr 1fr 40px;
   gap: 6px;
   padding: 6px 2px;
-  font-size: 0.5625rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
 }
@@ -1927,7 +1905,7 @@ button { cursor: pointer; border: none; background: none; }
   background: var(--accent-dim);
   color: var(--accent);
   border-color: rgba(245,197,24,0.3);
-  font-size: 0.625rem;
+  font-size: 0.75rem;
 }
 
 .set-input {
@@ -2049,11 +2027,9 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .add-exercise-title {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
   margin-bottom: 10px;
 }
 
@@ -2176,11 +2152,9 @@ button { cursor: pointer; border: none; background: none; }
 }
 
 .summary-stat-label {
-  font-size: 0.6875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 /* Changes summary */
@@ -2197,8 +2171,6 @@ button { cursor: pointer; border: none; background: none; }
   font-weight: 600;
   color: var(--text-2);
   margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
 
 .change-item { font-size: 0.875rem; padding: 2px 0; }
